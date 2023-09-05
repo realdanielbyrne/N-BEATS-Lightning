@@ -13,27 +13,12 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 from utils import *
 import pathlib
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 torch.set_float32_matmul_precision('medium')
 from lightning.pytorch import loggers as pl_loggers
 
-#%%
 
-# Hourly, Daily, Weekly, Daily, Monthly, Quarterly, or Yearly
-seasonal_period= "Daily"
-data_index = 1 
-
-scrpt_path = pathlib.Path(__file__).parent.resolve()
-cwd = pathlib.Path().resolve()
-
-train_file = pathlib.Path(scrpt_path,f"../data/M4/Train/{seasonal_period}-train.csv")
-test_file = pathlib.Path(scrpt_path, f"../data/M4/Test/{seasonal_period}-test.csv")
-train_data = pd.read_csv(train_file, index_col=0)
-test_data = pd.read_csv(test_file, index_col=0)
-
-data_info = pd.read_csv(pathlib.Path(scrpt_path,"../data/M4/M4-info.csv"), index_col=0)
-data_id_info = data_info.loc[seasonal_period[0] + f"{data_index}"]
-freq = data_id_info.Frequency
 
 #%%
 class Block(nn.Module):
@@ -177,19 +162,19 @@ class NBeatsNet(pl.LightningModule):
     
   def __init__(
       self,
-      loss,
+      loss:str = 'smape',
       stack_types =(GENERIC_BLOCK,GENERIC_BLOCK,GENERIC_BLOCK),
-      blocks_per_stack:int = 1, # N-BEATS paper best results Generic 1 blk/stk, Trend 3 blk/stk, Seasonality 3 blk/stk
-      n_forecast:int = 6,  # forecast (H)orizon
       n_backcast:int = 30, # default of 5*forecast_length or 5H , N-BEATS paper tested 2H,3H,4H,5H,6H,7H          
-      thetas_dim: int = 5, # Output of FC layer in each of the forecast and backcast branches of each block
-                            # N-Beats paper doesn't specify
+      n_forecast:int = 6,  # forecast (H)orizon
+      thetas_dim:int = 5, # Output of FC layer in each of the forecast and backcast branches of each block
+      blocks_per_stack:int = 1, # N-BEATS paper best results Generic 1 blk/stk, Trend 3 blk/stk, Seasonality 3 blk/stk
       share_weights_in_stack:bool = True, # Generic model prefers no weight sharing, while interpretable model does.
       hidden_layer_units:int = 512,
       learning_rate: float = 1e-5,
       optimizer: str = 'adam',
       nb_harmonics = None,
-      no_val:bool = False
+      no_val:bool = False,
+      freq:int=1
     ):
     super(NBeatsNet, self).__init__()
     self.loss = loss
@@ -197,13 +182,15 @@ class NBeatsNet(pl.LightningModule):
     self.n_backcast = n_backcast
     self.n_forecast = n_forecast
     self.thetas_dim = thetas_dim
+    self.blocks_per_stack = blocks_per_stack
     self.share_weights_in_stack = share_weights_in_stack
     self.hidden_layer_units = hidden_layer_units
     self.learning_rate = learning_rate
-    self.blocks_per_stack = blocks_per_stack
     self.optimizer_name = optimizer
     self.nb_harmonics = nb_harmonics
     self.no_val = no_val
+    self.freq = freq
+    self.loss_fn = self.select_loss()
     self.save_hyperparameters()
     
     print('| N-Beats')
@@ -232,23 +219,14 @@ class NBeatsNet(pl.LightningModule):
 
     return blocks
   
-
-
-  def save(self, filename: str):
-    torch.save(self.state_dict(), filename)
-
-  @classmethod
-  def load(cls, filename: str, map_location=None):
-    model = cls()
-    model.load_state_dict(torch.load(filename, map_location=map_location))
-    return model
-
   @staticmethod
   def select_block(block_type):
     if block_type == NBeatsNet.SEASONALITY_BLOCK:
       return SeasonalityBlock
+    
     elif block_type == NBeatsNet.TREND_BLOCK:
       return TrendBlock
+    
     else:
       return GenericBlock
 
@@ -265,11 +243,7 @@ class NBeatsNet(pl.LightningModule):
   def training_step(self, batch, batch_idx):
     x, y = batch
     _, forecast = self(x)
-    
-    if self.loss == 'mase':
-      loss = self.loss(forecast, squeeze_last_dim(y), x)
-    else:
-      loss = self.loss(forecast, squeeze_last_dim(y))
+    loss = self.loss_fn(forecast, squeeze_last_dim(y), x)
     
     self.log('train_loss', loss)
     return loss
@@ -277,26 +251,18 @@ class NBeatsNet(pl.LightningModule):
   def validation_step(self, batch, batch_idx):
     if self.no_val:
       return None
-  
+    
     x, y = batch
     _, forecast = self(x)
+    loss = self.loss_fn(forecast, squeeze_last_dim(y), x)
     
-    if self.loss == 'mase':
-      loss = self.loss(forecast, squeeze_last_dim(y), x)
-    else:
-      loss = self.loss(forecast, squeeze_last_dim(y))
-      
     self.log('val_loss', loss)
     return loss
 
   def test_step(self, batch, batch_idx):
     x, y = batch
     _, forecast = self(x)
-    
-    if self.loss == 'mase':
-      loss = self.loss(forecast, squeeze_last_dim(y), x)
-    else:      
-      loss = self.loss(forecast, squeeze_last_dim(y))
+    loss = self.loss_fn(forecast, squeeze_last_dim(y), x)
       
     self.log('test_loss', loss)
     return loss
@@ -323,6 +289,35 @@ class NBeatsNet(pl.LightningModule):
     if return_backcast:
         return backcast
     return forecast
+  
+  def select_loss(self):
+    if self.loss == 'smape':       
+      return self.smape
+    
+    elif self.loss == 'mase':
+      return self.mase
+    
+    elif  isinstance(self.loss, nn.Module):     
+      return self.pytorch_loss
+    
+    else:
+      raise ValueError(f'Unknown loss name: {self.loss}.')
+    
+  def pytorch_loss(self, preds, targets, x):
+    return self.loss_fn(preds, targets)
+    
+  def smape(self, preds, targets, x):
+    # flatten
+    targets = torch.reshape(targets, (-1,))
+    preds = torch.reshape(preds, (-1,))
+    return torch.mean(2.0 * torch.abs(targets - preds) / (torch.abs(targets) + torch.abs(preds)))
+  
+  def mase(self, preds, targets, x):
+    # naïve
+    y_t = x[:-self.freq]
+    y_tm = x[self.freq:]    
+    denom = torch.mean(torch.abs(y_t - y_tm))    
+    return torch.mean(torch.abs(targets - preds)) / denom       
 
   
 class TimeSeriesDataset(Dataset):
@@ -415,43 +410,74 @@ class TimeSeriesCollectionTestModule(pl.LightningDataModule):
   def test_dataloader(self):
     return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle = True, num_workers=0)
 
-    
-def smape(preds, targets):
-  # flatten
-  targets = torch.reshape(targets, (-1,))
-  preds = torch.reshape(preds, (-1,))
-  return torch.mean(2.0 * torch.abs(targets - preds) / (torch.abs(targets) + torch.abs(preds)))
-          
 
-def get_trainer(max_epochs=100, dev=False, val_nepoch=5):
-  tb_logger = pl_loggers.TensorBoardLogger(save_dir="../logs/", name="nbeats_smape")
-  csv_logger = pl_loggers.CSVLogger(save_dir="../logs/", name="nbeats_csv")
+def get_trainer(name, max_epochs=100, dev=False, val_nepoch=5, chk_cb = None):
+  tb_logger = pl_loggers.TensorBoardLogger(save_dir="../logs/", name=name)
+  csv_logger = pl_loggers.CSVLogger(save_dir="../logs/", name=name)
   loggers = [tb_logger, csv_logger]
   
+
   trainer =  pl.Trainer(
     accelerator='auto'
     ,max_epochs=max_epochs   
     ,fast_dev_run=dev
     ,logger=[tb_logger]
-    ,check_val_every_n_epoch=val_nepoch   
-    )
+    ,check_val_every_n_epoch=val_nepoch 
+    #,callbacks=[chk_cb]  
+  )
   return trainer
 
-def select_loss(loss_fn, freq: int = 1):
-  if loss_fn == 'smape':       
-    return smape
+
+def get_M4infofile_info(info_file,seasonal_period, forecast_multiplier, data_index = 1):
   
-  elif loss_fn == 'mase':
-    return MAsE(freq)
+  data_info  = pd.read_csv(info_file, index_col=0)
+  data_id_info = data_info.loc[seasonal_period[0] + f"{data_index}"]
+  category = data_id_info.category
+  frequency = data_id_info.Frequency
+  forecast = data_id_info.Horizon
+  backcast = data_id_info.Horizon * forecast_multiplier
   
-  elif loss_fn == 'mse':      
-    return nn.MSELoss()
-  else:
-    raise ValueError(f'Unknown loss name: {loss_fn}.')
-  
+  return category, frequency, forecast, backcast
 
 #%%
 ## hyperparameters
+
+# Load Data
+# Hourly, Daily, Weekly, Daily, Monthly, Quarterly, or Yearly
+seasonal_period= "Daily"
+data_index = 1 
+forecast_multiplier = 5
+
+scrpt_path = pathlib.Path(__file__).parent.resolve()
+train_file = pathlib.Path(scrpt_path,f"../data/M4/Train/{seasonal_period}-train.csv")
+test_file  = pathlib.Path(scrpt_path, f"../data/M4/Test/{seasonal_period}-test.csv")
+info_file  = pathlib.Path(scrpt_path,"../data/M4/M4-info.csv")
+
+train_data = pd.read_csv(train_file, index_col=0)
+test_data  = pd.read_csv(test_file, index_col=0)
+category, freq, forecast, backcast = get_M4infofile_info(
+  info_file,
+  seasonal_period, 
+  forecast_multiplier)
+
+#%%
+batch_size = 1024
+split_ratio = 0.8
+train = True
+max_epochs = 100
+dev = True
+chkpoint = None 
+val_nepoch = 5
+loss = 'mase'
+train = True
+optimizer = 'adam'
+hidden_layer_units = 512
+share_weights_in_stack = False
+learning_rate = 1e-5
+thetas_dim = 5
+stack_blocks = 1
+name = f"nbeats-{seasonal_period}-{loss}-{forecast}-{backcast}-{freq}" 
+
 stack_types =[NBeatsNet.GENERIC_BLOCK,
               NBeatsNet.GENERIC_BLOCK,
               NBeatsNet.GENERIC_BLOCK,
@@ -464,47 +490,20 @@ stack_types =[NBeatsNet.GENERIC_BLOCK,
               NBeatsNet.GENERIC_BLOCK              
               ]
 
-forecast_multiplier = 5
-forecast = data_id_info.Horizon
-backcast = data_id_info.Horizon * forecast_multiplier
-batch_size = 1024
-split_ratio = 0.8
-train = True
-max_epochs = 300
-dev = True
-chkpoint = None #"../logs/nbeats/version_6/checkpoints/epoch=499-step=80500.ckpt"
-val_nepoch = 5
-loss = select_loss('smape', freq)
-
-print("Script File Path\t", scrpt_path)
-print("Train File Path \t", train_file)
-print("Test File Path  \t", test_file)
-print("Seasonal Period \t", seasonal_period)
-print("Forecast        \t", forecast)
-print("Forecast Mult   \t", forecast_multiplier)
-print("Backcast        \t", backcast)
-print("Frequency       \t", freq)
-print("Batch Size      \t", batch_size)
-print("Split Ratio     \t", split_ratio)
-print("max_epochs      \t", max_epochs)
-print("chkpoint        \t", chkpoint)
-print("fast_dev_run    \t", dev)
-print("val_nepoch      \t", val_nepoch)
-print("\n")
-
 
 model = NBeatsNet(
   stack_types=stack_types,
   n_forecast=forecast, 
   n_backcast=backcast,
   loss=loss,  
-  learning_rate = 1e-5,
-  thetas_dim = 5,
-  blocks_per_stack = 1,
-  share_weights_in_stack = False,
-  hidden_layer_units = 512,
-  optimizer='adam',
-  no_val = False 
+  learning_rate = learning_rate,
+  thetas_dim = thetas_dim,
+  blocks_per_stack = stack_blocks,
+  share_weights_in_stack = share_weights_in_stack,
+  hidden_layer_units = hidden_layer_units,
+  optimizer=optimizer,
+  no_val = False,
+  freq = freq
 )
 
 if chkpoint is not None:
@@ -512,7 +511,12 @@ if chkpoint is not None:
   model = NBeatsNet.load_from_checkpoint(chkpoint)
     
 #%%
-
+chk_cb = ModelCheckpoint(
+  save_top_k=3,
+  monitor="val_loss",
+  mode="min",
+  filename="{name}-{epoch:02d}-{val_loss:.2f}",
+  )
 if train:
   if dev:
     train_data = train_data.iloc[:1000]
@@ -526,7 +530,7 @@ if train:
     split_ratio=split_ratio
     )
   
-  trainer = get_trainer(max_epochs=max_epochs, dev=dev, val_nepoch=val_nepoch)
+  trainer = get_trainer(name,max_epochs=max_epochs, dev=dev, val_nepoch=val_nepoch, chk_cb=chk_cb)
   
   trainer.fit(model, datamodule=dmc, ckpt_path=chkpoint)
   trainer.validate(model, datamodule=dmc)
@@ -536,7 +540,8 @@ else:
   backcast=backcast, 
   forecast=forecast, 
   batch_size=batch_size)
-  trainer = get_trainer(max_epochs=max_epochs, dev=dev, val_nepoch=val_nepoch)
+  
+  trainer = get_trainer(name,max_epochs=max_epochs, dev=dev, val_nepoch=val_nepoch)
   trainer.test(model, datamodule=test_module)
   
 
