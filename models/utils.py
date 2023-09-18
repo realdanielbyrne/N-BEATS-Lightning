@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 from torch import nn, optim
 from torch.nn import functional as F
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from torch.utils.data import DataLoader, Dataset, random_split
 
 def squeeze_last_dim(tensor):

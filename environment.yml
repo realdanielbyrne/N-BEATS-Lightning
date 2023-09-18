@@ -24,20 +24,23 @@ dependencies:
   - blessed=1.19.1=pyh95a074a_2
   - blinker=1.4=py311haa95532_0
   - bottleneck=1.3.5=py311h5bb9823_0
+  - brotli=1.0.9=hcfcfb64_9
+  - brotli-bin=1.0.9=hcfcfb64_9
   - brotlipy=0.7.0=py311h2bbff1b_1002
   - bzip2=1.0.8=h8ffe710_4
   - c-ares=1.19.0=h2bbff1b_0
-  - ca-certificates=2023.05.30=haa95532_0
+  - ca-certificates=2023.7.22=h56e8100_0
   - cachecontrol=0.13.1=pyhd8ed1ab_0
   - cachecontrol-with-filecache=0.13.1=pyhd8ed1ab_0
   - cachetools=4.2.2=pyhd3eb1b0_0
-  - certifi=2023.7.22=py311haa95532_0
+  - certifi=2023.7.22=pyhd8ed1ab_0
   - cffi=1.15.1=py311h2bbff1b_3
   - charset-normalizer=2.0.4=pyhd3eb1b0_0
   - cleo=2.0.1=py311haa95532_0
   - click=8.0.4=py311haa95532_0
   - colorama=0.4.6=pyhd8ed1ab_0
   - comm=0.1.4=pyhd8ed1ab_0
+  - contourpy=1.1.0=py311h005e61a_0
   - crashtest=0.4.1=py311haa95532_0
   - croniter=1.3.7=py311haa95532_0
   - cryptography=41.0.2=py311hac1b9e3_0
@@ -54,6 +57,7 @@ dependencies:
   - cuda-nvtx=11.7.91=0
   - cuda-runtime=11.7.1=0
   - cuda-version=12.0=hffde075_2
+  - cycler=0.11.0=pyhd8ed1ab_0
   - dateutils=0.6.12=py_0
   - debugpy=1.6.8=py311h12c1d0e_0
   - decorator=5.1.1=pyhd8ed1ab_0
@@ -63,15 +67,20 @@ dependencies:
   - executing=1.2.0=pyhd8ed1ab_0
   - fastapi=0.103.0=pyhd8ed1ab_0
   - filelock=3.12.3=pyhd8ed1ab_0
+  - fonttools=4.42.1=py311ha68e1ae_0
   - freetype=2.12.1=ha860e81_0
   - frozenlist=1.3.3=py311h2bbff1b_0
   - fsspec=2023.4.0=py311haa95532_0
+  - gettext=0.21.1=h5728263_0
   - giflib=5.2.1=h8cc25b3_3
+  - glib=2.76.4=h12be248_0
+  - glib-tools=2.76.4=h12be248_0
   - google-auth=2.6.0=pyhd3eb1b0_0
   - google-auth-oauthlib=0.5.2=py311haa95532_0
   - grpc-cpp=1.48.2=hfe90ff0_1
   - grpcio=1.48.2=py311hfe90ff0_1
   - h11=0.12.0=pyhd3eb1b0_0
+  - icu=58.2=ha925a31_3
   - idna=3.4=py311haa95532_0
   - importlib-metadata=6.8.0=pyha770c72_0
   - importlib_metadata=6.8.0=hd8ed1ab_0
@@ -89,7 +98,14 @@ dependencies:
   - jupyter_client=8.3.1=pyhd8ed1ab_0
   - jupyter_core=5.3.1=py311h1ea47a8_0
   - keyring=24.2.0=py311h1ea47a8_0
+  - kiwisolver=1.4.5=py311h005e61a_0
+  - krb5=1.20.1=heb0366b_0
   - lerc=3.0=hd77b12b_0
+  - libbrotlicommon=1.0.9=hcfcfb64_9
+  - libbrotlidec=1.0.9=hcfcfb64_9
+  - libbrotlienc=1.0.9=hcfcfb64_9
+  - libclang=14.0.6=default_hb5a9fac_1
+  - libclang13=14.0.6=default_h8e68704_1
   - libcublas=11.10.3.66=0
   - libcublas-dev=11.10.3.66=0
   - libcufft=10.7.2.124=0
@@ -103,11 +119,14 @@ dependencies:
   - libdeflate=1.17=h2bbff1b_0
   - libexpat=2.5.0=h63175ca_1
   - libffi=3.4.2=h8ffe710_5
+  - libglib=2.76.4=he8f3873_0
+  - libiconv=1.17=h8ffe710_0
   - libnpp=11.7.4.75=0
   - libnpp-dev=11.7.4.75=0
   - libnvjpeg=11.8.0.2=0
   - libnvjpeg-dev=11.8.0.2=0
   - libpng=1.6.39=h8cc25b3_0
+  - libpq=12.15=h906ac69_1
   - libprotobuf=3.20.3=h23ce68f_0
   - libsodium=1.0.18=h8d14728_1
   - libsqlite=3.43.0=hcfcfb64_0
@@ -115,6 +134,8 @@ dependencies:
   - libuv=1.44.2=h2bbff1b_0
   - libwebp=1.2.4=hbc33d0d_1
   - libwebp-base=1.2.4=h2bbff1b_1
+  - libxml2=2.10.4=hc3477c8_0
+  - libxslt=1.1.37=h0192164_0
   - libzlib=1.2.13=hcfcfb64_5
   - lightning=2.0.8=pyhd8ed1ab_0
   - lightning-cloud=0.5.37=pyhd8ed1ab_0
@@ -123,6 +144,8 @@ dependencies:
   - markdown=3.4.1=py311haa95532_0
   - markdown-it-py=2.2.0=py311haa95532_1
   - markupsafe=2.1.1=py311h2bbff1b_0
+  - matplotlib=3.7.2=py311h1ea47a8_0
+  - matplotlib-base=3.7.2=py311h6e989c2_0
   - matplotlib-inline=0.1.6=pyhd8ed1ab_0
   - mdurl=0.1.0=py311haa95532_0
   - mkl=2023.1.0=h6b88ed4_46357
@@ -133,6 +156,7 @@ dependencies:
   - mpmath=1.3.0=py311haa95532_0
   - msgpack-python=1.0.3=py311h59b6b97_0
   - multidict=6.0.2=py311h2bbff1b_0
+  - munkres=1.1.4=pyh9f0ad1d_0
   - nest-asyncio=1.5.6=pyhd8ed1ab_0
   - networkx=3.1=py311haa95532_0
   - numexpr=2.8.4=py311h1fcbade_1
@@ -145,12 +169,13 @@ dependencies:
   - packaging=23.1=pyhd8ed1ab_0
   - pandas=2.0.3=py311hf62ec03_0
   - parso=0.8.3=pyhd8ed1ab_0
+  - pcre2=10.40=h17e33f8_0
   - pexpect=4.8.0=pyhd3eb1b0_3
   - pickleshare=0.7.5=py_1003
-  - pillow=9.4.0=py311hd77b12b_0
-  - pip=23.2.1=pyhd8ed1ab_0
+  - pip=23.2.1=py311haa95532_0
   - pkginfo=1.9.6=py311haa95532_0
   - platformdirs=3.10.0=pyhd8ed1ab_0
+  - ply=3.11=py_1
   - poetry=1.6.1=win_pyh7428d3b_0
   - poetry-core=1.7.0=pyhd8ed1ab_0
   - poetry-plugin-export=1.5.0=pyhd8ed1ab_0
@@ -167,7 +192,10 @@ dependencies:
   - pygments=2.16.1=pyhd8ed1ab_0
   - pyjwt=2.4.0=py311haa95532_0
   - pyopenssl=23.2.0=py311haa95532_0
+  - pyparsing=3.0.9=pyhd8ed1ab_0
   - pyproject_hooks=1.0.0=py311haa95532_0
+  - pyqt=5.15.7=py311hd77b12b_0
+  - pyqt5-sip=12.11.0=py311hd77b12b_0
   - pyrsistent=0.18.0=py311h2bbff1b_0
   - pysocks=1.7.1=py311haa95532_0
   - python=3.11.5=h2628c8c_0_cpython
@@ -187,6 +215,9 @@ dependencies:
   - pywin32-ctypes=0.2.0=py311haa95532_1000
   - pyyaml=6.0=py311h2bbff1b_1
   - pyzmq=25.1.1=py311h7b3f143_0
+  - qt-main=5.15.2=h879a1e9_9
+  - qt-webengine=5.15.9=h5bd16bc_7
+  - qtwebkit=5.212=h2bbfb41_5
   - rapidfuzz=2.13.7=py311hea22821_0
   - re2=2022.04.01=hd77b12b_0
   - readchar=4.0.5=pyhd8ed1ab_0
@@ -197,9 +228,11 @@ dependencies:
   - rsa=4.7.2=pyhd3eb1b0_1
   - setuptools=68.1.2=pyhd8ed1ab_0
   - shellingham=1.5.0=py311haa95532_0
+  - sip=6.6.2=py311hd77b12b_0
   - six=1.16.0=pyh6c4a22f_0
   - sniffio=1.2.0=py311haa95532_1
   - soupsieve=2.4=py311haa95532_0
+  - sqlite=3.43.0=hcfcfb64_0
   - stack_data=0.6.2=pyhd8ed1ab_0
   - starlette=0.27.0=py311haa95532_0
   - starsessions=1.3.0=pyhd8ed1ab_0
@@ -208,6 +241,7 @@ dependencies:
   - tensorboard=2.14.0=pyhd8ed1ab_0
   - tensorboard-data-server=0.7.0=py311haa95532_0
   - tk=8.6.12=h8ffe710_0
+  - toml=0.10.2=pyhd8ed1ab_0
   - tomli=2.0.1=py311haa95532_0
   - tomlkit=0.12.1=pyha770c72_0
   - torchmetrics=0.11.4=py311h746a85d_1
@@ -237,8 +271,11 @@ dependencies:
   - zeromq=4.3.4=h0e60522_1
   - zipp=3.16.2=pyhd8ed1ab_0
   - zlib=1.2.13=hcfcfb64_5
-  - zstd=1.4.9=h19a0ad4_0
+  - zstd=1.5.5=h12be248_0
   - pip:
+      - pathlib==1.0.1
+      - pillow==10.0.0
+      - torch-tb-profiler==0.4.1
       - torchaudio==2.0.2
       - torchvision==0.15.2
 prefix: C:\Users\DanielByrne\AppData\Local\miniconda3\envs\nbeats

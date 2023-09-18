@@ -155,7 +155,6 @@ ENV/
 .ruff_cache/
 
 # data
-.data/
 Datasets/
 mnist/
 MNIST/
