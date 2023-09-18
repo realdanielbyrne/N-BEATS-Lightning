@@ -56,8 +56,8 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
       self.val_data = all_train_data.iloc[train_rows:].values
       
       if self.debug:
-        self.train_data = self.train_data[:1000]
-        self.val_data = self.val_data[:1000]
+        self.train_data = self.train_data[:100]
+        self.val_data = self.val_data[:100]
       
       self.train_dataset = TimeSeriesDataset(self.train_data, self.backcast, self.forecast)
       self.val_dataset = TimeSeriesDataset(self.val_data, self.backcast, self.forecast)    
