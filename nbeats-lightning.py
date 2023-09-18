@@ -31,7 +31,7 @@ seasonal_period= "Monthly"
 data_index = 1 
 
 # The backcast lenght is determined by multiplying the forecast horizon by an integer multiplier
-forecast_multiplier = 5
+forecast_multiplier = 3
 
 
 #%%
@@ -82,15 +82,15 @@ stack_blocks = 1
 # Set trainer hyperparameters
 batch_size = 1024 # N-BEATS paper uses 1024
 val_nepoch = 1 # perform a validation check every n epochs
-max_epochs = 100
-train = True
-test = True
+max_epochs = 2
+train = True # set to True to train the model
+test = False # set to True to test the model
 split_ratio = 0.8
-debug = True
-fast_dev_run = True
+fast_dev_run = True  # set to True to run a single batch through the model for debugging purposes
+debug = True # set to True t limit the size of the dataset for debugging purposes
 chkpoint = None # set to checkpoint path if you want to load a previous model
-loss = SMAPELoss()
-
+#loss = SMAPELoss() # Any Pytorch loss function will do.  N-BEATS paper uses MAPELoss, SMAPELoss, and MASELoss
+loss = MASELoss()
 
 # set precision to 32 bit
 torch.set_float32_matmul_precision('medium')
@@ -115,23 +115,23 @@ if chkpoint is not None:
   model = NBeatsNet.load_from_checkpoint(chkpoint)
 else:
   model = NBeatsNet(
+    loss_fn = loss,  
+    optimizer_name = optimizer,
     stack_types = stack_types,
     n_forecast = forecast, 
     n_backcast = backcast,
-    loss_fn = loss,  
     learning_rate = learning_rate,
     thetas_dim = thetas_dim,
     blocks_per_stack = stack_blocks,
     share_weights_in_stack = share_weights_in_stack,
     hidden_layer_units = hidden_layer_units,
-    optimizer = optimizer,
     no_val = False
   )
 
 
 #%%
 # define a tensorboard loger
-name = f"n-beats-{loss}-s{seasonal_period}-B+H:{backcast}+{forecast}-f:{frequency}" 
+name = f"n-beats-{loss}-{seasonal_period}-{backcast}-{forecast}-{frequency}" 
 tb_logger = pl_loggers.TensorBoardLogger(save_dir="logs/", name=name)
 
 chk_callback = ModelCheckpoint(

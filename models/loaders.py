@@ -35,7 +35,8 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
                backcast=70, 
                forecast=14, 
                batch_size=1024, 
-               split_ratio=0.8):
+               split_ratio=0.8,
+               debug = False):
     
       super(TimeSeriesCollectionDataModule, self).__init__()
       self.train_file = train_file
@@ -43,6 +44,7 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
       self.forecast = forecast
       self.batch_size = batch_size
       self.split_ratio = split_ratio
+      self.debug = debug
 
   def setup(self, stage:str=None):      
 
@@ -52,6 +54,10 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
       
       self.train_data = all_train_data.iloc[:train_rows].values      
       self.val_data = all_train_data.iloc[train_rows:].values
+      
+      if self.debug:
+        self.train_data = self.train_data[:1000]
+        self.val_data = self.val_data[:1000]
       
       self.train_dataset = TimeSeriesDataset(self.train_data, self.backcast, self.forecast)
       self.val_dataset = TimeSeriesDataset(self.val_data, self.backcast, self.forecast)    
@@ -88,7 +94,8 @@ class TimeSeriesCollectionTestModule(pl.LightningDataModule):
       for train_row, test_row in zip(train_data, test_data_raw):
         train_row = train_row[~np.isnan(train_row)]
         sequence = np.concatenate((train_row[-self.backcast:], test_row[:self.forecast]))
-        test_data_sequences.append(sequence)
+        if (sequence.shape[0] == self.backcast + self.forecast):
+          test_data_sequences.append(sequence)
         
       self.test_data = np.array(test_data_sequences)     
       self.test_dataset = TimeSeriesDataset(self.test_data, self.backcast, self.forecast)  

@@ -158,6 +158,7 @@ class NBeatsNet(pl.LightningModule):
   def __init__(
       self,
       loss_fn: nn.Module,
+      optimizer_name:str = 'adam',
       stack_types =(GENERIC_BLOCK,GENERIC_BLOCK,GENERIC_BLOCK),
       n_backcast:int = 30, # default of 5*forecast_length or 5H , N-BEATS paper tested 2H,3H,4H,5H,6H,7H          
       n_forecast:int = 6,  # forecast (H)orizon
@@ -166,7 +167,7 @@ class NBeatsNet(pl.LightningModule):
       share_weights_in_stack:bool = True, # Generic model prefers no weight sharing, while interpretable model does.
       hidden_layer_units:int = 512,
       learning_rate: float = 1e-5,
-      optimizer: str = 'adam',
+    
       nb_harmonics = None,
       no_val:bool = False,
     ):
@@ -179,11 +180,11 @@ class NBeatsNet(pl.LightningModule):
     self.share_weights_in_stack = share_weights_in_stack
     self.hidden_layer_units = hidden_layer_units
     self.learning_rate = learning_rate
-    self.optimizer_name = optimizer
     self.nb_harmonics = nb_harmonics
     self.no_val = no_val
     self.loss_fn = loss_fn
-    self.save_hyperparameters()
+    self.optimizer_name = optimizer_name
+    self.save_hyperparameters(ignore=['loss_fn'])
     
     print('| N-Beats')
     self.stacks = nn.ModuleList()
@@ -259,14 +260,14 @@ class NBeatsNet(pl.LightningModule):
 
   def configure_optimizers(self):
     if self.optimizer_name == 'adam':
-      optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+      opti = optim.Adam(self.parameters(), lr=self.learning_rate)
     elif self.optimizer_name == 'sgd':
-      optimizer = optim.SGD(self.parameters(), lr=self.learning_rate)
+      opti = optim.SGD(self.parameters(), lr=self.learning_rate)
     elif self.optimizer_name == 'rmsprop':
-      optimizer = optim.RMSprop(self.parameters(), lr=self.learning_rate)
+      opti = optim.RMSprop(self.parameters(), lr=self.learning_rate)
     else:
-      raise ValueError(f'Unknown optimizer name: {optimizer}.')
-    return optimizer
+      raise ValueError(f"Unknown optimizer name: {self.optimizer_name}. Please select one of 'adam', 'sgd', or 'rmsprop'.")
+    return opti
 
   def predict(self, x, return_backcast=False):
     self.eval()
