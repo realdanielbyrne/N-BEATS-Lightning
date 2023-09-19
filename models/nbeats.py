@@ -7,6 +7,8 @@ from torch import nn, optim
 from torch.nn import functional as F
 import lightning.pytorch as pl
 import pathlib
+from .losses import MASELoss, SMAPELoss, MAPELoss
+
 
 from lightning.pytorch import loggers as pl_loggers
 
@@ -157,7 +159,7 @@ class NBeatsNet(pl.LightningModule):
     
   def __init__(
       self,
-      loss_fn: nn.Module,
+      loss: str = 'smape',
       optimizer_name:str = 'adam',
       stack_types =(GENERIC_BLOCK,GENERIC_BLOCK,GENERIC_BLOCK),
       n_backcast:int = 30, # default of 5*forecast_length or 5H , N-BEATS paper tested 2H,3H,4H,5H,6H,7H          
@@ -166,10 +168,10 @@ class NBeatsNet(pl.LightningModule):
       blocks_per_stack:int = 1, # N-BEATS paper best results Generic 1 blk/stk, Trend 3 blk/stk, Seasonality 3 blk/stk
       share_weights_in_stack:bool = True, # Generic model prefers no weight sharing, while interpretable model does.
       hidden_layer_units:int = 512,
-      learning_rate: float = 1e-5,
-    
+      learning_rate: float = 1e-5,      
       nb_harmonics = None,
       no_val:bool = False,
+      frequency:int = 1
     ):
     super(NBeatsNet, self).__init__()
     self.stack_types = stack_types
@@ -182,9 +184,12 @@ class NBeatsNet(pl.LightningModule):
     self.learning_rate = learning_rate
     self.nb_harmonics = nb_harmonics
     self.no_val = no_val
-    self.loss_fn = loss_fn
     self.optimizer_name = optimizer_name
-    self.save_hyperparameters(ignore=['loss_fn'])
+    self.frequency = frequency
+    self.loss = loss
+    self.loss_fn = self.configure_loss()
+    
+    self.save_hyperparameters()
     
     print('| N-Beats')
     self.stacks = nn.ModuleList()
@@ -258,6 +263,16 @@ class NBeatsNet(pl.LightningModule):
     self.log('test_loss', loss)
     return loss
 
+  def configure_loss(self):
+    if self.loss == 'mase':
+      return MASELoss(self.frequency)
+    if self.loss == 'mape':
+      return MAPELoss()
+    if self.loss == 'smape':
+      return SMAPELoss()
+    else:
+      raise ValueError(f"Unknown loss function name:  Please select one of 'mase', 'mape', or 'smape'.")
+    
   def configure_optimizers(self):
     if self.optimizer_name == 'adam':
       opti = optim.Adam(self.parameters(), lr=self.learning_rate)

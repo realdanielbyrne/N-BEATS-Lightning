@@ -1,7 +1,7 @@
 #%%
 from models.nbeats import *
 from models.loaders import *
-from models.losses import *
+
 import tensorboard as tb
 
 import torch
@@ -81,16 +81,16 @@ stack_blocks = 1
 
 # Set trainer hyperparameters
 batch_size = 1024 # N-BEATS paper uses 1024
-val_nepoch = 1 # perform a validation check every n epochs
-max_epochs = 2
+val_nepoch = 2 # perform a validation check every n epochs
+max_epochs = 4
 train = True # set to True to train the model
-test = False # set to True to test the model
+test = True # set to True to test the model
 split_ratio = 0.8
-fast_dev_run = True  # set to True to run a single batch through the model for debugging purposes
-debug = True # set to True t limit the size of the dataset for debugging purposes
-chkpoint = None # set to checkpoint path if you want to load a previous model
-#loss = SMAPELoss() # Any Pytorch loss function will do.  N-BEATS paper uses MAPELoss, SMAPELoss, and MASELoss
-loss = MASELoss()
+fast_dev_run = False  # set to True to run a single batch through the model for debugging purposes
+debug = False # set to True t limit the size of the dataset for debugging purposes
+chkpoint = "logs/n-beats-mase-Monthly-54-18-12/version_7/checkpoints/name=0-epoch=01-val_loss=117238.64.ckpt" # set to checkpoint path if you want to load a previous model
+loss = 'mase'
+num_workers = 2 # number of workers for the dataloader
 
 # set precision to 32 bit
 torch.set_float32_matmul_precision('medium')
@@ -115,7 +115,7 @@ if chkpoint is not None:
   model = NBeatsNet.load_from_checkpoint(chkpoint)
 else:
   model = NBeatsNet(
-    loss_fn = loss,  
+    loss = loss,  
     optimizer_name = optimizer,
     stack_types = stack_types,
     n_forecast = forecast, 
@@ -135,7 +135,7 @@ name = f"n-beats-{loss}-{seasonal_period}-{backcast}-{forecast}-{frequency}"
 tb_logger = pl_loggers.TensorBoardLogger(save_dir="logs/", name=name)
 
 chk_callback = ModelCheckpoint(
-  save_top_k=3,
+  save_top_k=2,
   monitor="val_loss",
   mode="min",
   filename="{name}-{epoch:02d}-{val_loss:.2f}",
@@ -157,7 +157,9 @@ if train:
     backcast=backcast, 
     forecast=forecast, 
     batch_size=batch_size, 
-    split_ratio=split_ratio
+    split_ratio=split_ratio,
+    num_workers=num_workers,
+    debug=debug
     )
   trainer.fit(model, datamodule=dmc, ckpt_path=chkpoint)
   trainer.validate(model, datamodule=dmc)

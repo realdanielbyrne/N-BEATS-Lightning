@@ -36,6 +36,7 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
                forecast=14, 
                batch_size=1024, 
                split_ratio=0.8,
+               num_workers=0,
                debug = False):
     
       super(TimeSeriesCollectionDataModule, self).__init__()
@@ -45,6 +46,7 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
       self.batch_size = batch_size
       self.split_ratio = split_ratio
       self.debug = debug
+      self.num_workers = num_workers
 
   def setup(self, stage:str=None):      
 
@@ -63,10 +65,10 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
       self.val_dataset = TimeSeriesDataset(self.val_data, self.backcast, self.forecast)    
     
   def train_dataloader(self):
-    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle = True, num_workers=0)
+    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle = True, num_workers=self.num_workers)
 
   def val_dataloader(self):
-    return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=0)
+    return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
    
 class TimeSeriesCollectionTestModule(pl.LightningDataModule):
   def __init__(self, 
@@ -74,7 +76,8 @@ class TimeSeriesCollectionTestModule(pl.LightningDataModule):
                test_file,
                backcast=70, 
                forecast=14, 
-               batch_size=512
+               batch_size=512,
+               debug = False
                ):
     
       super(TimeSeriesCollectionTestModule, self).__init__()
@@ -83,6 +86,7 @@ class TimeSeriesCollectionTestModule(pl.LightningDataModule):
       self.backcast = backcast
       self.forecast = forecast
       self.batch_size = batch_size
+      self.debug = debug
 
   def setup(self, stage:str=None):      
         
@@ -90,6 +94,10 @@ class TimeSeriesCollectionTestModule(pl.LightningDataModule):
       # train_data and first `forecast` samples from test_data
       test_data_raw = pd.read_csv(self.test_file, index_col=0).values
       train_data = pd.read_csv(self.train_file, index_col=0).values
+      if self.debug:
+        train_data = train_data[:100]
+        test_data_raw = test_data_raw[:100]
+        
       test_data_sequences = []      
       for train_row, test_row in zip(train_data, test_data_raw):
         train_row = train_row[~np.isnan(train_row)]
