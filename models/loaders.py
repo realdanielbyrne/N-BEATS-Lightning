@@ -36,7 +36,6 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
                forecast=14, 
                batch_size=1024, 
                split_ratio=0.8,
-               num_workers=0,
                debug = False):
     
       super(TimeSeriesCollectionDataModule, self).__init__()
@@ -46,38 +45,37 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
       self.batch_size = batch_size
       self.split_ratio = split_ratio
       self.debug = debug
-      self.num_workers = num_workers
 
   def setup(self, stage:str=None):      
 
       # shuffle rows      
-      all_train_data = pd.read_csv(self.train_file, index_col=0).sample(frac=1).reset_index(drop=True)
-      train_rows = int(self.split_ratio * len(all_train_data))
+      all_train_data = pd.read_csv(self.train_file, index_col=0)
+      if self.debug:
+        all_train_data[:1000]
+        
+      shuffled = all_train_data.sample(frac=1).reset_index(drop=True)
+      train_rows = int(self.split_ratio * len(shuffled))
       
       self.train_data = all_train_data.iloc[:train_rows].values      
       self.val_data = all_train_data.iloc[train_rows:].values
-      
-      if self.debug:
-        self.train_data = self.train_data[:100]
-        self.val_data = self.val_data[:100]
-      
+            
       self.train_dataset = TimeSeriesDataset(self.train_data, self.backcast, self.forecast)
       self.val_dataset = TimeSeriesDataset(self.val_data, self.backcast, self.forecast)    
     
   def train_dataloader(self):
-    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle = True, num_workers=self.num_workers)
+    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle = True)
 
   def val_dataloader(self):
-    return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+    return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle = False)
    
 class TimeSeriesCollectionTestModule(pl.LightningDataModule):
-  def __init__(self, 
-               train_file,
-               test_file,
-               backcast=70, 
-               forecast=14, 
-               batch_size=512,
-               debug = False
+  def __init__( self, 
+                train_file,
+                test_file,
+                backcast=70, 
+                forecast=14, 
+                batch_size=512,
+                debug = False
                ):
     
       super(TimeSeriesCollectionTestModule, self).__init__()
@@ -95,8 +93,8 @@ class TimeSeriesCollectionTestModule(pl.LightningDataModule):
       test_data_raw = pd.read_csv(self.test_file, index_col=0).values
       train_data = pd.read_csv(self.train_file, index_col=0).values
       if self.debug:
-        train_data = train_data[:100]
-        test_data_raw = test_data_raw[:100]
+        test_data_raw = test_data_raw[:1000]
+        train_data = train_data[:1000]
         
       test_data_sequences = []      
       for train_row, test_row in zip(train_data, test_data_raw):
@@ -109,4 +107,4 @@ class TimeSeriesCollectionTestModule(pl.LightningDataModule):
       self.test_dataset = TimeSeriesDataset(self.test_data, self.backcast, self.forecast)  
       
   def test_dataloader(self):
-    return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle = True, num_workers=0)
+    return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle = False, num_workers=0)
