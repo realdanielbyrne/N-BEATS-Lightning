@@ -31,7 +31,7 @@ seasonal_period= "Monthly"
 data_index = 1 
 
 # The backcast lenght is determined by multiplying the forecast horizon by an integer multiplier
-forecast_multiplier = 3
+forecast_multiplier = 5
 
 
 #%%
@@ -59,6 +59,7 @@ def get_M4infofile_info(info_file,seasonal_period, forecast_multiplier, data_ind
   return category, frequency, forecast, backcast
 
 
+
 #%%
 # Load data
 info_file  = "data/M4/M4-info.csv"
@@ -73,6 +74,7 @@ category, frequency, forecast, backcast = get_M4infofile_info(
 #%%
 # Set model hyperparameters
 optimizer = 'adam'
+loss = 'mase'
 hidden_layer_units = 512
 share_weights_in_stack = False
 learning_rate = 1e-5
@@ -82,15 +84,13 @@ stack_blocks = 1
 # Set trainer hyperparameters
 batch_size = 1024 # N-BEATS paper uses 1024
 val_nepoch = 2 # perform a validation check every n epochs
-max_epochs = 4
+max_epochs = 100
 train = True # set to True to train the model
 test = True # set to True to test the model
 split_ratio = 0.8
 fast_dev_run = False  # set to True to run a single batch through the model for debugging purposes
-debug = False # set to True t limit the size of the dataset for debugging purposes
-chkpoint = "logs/n-beats-mase-Monthly-54-18-12/version_7/checkpoints/name=0-epoch=01-val_loss=117238.64.ckpt" # set to checkpoint path if you want to load a previous model
-loss = 'mase'
-num_workers = 2 # number of workers for the dataloader
+debug = True # set to True to limit the size of the dataset for debugging purposes
+chkpoint = None # set to checkpoint path if you want to load a previous model
 
 # set precision to 32 bit
 torch.set_float32_matmul_precision('medium')
@@ -131,7 +131,8 @@ else:
 
 #%%
 # define a tensorboard loger
-name = f"n-beats-{loss}-{seasonal_period}-{backcast}-{forecast}-{frequency}" 
+
+name = f"n-beats-{loss}-{seasonal_period}-{backcast}-{forecast}-{frequency}-test_{debug}" 
 tb_logger = pl_loggers.TensorBoardLogger(save_dir="logs/", name=name)
 
 chk_callback = ModelCheckpoint(
@@ -158,7 +159,6 @@ if train:
     forecast=forecast, 
     batch_size=batch_size, 
     split_ratio=split_ratio,
-    num_workers=num_workers,
     debug=debug
     )
   trainer.fit(model, datamodule=dmc, ckpt_path=chkpoint)
