@@ -1,16 +1,11 @@
 #%%
 from time import time
 import numpy as np
-import pandas as pd
 import torch
 from torch import nn, optim
 from torch.nn import functional as F
 import lightning.pytorch as pl
-import pathlib
 from .losses import MASELoss, SMAPELoss, MAPELoss
-
-
-from lightning.pytorch import loggers as pl_loggers
 
 
 def squeeze_last_dim(tensor):
@@ -34,32 +29,25 @@ class Block(nn.Module):
     
     
     if share_thetas:
-        self.forecast_linear = self.backcast_linear = nn.Linear(units, thetas_dim, bias=True)
+        self.forecast_linear = self.backcast_linear = nn.Linear(units, thetas_dim, bias=False)
     else:
-        self.backcast_linear = nn.Linear(units, thetas_dim, bias=True)
-        self.forecast_linear = nn.Linear(units, thetas_dim, bias=True)
+        self.backcast_linear = nn.Linear(units, thetas_dim, bias=False)
+        self.forecast_linear = nn.Linear(units, thetas_dim, bias=False)
 
-  def forward(self, x):
-    x = squeeze_last_dim(x)    
+  def forward(self, x): 
+    x = squeeze_last_dim(x)
     # N-Beats paper specifies ReLU activation for all hidden layers.
     x = F.relu(self.fc1(x))
     x = F.relu(self.fc2(x))
     x = F.relu(self.fc3(x))
     x = F.relu(self.fc4(x))
     return x
-
-  def __str__(self):
-    block_type = type(self).__name__
-    return f'{block_type}(units={self.units}, thetas_dim={self.thetas_dim}, ' \
-            f'backcast_length={self.backcast_length}, forecast_length={self.forecast_length}, ' \
-            f'share_thetas={self.share_thetas}) at @{id(self)}'
-
 class GenericBlock(Block):
   def __init__(self, units, thetas_dim, backcast_length=10, forecast_length=5, nb_harmonics=None):
     super(GenericBlock, self).__init__(units, thetas_dim, backcast_length, forecast_length, share_thetas= False)
 
-    self.backcast_fc = nn.Linear(thetas_dim, backcast_length, bias=True)
-    self.forecast_fc = nn.Linear(thetas_dim, forecast_length, bias=True)
+    self.backcast_fc = nn.Linear(thetas_dim, backcast_length, bias=False)
+    self.forecast_fc = nn.Linear(thetas_dim, forecast_length, bias=False)
 
   def forward(self, x):
     x = super(GenericBlock, self).forward(x)
@@ -159,9 +147,9 @@ class NBeatsNet(pl.LightningModule):
     
   def __init__(
       self,
-      loss: str = 'smape',
-      optimizer_name:str = 'adam',
-      stack_types =(GENERIC_BLOCK,GENERIC_BLOCK,GENERIC_BLOCK),
+      loss: str = 'smape', # 'mape', 'smape', 'mase'
+      optimizer_name:str = 'adam', # 'adam', 'sgd', 'rmsprop'
+      stack_types =(GENERIC_BLOCK, GENERIC_BLOCK, GENERIC_BLOCK),
       n_backcast:int = 30, # default of 5*forecast_length or 5H , N-BEATS paper tested 2H,3H,4H,5H,6H,7H          
       n_forecast:int = 6,  # forecast (H)orizon
       thetas_dim:int = 5, # Output of FC layer in each of the forecast and backcast branches of each block
@@ -169,9 +157,9 @@ class NBeatsNet(pl.LightningModule):
       share_weights_in_stack:bool = True, # Generic model prefers no weight sharing, while interpretable model does.
       hidden_layer_units:int = 512,
       learning_rate: float = 1e-5,      
-      nb_harmonics = None,
-      no_val:bool = False,
-      frequency:int = 1
+      nb_harmonics = None, # not used at present
+      no_val:bool = False,  # set to True to skip validation during training
+      frequency:int = 1 # frequency of the data
     ):
     super(NBeatsNet, self).__init__()
     self.stack_types = stack_types
@@ -241,7 +229,7 @@ class NBeatsNet(pl.LightningModule):
     _, forecast = self(x)
     loss = self.loss_fn(forecast, squeeze_last_dim(y))
     
-    self.log('train_loss', loss)
+    self.log('train_loss', loss, prog_bar=True)
     return loss
 
   def validation_step(self, batch, batch_idx):
@@ -252,7 +240,7 @@ class NBeatsNet(pl.LightningModule):
     _, forecast = self(x)
     loss = self.loss_fn(forecast, squeeze_last_dim(y))
     
-    self.log('val_loss', loss)
+    self.log('val_loss', loss, prog_bar=True)
     return loss
 
   def test_step(self, batch, batch_idx):

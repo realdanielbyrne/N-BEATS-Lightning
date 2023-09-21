@@ -31,7 +31,7 @@ class TimeSeriesDataset(Dataset):
       
 class TimeSeriesCollectionDataModule(pl.LightningDataModule):
   def __init__(self, 
-               train_file, 
+               train_data, 
                backcast=70, 
                forecast=14, 
                batch_size=1024, 
@@ -39,7 +39,7 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
                debug = False):
     
       super(TimeSeriesCollectionDataModule, self).__init__()
-      self.train_file = train_file
+      self.train_data_raw = train_data
       self.backcast = backcast
       self.forecast = forecast
       self.batch_size = batch_size
@@ -47,17 +47,12 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
       self.debug = debug
 
   def setup(self, stage:str=None):      
-
-      # shuffle rows      
-      all_train_data = pd.read_csv(self.train_file, index_col=0)
-      if self.debug:
-        all_train_data[:1000]
         
-      shuffled = all_train_data.sample(frac=1).reset_index(drop=True)
+      shuffled = self.train_data_raw.sample(frac=1).reset_index(drop=True)
       train_rows = int(self.split_ratio * len(shuffled))
       
-      self.train_data = all_train_data.iloc[:train_rows].values      
-      self.val_data = all_train_data.iloc[train_rows:].values
+      self.train_data = shuffled.iloc[:train_rows].values      
+      self.val_data = shuffled.iloc[train_rows:].values
             
       self.train_dataset = TimeSeriesDataset(self.train_data, self.backcast, self.forecast)
       self.val_dataset = TimeSeriesDataset(self.val_data, self.backcast, self.forecast)    
@@ -70,34 +65,35 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
    
 class TimeSeriesCollectionTestModule(pl.LightningDataModule):
   def __init__( self, 
-                train_file,
-                test_file,
+                train_data,
+                test_data,
                 backcast=70, 
                 forecast=14, 
-                batch_size=512,
-                debug = False
+                batch_size=512
                ):
     
       super(TimeSeriesCollectionTestModule, self).__init__()
-      self.train_file = train_file
-      self.test_file = test_file
+      if (isinstance(train_data, pd.DataFrame)):
+        self.train_data = train_data.values
+      else:
+        self.train_data = train_data
+      
+      if (isinstance(test_data, pd.DataFrame)):  
+        self.test_data_raw = test_data.values
+      else:
+        self.test_data_raw = test_data
+      
       self.backcast = backcast
       self.forecast = forecast
       self.batch_size = batch_size
-      self.debug = debug
 
   def setup(self, stage:str=None):      
         
       # Create test data by concatenating last `backcast` samples from 
       # train_data and first `forecast` samples from test_data
-      test_data_raw = pd.read_csv(self.test_file, index_col=0).values
-      train_data = pd.read_csv(self.train_file, index_col=0).values
-      if self.debug:
-        test_data_raw = test_data_raw[:1000]
-        train_data = train_data[:1000]
         
       test_data_sequences = []      
-      for train_row, test_row in zip(train_data, test_data_raw):
+      for train_row, test_row in zip(self.train_data, self.test_data_raw):
         train_row = train_row[~np.isnan(train_row)]
         sequence = np.concatenate((train_row[-self.backcast:], test_row[:self.forecast]))
         if (sequence.shape[0] == self.backcast + self.forecast):
