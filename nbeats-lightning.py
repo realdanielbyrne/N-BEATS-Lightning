@@ -83,43 +83,31 @@ frequency, forecast, backcast, indicies = get_M4infofile_info(
 #%% Begining of Notebook Cell
 
 # Set model hyperparameters
-optimizer = 'adam'
+chkpoint = None # set to checkpoint path if you want to load a previous model
+
+optimizer_name = 'adamw'
 loss = 'smape'
-hidden_layer_units = 512
-share_weights_in_stack = False
+generic_architecture = False
+weight_share = True
 learning_rate = 1e-5
-thetas_dim = 5
-stack_blocks = 1
+thetas_dim = 2
+blocks_p_stack = 3
+stacks = 2
 
 # Set trainer hyperparameters
 batch_size = 1024 # N-BEATS paper uses 1024
 val_nepoch = 1 # perform a validation check every n epochs
-max_epochs = 100
-train = False # set to True to train the model
+max_epochs = 31
+train = True # set to True to train the model
 test = True # set to True to test the model
 split_ratio = 0.8
 fast_dev_run = False  # set to True to run a single batch through the model for debugging purposes
 debug = False # set to True to limit the size of the dataset for debugging purposes
-chkpoint = "logs/n-beats-smape-MonthlyMacro-90-18-12/version_0/checkpoints/name=0-epoch=99-val_loss=8.29.ckpt" # set to checkpoint path if you want to load a previous model
 
-# set precision to 32 bit
+# Set precision to 32 bit
 torch.set_float32_matmul_precision('medium')
 
-# Define model architecture
-# trend blocks should generally be paired with seasonality blocks, but 1:1 pairing 
-# doesn't seem to be necessary. The N-BEATS paper shows that ensembles of different
-# varations in stack architecture offer the best performance gains.
-stack_types =[NBeatsNet.GENERIC_BLOCK,
-              NBeatsNet.GENERIC_BLOCK,
-              NBeatsNet.GENERIC_BLOCK,
-              NBeatsNet.GENERIC_BLOCK,
-              NBeatsNet.GENERIC_BLOCK,
-              NBeatsNet.GENERIC_BLOCK,
-              NBeatsNet.GENERIC_BLOCK,
-              NBeatsNet.GENERIC_BLOCK,
-              NBeatsNet.GENERIC_BLOCK,              
-              NBeatsNet.GENERIC_BLOCK              
-              ]
+chkpoint = "logs/n-beats-interpretive-smape-MonthlyMacro-adamw-90-18-2-3-2-shared"
 
 #%% Begining of Notebook Cell
 
@@ -128,36 +116,46 @@ if chkpoint is not None:
   model = NBeatsNet.load_from_checkpoint(chkpoint)
 else:
   model = NBeatsNet(
-    loss = loss,  
-    optimizer_name = optimizer,
-    stack_types = stack_types,
-    n_forecast = forecast, 
-    n_backcast = backcast,
-    learning_rate = learning_rate,
+    backcast = backcast,
+    forecast = forecast, 
+    generic_architecture = generic_architecture,
+    n_blocks_per_stack = blocks_p_stack,
+    n_stacks = stacks,
+    share_weights_in_stack = weight_share,
     thetas_dim = thetas_dim,
-    blocks_per_stack = stack_blocks,
-    share_weights_in_stack = share_weights_in_stack,
-    hidden_layer_units = hidden_layer_units,
-    no_val = False
+    learning_rate = learning_rate,
+    loss = loss,  
+    no_val = False,
+    optimizer_name = optimizer_name,
+    frequency=frequency
   )
   print (model)
 
 
 #%% Begining of Notebook Cell
+if generic_architecture:
+  arch = 'generic'
+else :
+  arch = 'interpretive'
+
+if weight_share:
+  shared = 'shared'
+else:
+  shared = 'unshared'
 
 # the model name is derived from the parameters used to train the model
-name = f"n-beats-{loss}-{seasonal_period}{category}-{backcast}-{forecast}-{frequency}" 
-print("Model Name : ", name)
+name = f"n-beats-{arch}-{loss}-{seasonal_period}{category}-{optimizer_name}-{backcast}-{forecast}-{stacks}-{blocks_p_stack}-{thetas_dim}-{shared}" 
+print("Model Name :", name)
 
 # define a tensorboard loger
 tb_logger = pl_loggers.TensorBoardLogger(save_dir="logs/", name=name)
 
 # define a model checkpoint callback
 chk_callback = ModelCheckpoint(
-  save_top_k=2,
-  monitor="val_loss",
-  mode="min",
-  filename="{name}-{epoch:02d}-{val_loss:.2f}",
+  save_top_k = 2,
+  monitor = "val_loss",
+  mode = "min",
+  filename = "{name}-{epoch:02d}-{val_loss:.2f}",
 )
 
 trainer = get_trainer(
@@ -217,7 +215,7 @@ test_data = load_test_data(test_file, debug, indicies)
     
 #%% Begining of Notebook Cell
 
-# Train and runa final validation on the model
+# Train and run a final validation on the model
 if train:
 
   dmc = TimeSeriesCollectionDataModule(
@@ -246,5 +244,39 @@ if test:
   trainer.test(model, datamodule=test_module)
   
 
+
+# %%
+d = train_data.loc['M579'].dropna()
+d = d[-backcast:].values
+
+# %%
+y = test_data.loc['M579'].dropna().values
+y_hat = model.predict(d)
+# %%
+#plot
+import matplotlib.pyplot as plt
+data_info  = pd.read_csv(info_file, index_col=0)
+
+start_date = pd.to_datetime(data_info.loc['M579'].StartingDate, format="%d-%m-%y %H:%M")
+
+dates_d = pd.date_range(start=start_date, periods=len(d), freq='M')
+dates_y_hat_y = pd.date_range(start=dates_d[-1] + pd.DateOffset(months=1), periods=len(y_hat), freq='M')
+
+# Create a new figure
+plt.figure(figsize=(10, 6))
+
+# Plotting all the series on the same plot
+plt.plot(dates_d, d, label='In-Sample (d)', linestyle='-', marker='o')
+plt.plot(dates_y_hat_y, y_hat, label='Model Prediction (y_hat)', linestyle='-', marker='o')
+plt.plot(dates_y_hat_y, y, label='Actual (y)', linestyle='-', marker='o')
+
+# Adding legend, labels, and title
+plt.legend(loc='upper right')
+plt.xlabel('Date')
+plt.ylabel('Value')
+plt.title('M579 Prediction vs Actual')
+
+# Display the plot
+plt.show()
 
 # %%
