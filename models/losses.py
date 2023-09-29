@@ -39,12 +39,7 @@ class MASELoss(nn.Module):
         
     return mase
 
-  def __str__(self):
-    name = type(self).__name__
-    return name
-
 class SMAPELoss(nn.Module):
-  """ Symmetric Mean Absolute Percentage Error (SMAPE) PyTorch loss function."""
   def __init__(self):
     super(SMAPELoss, self).__init__()
 
@@ -69,18 +64,13 @@ class SMAPELoss(nn.Module):
     smape = torch.mean(diff) * 100.0
     
     return smape
-
-  def __str__(self):
-    name = type(self).__name__
-    return name     
     
 class MAPELoss(nn.Module):
-  """ Mean Absolute Percentage Error (MAPE) PyTorch loss function."""
   def __init__(self):
     super(MAPELoss, self).__init__()
 
   def forward(self, y_pred, y_true):
-    """Calculated MAPE loss between y_pred and y_true.
+    """Calculated MAPE, Mean Absolute Percentage Error (MAPE), loss between y_pred and y_true.
 
     Args:
         y_pred (Tensor): predicitons
@@ -96,8 +86,3 @@ class MAPELoss(nn.Module):
     mape = torch.mean(torch.abs((y_true - y_pred) / denominator)) * 100.0
     
     return mape  
-
-  def __str__(self):
-    name = type(self).__name__
-    return name     
-      
