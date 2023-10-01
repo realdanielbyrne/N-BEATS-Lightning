@@ -1,14 +1,11 @@
 #%%
-from models.nbeats import *
-from models.loaders import *
+from nbeats_lightning.nbeats import *
+from nbeats_lightning.losses import *
+from nbeats_lightning.loaders import *
 
 import tensorboard as tb
 
 import torch
-from torch import nn, optim
-from torch.nn import functional as F
-from torch.utils.data import DataLoader, Dataset
-
 import numpy as np
 import pandas as pd
 
@@ -245,42 +242,3 @@ if test:
   trainer.test(model, datamodule=test_module)
   
 
-# %%
-
-milk = pd.read_csv('data/milk.csv', index_col=0, parse_dates=True)
-print(milk.head())
-milkval = milk.values.flatten()  # just keep np array here for simplicity.
-forecast_length = 5
-backcast_length = 3 * forecast_length
-batch_size = 32  # greater than 4 for viz
-dm = TimeSeriesDataModule(data=milkval,batch_size=batch_size,backcast=backcast_length,forecast=forecast_length)
-
-
-milkmodel = NBeatsNet(
-  backcast = backcast_length,
-  forecast = forecast_length, 
-  generic_architecture = True,
-  n_blocks_per_stack = 1,
-  n_stacks = 3,
-  share_weights = False,  
-  optimizer_name = 'adam',
-  g_width=128,
-  frequency=1)
-
-milktrainer =  pl.Trainer(
-  accelerator='auto'
-  ,max_epochs=300 
-)
-
-milktrainer.fit(milkmodel, datamodule=dm)
-milktrainer.validate(milkmodel, datamodule=dm)
-# %%
-milkmodel.predict(milkval[-backcast_length:].T)
-
-# %%
-milkmodel.eval()
-eval_data = torch.tensor(milkval[-backcast_length:],dtype =torch.float)
-with torch.no_grad():
-  y_hat = milkmodel(eval_data)
-print(y_hat)  
-# %%

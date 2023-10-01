@@ -70,12 +70,12 @@ class NBeatsNet(pl.LightningModule):
       share_weights:bool = False, # Generic model prefers no weight sharing, while interpretable model does.
       thetas_dim:int = 5, # 5 for generic, 2 or 3 for interpretable tomimic trend
       learning_rate: float = 1e-5,  
-      loss: str = 'smape', # 'mape', 'smape', 'mase'
+      loss: str = 'SMAPELoss', # 'mape', 'smape', 'mase'
       no_val:bool = False,  # set to True to skip validation during training ( when using the entire test set for training)
       optimizer_name:str = 'AdamW', # 'adam', 'sgd', 'rmsprop', 'adagrad', 'adadelta', 'adamw'
       activation:str = 'LeakyReLU', # 'ReLU', 'RReLU', 'PReLU', 'ELU', 'Softplus', 'Tanh', 'SELU', 'LeakyReLU', 'Sigmoid', 'GELU'
       frequency:int = 1, # frequency of the data
-      activate_g:bool = True, # activate the g function in the generic model.  Sometime generic model willnot coverge without this.
+      active_g:bool = False, # activate the g function in the generic model.  Sometime generic model willnot coverge without this.
       sum_losses:bool = False, # sum the backcast and forecast losses
 
     ):
@@ -185,7 +185,7 @@ class NBeatsNet(pl.LightningModule):
     self.loss = loss
     self.generic_architecture = generic_architecture
     self.activation = activation
-    self.activate_g = activate_g
+    self.active_g = active_g
     self.sum_losses = sum_losses
     self.loss_fn = self.configure_loss()    
     self.save_hyperparameters()   
@@ -214,7 +214,7 @@ class NBeatsNet(pl.LightningModule):
         else:
             if self.generic_architecture:
                 block = GenericBlock(
-                    self.g_width, self.backcast, self.forecast, self.thetas_dim, self.share_weights, self.activation, self.activate_g
+                    self.g_width, self.backcast, self.forecast, self.thetas_dim, self.share_weights, self.activation, self.active_g
                 )
             elif stack_type == NBeatsNet.SEASONALITY:
                 block = SeasonalityBlock(
@@ -352,7 +352,7 @@ class GenericBlock(Block):
                thetas_dim:int = 5, 
                share_weights:bool= False, 
                activation:str='LeakyReLU', 
-               activate_g:bool=True):
+               active_g:bool=True):
     """The Generic Block is the basic building block of the N-BEATS network.  It consists of a stack of fully connected layers, followed by
     two linear layers. The first, backcast_linear, generates the parameters of a waveform generator, which is implemented by the function 
     defined in the next layer. These two layers can also be thought of os a compression and expansion layer or rudimentary AutoEncoder.
@@ -378,7 +378,7 @@ class GenericBlock(Block):
         
     self.backcast_g = nn.Linear(thetas_dim, backcast)
     self.forecast_g = nn.Linear(thetas_dim, forecast)
-    self.activate_g = activate_g
+    self.active_g = active_g
     
   def forward(self, x):
     x = super(GenericBlock, self).forward(x)
@@ -389,7 +389,7 @@ class GenericBlock(Block):
     forecast = self.forecast_g(theta_f)
     
     # N-BEATS paper does not aply activation here, but Generic models will not converge sometimes without it
-    if self.activate_g:
+    if self.active_g:
       backcast = self.activation(backcast)
       forecast = self.activation(forecast)
 
