@@ -7,51 +7,6 @@ import lightning.pytorch as pl
 from .losses import MASELoss, SMAPELoss, MAPELoss
 
 
-ACTIVATIONS = [
-    "ReLU",
-    "RReLU",
-    "PReLU",
-    "ELU",
-    "Softplus",
-    "Tanh",
-    "SELU",
-    "LeakyReLU",
-    "Sigmoid",
-    "GELU"
-]
-
-LOSSES = [
-    "MAPELoss",
-    "SMAPELoss",
-    "MASELoss",
-    "MSELoss",
-    "L1Loss",
-    "SmoothL1Loss",
-    "BCEWithLogitsLoss", 
-    "BCELoss",
-    "CrossEntropyLoss",
-    "NLLLoss",
-    "PoissonNLLLoss",
-    "KLDivLoss",
-    "BCEWithLogitsLoss",
-    "MarginRankingLoss",
-    "HingeEmbeddingLoss",
-    "MultiLabelMarginLoss",
-    "CosineEmbeddingLoss",
-    "MultiMarginLoss",
-    "TripletMarginLoss",
-    "TripletMarginWithDistanceLoss"        
-]
-
-OPTIMIZERS = [
-  "Adam",
-  "SGD",
-  "RMSprop",
-  "Adagrad",
-  "Adadelta",
-  "AdamW"
-]
-
 class NBeatsNet(pl.LightningModule):
   SEASONALITY = 'seasonality'
   TREND = 'trend'
@@ -59,24 +14,24 @@ class NBeatsNet(pl.LightningModule):
     
   def __init__(
       self,
-      backcast:int, # default of 5*forecast_length or 5H , N-BEATS paper tested 2H,3H,4H,5H,6H,7H          
-      forecast:int,  # forecast (H)orizon
+      backcast:int, 
+      forecast:int,  
       generic_architecture:bool = True,
-      n_blocks_per_stack:int = 1, # Number of stacks N-BEATS paper: Generic 1 blk/stk, 2 Stacks (1 Trend 3 blks, 1 Seasonality 3 blks)
-      n_stacks:int = 5, # number of stacks
-      g_width:int = 512, # the width of the fully connected layers in the blocks comprising the stacks of the generic model
-      s_width:int = 2048, # the width of the fully connected layers in the blocks comprising the seasonality stack of the interpretable model.
-      t_width:int = 256, # the width of the fully connected layers in the blocks comprising the trend stack of the interpretable model
-      share_weights:bool = False, # Generic model prefers no weight sharing, while interpretable model does.
-      thetas_dim:int = 5, # 5 for generic, 2 or 3 for interpretable tomimic trend
-      learning_rate: float = 1e-5,  
-      loss: str = 'SMAPELoss', # 'mape', 'smape', 'mase'
-      no_val:bool = False,  # set to True to skip validation during training ( when using the entire test set for training)
-      optimizer_name:str = 'AdamW', # 'adam', 'sgd', 'rmsprop', 'adagrad', 'adadelta', 'adamw'
-      activation:str = 'LeakyReLU', # 'ReLU', 'RReLU', 'PReLU', 'ELU', 'Softplus', 'Tanh', 'SELU', 'LeakyReLU', 'Sigmoid', 'GELU'
-      frequency:int = 1, # frequency of the data
-      active_g:bool = False, # activate the g function in the generic model.  Sometime generic model willnot coverge without this.
-      sum_losses:bool = False, # sum the backcast and forecast losses
+      n_blocks_per_stack:int = 1, 
+      n_stacks:int = 6, 
+      g_width:int = 512, 
+      s_width:int = 2048, 
+      t_width:int = 256, 
+      share_weights:bool = False, 
+      thetas_dim:int = 5, 
+      learning_rate: float = 1e-4,  
+      loss: str = 'SMAPELoss', 
+      no_val:bool = False,  
+      optimizer_name:str = 'Adam', # 'Adam', 'SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'AdamW'
+      activation:str = 'ReLU', # 'ReLU', 'RReLU', 'PReLU', 'ELU', 'Softplus', 'Tanh', 'SELU', 'LeakyReLU', 'Sigmoid', 'GELU'
+      frequency:int = 1, 
+      active_g:bool = False, 
+      sum_losses:bool = False, 
 
     ):
 
@@ -140,17 +95,17 @@ class NBeatsNet(pl.LightningModule):
         Default False.
     optimizer_name : str, optional
         The name of the optimizer to use. Allowed methDefined in OPTIMIZERS. 
-        Default 'AdamW'.
+        Default 'Adam'.
     activation : str, optional
         The activation function to use.  Defined in ACTIVATIONS. 
-        Default : 'LeakyReLU'.
+        Default : 'ReLU'.
     frequency : int, optional
         The frequency of the data.  Used only when MASELoss is used as teh loss funtion. Default 1.
     activate_g : bool, optional
         If True, the function implemented by the waveform generators in the forecast anb backcast blocks has n activation function applied to the output.  
         This feature is not defined in the original design of N-BEATS.  However, since both the Trend and Seasonality blocks apply non-linear functions
         to the waveform parameters generated in he preceeding layer, applying an activation function here mirrors that structure.  I've found that this
-        approch improved convergence of GENERIC models.  Default : TRUE.
+        approch improved convergence of GENERIC models.  Default : False.
     sum_losses : bool, optional
         If True, the total loss is defined as forecast_loss + 1/2 Backcast_loss.  This is an experimental feature. Default False.
     
@@ -165,7 +120,7 @@ class NBeatsNet(pl.LightningModule):
         Tensor containing the 'backcast' of the block, which represents an approximation of `x`
         given the constraints of the functional space determined by `g`.
     stack_forecast of shape `(batch_size, output_chunk_length)`
-        Tensor containing the forward forecast of the stack.
+        Tensor containing the forward forecast of the stacks.
     """    
   
     super(NBeatsNet, self).__init__()
@@ -200,8 +155,8 @@ class NBeatsNet(pl.LightningModule):
     for stack_id in range(len(self.stack_types)):
       self.stacks.append(self.create_stack(stack_id))  
     
-    self.stacks[-1][-1].backcast_linear.requires_grad_(False)
-    self.stacks[-1][-1].backcast_g.requires_grad_(False)
+    #self.stacks[-1][-1].backcast_linear.requires_grad_(False)
+    #self.stacks[-1][-1].backcast_g.requires_grad_(False)
            
   def create_stack(self, stack_id):
     stack_type = self.stack_types[stack_id]
@@ -229,20 +184,22 @@ class NBeatsNet(pl.LightningModule):
 
     return blocks
 
-  def forward(self, backcast):
-    backcast = squeeze_last_dim(backcast)    
-    forecast = torch.zeros(
-            backcast.shape[0],
+  def forward(self, x):
+    x = squeeze_last_dim(x)    
+    y = torch.zeros(
+            x.shape[0],
             self.forecast,
-            device=backcast.device,
-            dtype=backcast.dtype)
+            device=x.device,
+            dtype=x.dtype)
     
     for stack_id in range(len(self.stacks)):
         for block_id in range(len(self.stacks[stack_id])):
-          b, f = self.stacks[stack_id][block_id](backcast)
-          backcast = backcast - b
-          forecast = forecast + f
-    return backcast, forecast
+          x_hat, y_hat = self.stacks[stack_id][block_id](x)
+          x = x - x_hat
+          y = y + y_hat
+    stack_residual = x
+    stack_forecast = y
+    return stack_residual, stack_forecast
 
   def training_step(self, batch, batch_idx):
     x, y = batch
@@ -310,17 +267,20 @@ def squeeze_last_dim(tensor):
   return tensor
 
 class Block(nn.Module):
-  def __init__(self, backcast, units, activation='LeakyReLU'):
+  def __init__(self, backcast, units, activation='ReLU'):
     """The Block class is the basic building block of the N-BEATS network.  It consists of a stack of fully connected layers.
     It serves as the base class for the GenericBlock, SeasonalityBlock, and TrendBlock classes.
 
     Args:
-        backcast (int): The length of the historical data.  It is customary to use a multiple of the forecast (H)orizon (2H,3H,4H,5H,...).
-        units (int): The width of the fully connected layers in the blocks comprising the stacks of the generic model
-        activation (str, optional): The activation function applied to each of the fully connected Linear layers. Defaults to 'LeakyReLU'.
+        backcast (int): 
+          The length of the historical data.  It is customary to use a multiple of the forecast (H)orizon (2H,3H,4H,5H,...).
+        units (int): 
+          The width of the fully connected layers in the blocks comprising the stacks of the generic model
+        activation (str, optional): 
+          The activation function applied to each of the fully connected Linear layers. Defaults to 'ReLU'.
 
     Raises:
-        ValueError: If the activation function is not in ACTIVATIONS.
+          ValueError: If the activation function is not in ACTIVATIONS.
     """
     super(Block, self).__init__()
     self.units = units
@@ -351,22 +311,31 @@ class GenericBlock(Block):
                forecast:int, 
                thetas_dim:int = 5, 
                share_weights:bool= False, 
-               activation:str='LeakyReLU', 
-               active_g:bool=True):
+               activation:str = 'ReLU', 
+               active_g:bool = False):
     """The Generic Block is the basic building block of the N-BEATS network.  It consists of a stack of fully connected layers, followed by
     two linear layers. The first, backcast_linear, generates the parameters of a waveform generator, which is implemented by the function 
     defined in the next layer. These two layers can also be thought of os a compression and expansion layer or rudimentary AutoEncoder.
 
     Args:
-        units (int): The width of the fully connected layers in the blocks comprising the stacks of the generic model
-        backcast (int): The length of the historical data.  It is customary to use a multiple of the forecast (H)orizon (2H,3H,4H,5H,...).
-        forecast (int): The length of the forecast horizon.
-        thetas_dim (int, optional): The dimensionality of the wavefor generator parameters. Defaults to 5.
-        share_weights (bool, optional): If True, the initial weights of the Linear laers are shared. Defaults to False.
-        activation (str, optional): The activation function used in the parent class Block, and optionally as the non-linear activation of
-        the backcast_g and forecast_g layers.
-        Defaults to 'LeakyReLU'.
-        activate_g (bool, optional): _description_. Defaults to True.
+        units (int): 
+          The width of the fully connected layers in the blocks comprising the stacks of the generic model
+        backcast (int): 
+          The length of the historical data.  It is customary to use a multiple of the forecast (H)orizon (2H,3H,4H,5H,...).
+        forecast (int): 
+          The length of the forecast horizon.
+        thetas_dim (int, optional): 
+          The dimensionality of the wavefor generator parameters. Defaults to 5.
+        share_weights (bool, optional): 
+          If True, the initial weights of the Linear laers are shared. Defaults to False.
+        activation (str, optional): ß
+          The activation function used in the parent class Block, and optionally as the non-linear activation of
+          the backcast_g and forecast_g layers. Defaults to 'ReLU'.
+        active_g (bool, optional): 
+          This parameter when enabled applies the model's activation funtion to the linear 
+          funtions (gb and gf) which are found by the network in the last layer of each block using the theta parameters
+          found in the preceding layer. Enabling this activation function seems to help the Generic model converge. 
+          The parameter `active_g` is not a feature found in the original N-Beats paper. Defaults to False.
     """
     super(GenericBlock, self).__init__(backcast, units, activation)
     
@@ -376,8 +345,9 @@ class GenericBlock(Block):
         self.backcast_linear = nn.Linear(units, thetas_dim)
         self.forecast_linear = nn.Linear(units, thetas_dim)
         
-    self.backcast_g = nn.Linear(thetas_dim, backcast)
-    self.forecast_g = nn.Linear(thetas_dim, forecast)
+    # bias on the g layers can cause the network to diverge
+    self.backcast_g = nn.Linear(thetas_dim, backcast, bias = False) 
+    self.forecast_g = nn.Linear(thetas_dim, forecast, bias = False)
     self.active_g = active_g
     
   def forward(self, x):
@@ -430,10 +400,14 @@ class SeasonalityBlock(Block):
     followed by a linear layer, which generates the parameters of a Fourier expansion.
 
     Args:
-        units (int ): The width of the fully connected layers in the blocks comprising the parent class Block.
-        backcast (int): The length of the historical data.  It is customary to use a multiple of the forecast (H)orizon (2H,3H,4H,5H,...).
-        forecast (int): The length of the forecast horizon.
-        activation (str, optional): The activation function passed to the parent class Block. Defaults to 'LeakyReLU'.
+        units (int): 
+          The width of the fully connected layers in the blocks comprising the parent class Block.
+        backcast (int): 
+          The length of the historical data.  It is customary to use a multiple of the forecast (H)orizon (2H,3H,4H,5H,...).
+        forecast (int): 
+          The length of the forecast horizon.
+        activation (str, optional): 
+          The activation function passed to the parent class Block. Defaults to 'LeakyReLU'.
     """
     super(SeasonalityBlock, self).__init__(backcast, units, activation)
 
@@ -487,15 +461,20 @@ class _TrendGenerator(nn.Module):
 class TrendBlock(Block):
   def __init__(self, units, backcast, forecast, thetas_dim, share_weights = True, activation='LeakyReLU'):
     """The Trend Block implements the function whose parameters are generated by the _TrendGenerator block.  
-    
 
     Args:
-        units (int ): The width of the fully connected layers in the blocks comprising the parent class Block.
-        backcast (int): The length of the historical data.  It is customary to use a multiple of the forecast (H)orizon (2H,3H,4H,5H,...).
-        forecast (int): The length of the forecast horizon.
-        thetas_dim (int): The dimensionality of the _TrendGenerator polynomial.
-        share_weights (bool, optional): If True, the inital weights of the Linear layers are shared. Defaults to True.
-        activation (str, optional): The activation function passed to the parent class Block. Defaults to 'LeakyReLU'.
+        units (int): 
+          The width of the fully connected layers in the blocks comprising the parent class Block.
+        backcast (int): 
+          The length of the historical data.  It is customary to use a multiple of the forecast (H)orizon (2H,3H,4H,5H,...).
+        forecast (int): 
+          The length of the forecast horizon.
+        thetas_dim (int): 
+          The dimensionality of the _TrendGenerator polynomial.
+        share_weights (bool, optional): 
+          If True, the inital weights of the Linear layers are shared. Defaults to True.
+        activation (str, optional): 
+          The activation function passed to the parent class Block. Defaults to 'LeakyReLU'.
     """
     super(TrendBlock, self).__init__(backcast, units, activation)
     if share_weights:
@@ -519,3 +498,49 @@ class TrendBlock(Block):
     forecast = self.forecast_g(forecast)
             
     return backcast, forecast
+
+
+ACTIVATIONS = [
+    "ReLU",
+    "RReLU",
+    "PReLU",
+    "ELU",
+    "Softplus",
+    "Tanh",
+    "SELU",
+    "LeakyReLU",
+    "Sigmoid",
+    "GELU"
+]
+
+LOSSES = [
+    "MAPELoss",
+    "SMAPELoss",
+    "MASELoss",
+    "MSELoss",
+    "L1Loss",
+    "SmoothL1Loss",
+    "BCEWithLogitsLoss", 
+    "BCELoss",
+    "CrossEntropyLoss",
+    "NLLLoss",
+    "PoissonNLLLoss",
+    "KLDivLoss",
+    "BCEWithLogitsLoss",
+    "MarginRankingLoss",
+    "HingeEmbeddingLoss",
+    "MultiLabelMarginLoss",
+    "CosineEmbeddingLoss",
+    "MultiMarginLoss",
+    "TripletMarginLoss",
+    "TripletMarginWithDistanceLoss"        
+]
+
+OPTIMIZERS = [
+  "Adam",
+  "SGD",
+  "RMSprop",
+  "Adagrad",
+  "Adadelta",
+  "AdamW"
+]
