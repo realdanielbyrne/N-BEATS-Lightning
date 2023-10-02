@@ -8,18 +8,18 @@ channels:
 dependencies:
   - ipython
   - jupyter
-  - lightning==2.09
+  - lightning
   - ipykernel
   - pandas
   - matplotlib
   - statsmodels
   - tensorboard
   - seaborn
-  
+  - pip
   - pip:
-      - pathlib==1.0.1
-      - pillow==10.0.0
-      - torch-tb-profiler==0.4.1
-      - torchaudio==2.0.2
-      - torchvision==0.15.2
+      - pathlib
+      - pillow
+      - torch-tb-profiler
+      - torchaudio
+      - torchvision
 prefix: C:\Users\DanielByrne\AppData\Local\miniconda3\envs\nbeats
