@@ -5,7 +5,7 @@ from torch import nn, optim
 from torch.nn import functional as F
 import lightning.pytorch as pl
 from .losses import MASELoss, SMAPELoss, MAPELoss
-
+from torch.optim.lr_scheduler import StepLR
 
 class NBeatsNet(pl.LightningModule):
   SEASONALITY = 'seasonality'
@@ -155,8 +155,9 @@ class NBeatsNet(pl.LightningModule):
     for stack_id in range(len(self.stack_types)):
       self.stacks.append(self.create_stack(stack_id))  
     
-    #self.stacks[-1][-1].backcast_linear.requires_grad_(False)
-    #self.stacks[-1][-1].backcast_g.requires_grad_(False)
+    # last backcast layer does not need gradients
+    self.stacks[-1][-1].backcast_linear.requires_grad_(False)
+    self.stacks[-1][-1].backcast_g.requires_grad_(False)
            
   def create_stack(self, stack_id):
     stack_type = self.stack_types[stack_id]
@@ -257,8 +258,13 @@ class NBeatsNet(pl.LightningModule):
     if self.optimizer_name not in OPTIMIZERS:
         raise ValueError(f"Unknown optimizer name: {self.optimizer_name}. Please select one of {OPTIMIZERS}")
     
-    opti = getattr(optim, self.optimizer_name)(self.parameters(), lr=self.learning_rate)
-    return opti
+    optimizer = getattr(optim, self.optimizer_name)(self.parameters(), lr=self.learning_rate)
+    scheduler = {
+      'scheduler': StepLR(optimizer, step_size=10, gamma=0.1),
+      'interval': 'epoch',  # could be 'step' if you want to update the learning rate at every optimization step
+      'monitor': 'val_loss',  # Metric to monitor for performance improvement. Only necessary if `reduce_on_plateau` scheduler is used
+    }
+    return {'optimizer': optimizer, 'lr_scheduler': scheduler}
 
 
 def squeeze_last_dim(tensor):
@@ -345,9 +351,8 @@ class GenericBlock(Block):
         self.backcast_linear = nn.Linear(units, thetas_dim)
         self.forecast_linear = nn.Linear(units, thetas_dim)
         
-    # bias on the g layers can cause the network to diverge
-    self.backcast_g = nn.Linear(thetas_dim, backcast, bias = False) 
-    self.forecast_g = nn.Linear(thetas_dim, forecast, bias = False)
+    self.backcast_g = nn.Linear(thetas_dim, backcast, bias = True) 
+    self.forecast_g = nn.Linear(thetas_dim, forecast, bias = True)
     self.active_g = active_g
     
   def forward(self, x):
