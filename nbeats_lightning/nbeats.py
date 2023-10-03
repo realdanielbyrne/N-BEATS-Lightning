@@ -259,12 +259,13 @@ class NBeatsNet(pl.LightningModule):
         raise ValueError(f"Unknown optimizer name: {self.optimizer_name}. Please select one of {OPTIMIZERS}")
     
     optimizer = getattr(optim, self.optimizer_name)(self.parameters(), lr=self.learning_rate)
-    scheduler = {
-      'scheduler': StepLR(optimizer, step_size=10, gamma=0.1),
-      'interval': 'epoch',  # could be 'step' if you want to update the learning rate at every optimization step
-      'monitor': 'val_loss',  # Metric to monitor for performance improvement. Only necessary if `reduce_on_plateau` scheduler is used
-    }
-    return {'optimizer': optimizer, 'lr_scheduler': scheduler}
+    return optimizer
+    # scheduler = {
+    #   'scheduler': StepLR(optimizer, step_size=10, gamma=0.1),
+    #   'interval': 'epoch',  # could be 'step' if you want to update the learning rate at every optimization step
+    #   'monitor': 'val_loss',  # Metric to monitor for performance improvement. Only necessary if `reduce_on_plateau` scheduler is used
+    # }
+    # return {'optimizer': optimizer, 'lr_scheduler': scheduler}
 
 
 def squeeze_last_dim(tensor):
@@ -351,8 +352,8 @@ class GenericBlock(Block):
         self.backcast_linear = nn.Linear(units, thetas_dim)
         self.forecast_linear = nn.Linear(units, thetas_dim)
         
-    self.backcast_g = nn.Linear(thetas_dim, backcast, bias = True) 
-    self.forecast_g = nn.Linear(thetas_dim, forecast, bias = True)
+    self.backcast_g = nn.Linear(thetas_dim, backcast, bias = False) 
+    self.forecast_g = nn.Linear(thetas_dim, forecast, bias = False)
     self.active_g = active_g
     
   def forward(self, x):
