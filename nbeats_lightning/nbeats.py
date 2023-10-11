@@ -4,26 +4,24 @@ import torch
 from torch import nn, optim
 from torch.nn import functional as F
 import lightning.pytorch as pl
-from .losses import MASELoss, SMAPELoss, MAPELoss
-from torch.optim.lr_scheduler import StepLR
-from torch.autograd import Variable
-from .blocks import GenericBlock, SeasonalityBlock, TrendBlock, VAEBlock 
-from .blocks import squeeze_last_dim, LOSSES, OPTIMIZERS, ACTIVATIONS
+
+from .losses import *
+from .blocks import blocks as b
+from .constants import LOSSES, OPTIMIZERS, BLOCKS
+
 
 class NBeatsNet(pl.LightningModule):
   SEASONALITY = 'seasonality'
   TREND = 'trend'
   GENERIC = 'generic'
-  VAE = 'vae'
+  AE = 'ae'
     
   def __init__(
       self,
       backcast:int, 
       forecast:int,  
-      generic_architecture:bool = True,
       stack_types:list = None,
       n_blocks_per_stack:int = 1, 
-      n_stacks:int = 6, 
       g_width:int = 512, 
       v_width:int = 512,
       s_width:int = 2048, 
@@ -36,9 +34,9 @@ class NBeatsNet(pl.LightningModule):
       optimizer_name:str = 'Adam', # 'Adam', 'SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'AdamW'
       activation:str = 'ReLU', # 'ReLU', 'RReLU', 'PReLU', 'ELU', 'Softplus', 'Tanh', 'SELU', 'LeakyReLU', 'Sigmoid', 'GELU'
       frequency:int = 1, 
-      active_g:bool = False, 
-      sum_losses:bool = False, 
-
+      active_g:bool = True, 
+      latent_dim:int = 5,
+      sum_losses:bool = False
     ):
 
     """A PyTorch Lightning module for the N-BEATS network for time series forecasting.
@@ -133,10 +131,9 @@ class NBeatsNet(pl.LightningModule):
     self.backcast = backcast
     self.forecast = forecast
     self.n_blocks_per_stack = n_blocks_per_stack
-    self.n_stacks = n_stacks
     self.share_weights = share_weights
     self.g_width = g_width
-    self.v_width = v_width
+    self.ae_width = v_width
     self.s_width = s_width
     self.t_width = t_width
     self.thetas_dim = thetas_dim
@@ -145,59 +142,61 @@ class NBeatsNet(pl.LightningModule):
     self.optimizer_name = optimizer_name
     self.frequency = frequency
     self.loss = loss
-    self.generic_architecture = generic_architecture
     self.activation = activation
     self.active_g = active_g
     self.sum_losses = sum_losses
+    self.latent_dim = latent_dim
     self.loss_fn = self.configure_loss()    
+    
     self.save_hyperparameters()   
       
     if stack_types is not None:
       self.stack_types = stack_types
       self.n_stacks = len(stack_types)                              
-    elif generic_architecture:  
-      self.stack_types = [NBeatsNet.GENERIC] * self.n_stacks
     else:
-      self.stack_types = [NBeatsNet.TREND, NBeatsNet.SEASONALITY]
+      raise ValueError("Stack architecture must be specified.")
           
     self.stacks = nn.ModuleList()
     for stack_id in range(len(self.stack_types)):
       self.stacks.append(self.create_stack(stack_id))  
-    
-           
+               
            
   def create_stack(self, stack_id):
     stack_type = self.stack_types[stack_id]
     blocks = nn.ModuleList()
+    if (stack_type not in BLOCKS):
+        raise ValueError(f"Unknown stack type: {stack_type}. Please select one of {BLOCKS}")      
     
     for block_id in range(self.n_blocks_per_stack):
         if self.share_weights and block_id != 0:
             # share initial weights across blocks
             block = blocks[-1]  
-        else:
-            if stack_type == NBeatsNet.GENERIC:
-                block = GenericBlock(
-                    self.g_width, self.backcast, self.forecast, self.thetas_dim, self.share_weights, self.activation, self.active_g
-                )
-            elif stack_type == NBeatsNet.SEASONALITY:
-                block = SeasonalityBlock(
-                    self.s_width, self.backcast, self.forecast, self.activation
-                )
-            elif stack_type == NBeatsNet.TREND:
-                block = TrendBlock(
-                    self.t_width, self.backcast, self.forecast, self.thetas_dim, self.share_weights, self.activation
-                )
-            elif stack_type == NBeatsNet.VAE:
-                block = VAEBlock(
-                    self.v_width, self.backcast, self.forecast, self.thetas_dim, self.share_weights, self.activation
-                )
+        else:           
+            if (stack_type == "GenericBlock" or "GenericAEBlock" or "GenericAEBackcastBlock"):
+              width = self.g_width
+            elif (stack_type == "SeasonalityBlock" or "SeasonalityAEBlock"):
+              width = self.s_width
+            elif (stack_type == "TrendBlock" or "TrendAEBlock"):
+              width = self.t_width
+            elif (stack_type == "AutoEncoderBlock" or "AutoEncoderAEBlock"):
+              width = self.ae_width
+
+            if (stack_type == "GenericAEBlock" or "SeasonalityAEBlock" or "AutoEncoderAEBlock0" or "TrendAEBlock"):
+              block = getattr(b,stack_type)(
+                  width, self.backcast, self.forecast, self.thetas_dim, 
+                  self.share_weights, self.activation, self.active_g)
+            else:
+              block = getattr(b,stack_type)(
+                  width, self.backcast, self.forecast, self.thetas_dim, 
+                  self.share_weights, self.activation, self.active_g, self.latent_dim) 
+            
                 
         blocks.append(block)   
 
     return blocks
 
   def forward(self, x):
-    x = squeeze_last_dim(x)    
+    x = b.squeeze_last_dim(x)    
     y = torch.zeros(
             x.shape[0],
             self.forecast,
@@ -216,8 +215,8 @@ class NBeatsNet(pl.LightningModule):
   def training_step(self, batch, batch_idx):
     x, y = batch
     backcast, forecast = self(x)
-    loss = self.loss_fn(forecast, squeeze_last_dim(y))
-    backcast_loss = self.loss_fn(backcast, squeeze_last_dim(x))
+    loss = self.loss_fn(forecast, b.squeeze_last_dim(y))
+    backcast_loss = self.loss_fn(backcast, b.squeeze_last_dim(x))
     if self.sum_losses:
       loss = loss + backcast_loss*0.5
     self.log('train_loss', loss, prog_bar=True)
@@ -229,8 +228,8 @@ class NBeatsNet(pl.LightningModule):
     
     x, y = batch
     backcast, forecast = self(x)
-    loss = self.loss_fn(forecast, squeeze_last_dim(y))
-    backcast_loss = self.loss_fn(backcast, squeeze_last_dim(x))
+    loss = self.loss_fn(forecast, b.squeeze_last_dim(y))
+    backcast_loss = self.loss_fn(backcast, b.squeeze_last_dim(x))
     if self.sum_losses:
       loss = loss + backcast_loss * 0.5    
     
@@ -240,8 +239,8 @@ class NBeatsNet(pl.LightningModule):
   def test_step(self, batch, batch_idx):
     x, y = batch
     backcast, forecast = self(x)
-    loss = self.loss_fn(forecast, squeeze_last_dim(y))
-    backcast_loss = self.loss_fn(backcast, squeeze_last_dim(x))
+    loss = self.loss_fn(forecast, b.squeeze_last_dim(y))
+    backcast_loss = self.loss_fn(backcast, b.squeeze_last_dim(x))
     if self.sum_losses:
       loss = loss + backcast_loss * 0.5
       
