@@ -17,8 +17,9 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Load the milk.csv dataset
-milk = pd.read_csv('data/milk.csv', index_col=0)
-milkval = milk.values.flatten() # flat numpy array
+df = pd.read_csv('data/Electric_Production.csv', index_col=0)
+df_val = df.values.flatten() # flat numpy array
+torch.set_float32_matmul_precision('medium')
 
 
 forecast_length = 6
@@ -27,12 +28,12 @@ batch_size = 64
 
 # Create a simple pytorch dataloader
 dm = TimeSeriesDataModule(
-  data=milkval,
+  data=df_val,
   batch_size=batch_size,
   backcast=backcast_length,
   forecast=forecast_length)
 
-#%%
+#%% ###########################################################################################
 # Generic Model
 n_stacks = 6
 bps = 1
@@ -51,10 +52,9 @@ generic = NBeatsNet (
   share_weights = share_w, # share initial weights
   thetas_dim=thetas_dim,
   loss=loss,
-  v_width = width,
+  g_width = width,
   active_g = active_g)
 
-#print(generic)
 name = f"Generic-[{backcast_length}-{forecast_length}]-{n_stacks=}-{width=}-{active_g=}-{bps=}-{thetas_dim=}-{loss}" 
 print("Model Name :", name)
 
@@ -85,9 +85,9 @@ generic_trainer.validate(generic, datamodule=dm)
 
 #%% ###########################################################################################
 # Generic AE Model
-n_stacks = 7
+n_stacks = 10
 bps = 1
-width = 512
+width = 768
 thetas_dim = 5
 loss='SMAPELoss'
 active_g = True
@@ -104,7 +104,7 @@ genericAE = NBeatsNet (
   share_weights = share_w, # share initial weights
   thetas_dim=thetas_dim,
   loss=loss,
-  v_width = width,
+  g_width = width,
   active_g=active_g,
   latent_dim = latent)
 
@@ -136,63 +136,12 @@ genericAE_trainer =  pl.Trainer(
 genericAE_trainer.fit(genericAE, datamodule=dm)
 genericAE_trainer.validate(genericAE, datamodule=dm)
 
-#%% ###########################################################################################
-# Interpretable AE Model
-bps = 5
-s_width = 2048
-t_width = 256
-thetas_dim = 5
-share_w = True
-loss='SMAPELoss'
-latent = 5
-
-
-stack_types = ["TrendAEBlock","SeasonalityAEBlock"] 
-iae = NBeatsNet (
-  backcast = backcast_length,
-  forecast = forecast_length, 
-  stack_types = stack_types,
-  n_blocks_per_stack = bps,
-  share_weights = share_w, # share initial weights
-  thetas_dim=thetas_dim,
-  loss=loss,
-  s_width = s_width,
-  t_width = t_width,
-  active_g=True,
-  latent_dim=latent)
-
-#print(iae)
-name = f"InterpretableAE-[{backcast_length}-{forecast_length}]-{bps=}-{s_width=}-{t_width=}-{thetas_dim=}-{loss}-{latent=}"
-print("Model Name :", name)
-
-# Define a model checkpoint callback
-iae_chk_callback = ModelCheckpoint(
-  save_top_k = 1, # save top 2 models
-  monitor = "val_loss", # monitor validation loss as evaluation 
-  mode = "min",
-  filename = "{name}-{epoch:02d}-{val_loss:.2f}",
-)
-
-# Define a tensorboard loger
-iae_tb_logger = pl_loggers.TensorBoardLogger(save_dir="lightning_logs/", name=name)
-
-
-# Train the generic model
-iae_trainer =  pl.Trainer(
-  accelerator='auto' # use GPU if available
-  ,max_epochs=1000
-  ,callbacks=[iae_chk_callback]  
-  ,logger=[iae_tb_logger]
-)
-
-iae_trainer.fit(iae, datamodule=dm)
-iae_trainer.validate(iae, datamodule=dm)
 
 #%% ###########################################################################################
 # Interpretable Model
 bps = 3
 s_width = 2048
-t_width = 256
+t_width = 512
 thetas_dim = 5
 share_w = True
 loss='SMAPELoss'
@@ -237,6 +186,57 @@ interp_trainer =  pl.Trainer(
 
 interp_trainer.fit(interp, datamodule=dm)
 interp_trainer.validate(interp, datamodule=dm)
+
+#%% ###########################################################################################
+# Interpretable AE Model
+bps = 5
+s_width = 2048
+t_width = 512
+thetas_dim = 5
+share_w = True
+loss='SMAPELoss'
+latent = 5
+
+stack_types = ["TrendAEBlock","SeasonalityAEBlock"] 
+iae = NBeatsNet (
+  backcast = backcast_length,
+  forecast = forecast_length, 
+  stack_types = stack_types,
+  n_blocks_per_stack = bps,
+  share_weights = share_w, # share initial weights
+  thetas_dim=thetas_dim,
+  loss=loss,
+  s_width = s_width,
+  t_width = t_width,
+  active_g=True,
+  latent_dim=latent)
+
+#print(iae)
+name = f"InterpretableAE-[{backcast_length}-{forecast_length}]-{bps=}-{s_width=}-{t_width=}-{thetas_dim=}-{loss}-{latent=}"
+print("Model Name :", name)
+
+# Define a model checkpoint callback
+iae_chk_callback = ModelCheckpoint(
+  save_top_k = 1, # save top 2 models
+  monitor = "val_loss", # monitor validation loss as evaluation 
+  mode = "min",
+  filename = "{name}-{epoch:02d}-{val_loss:.2f}",
+)
+
+# Define a tensorboard loger
+iae_tb_logger = pl_loggers.TensorBoardLogger(save_dir="lightning_logs/", name=name)
+
+
+# Train the generic model
+iae_trainer =  pl.Trainer(
+  accelerator='auto' # use GPU if available
+  ,max_epochs=1000
+  ,callbacks=[iae_chk_callback]  
+  ,logger=[iae_tb_logger]
+)
+
+iae_trainer.fit(iae, datamodule=dm)
+iae_trainer.validate(iae, datamodule=dm)
 
 
 #%% ###########################################################################################
@@ -291,9 +291,9 @@ ae_trainer.validate(ae, datamodule=dm)
 
 #%% ###########################################################################################
 # AutoEncoderAE Model
-n_stacks = 7
+n_stacks = 10
 bps = 1
-width = 512
+width = 768
 thetas_dim = 5
 loss='SMAPELoss'
 active_g = True
@@ -392,9 +392,9 @@ ae_bckcast_trainer.validate(ae_bckcast, datamodule=dm)
 
 #%% ###########################################################################################
 # GenericAEBackcastAEBlock Model
-n_stacks = 6
+n_stacks = 10
 bps = 1
-width = 512
+width = 768
 thetas_dim = 5
 loss='SMAPELoss'
 active_g = True
@@ -440,5 +440,3 @@ ae_bckcast_ae_bckcast_trainer =  pl.Trainer(
 ae_bckcast_ae_bckcast_trainer.fit(ae_bckcast_ae, datamodule=dm)
 ae_bckcast_ae_bckcast_trainer.validate(ae_bckcast_ae, datamodule=dm)
 
-
-# %%
