@@ -222,7 +222,7 @@ def get_tourism_data(data_freq:str="yearly"):
 #%%
 # parameters
 fast_dev_run = False
-batch_size = 1024
+batch_size = 3072
 max_epochs = 200
 loss = 'SMAPELoss'
 viz = False
@@ -250,20 +250,20 @@ for p, lengths in periods.items():
           
   blocks_to_test = {
     "Generic":["GenericBlock"],
-    #"GenericAE":["GenericAEBlock"],
-    #"GenericAEBackcast":["GenericAEBackcastBlock"],
-    #"GenericAEBackcastAE":["GenericAEBackcastAEBlock"],
-    #"TrendBlock":["TrendBlock"],
-    #"TrandAEBlock":["TrendAEBlock"],
-    #"AutoEncoder":["AutoEncoderBlock"],
-    #"AutoEncoderAE":["AutoEncoderAEBlock"],
-    #"DB1":["DB1Block"],
-    #"DB2":["DB2Block"],
+    "GenericAE":["GenericAEBlock"],
+    "GenericAEBackcast":["GenericAEBackcastBlock"],
+    "GenericAEBackcastAE":["GenericAEBackcastAEBlock"],
+    "TrendBlock":["TrendBlock"],
+    "TrandAEBlock":["TrendAEBlock"],
+    "AutoEncoder":["AutoEncoderBlock"],
+    "AutoEncoderAE":["AutoEncoderAEBlock"],
+    "DB1":["DB1Block"],
+    "DB2":["DB2Block"],
     #"DB3":["DB3Block"],
     #"DB4":["DB4Block"],
-    #"Haar":["HaarBlock"],
+    "Haar":["HaarBlock"],
 
-    #"TrendGeneric":["TrendBlock","GenericBlock"],
+    "TrendGeneric":["TrendBlock","GenericBlock"],
     "TrendSeasonality":["TrendBlock","SeasonalityBlock"],
     "TrendDB2":["TrendBlock","DB2Block"],
     "TrendHaar":["TrendBlock","HaarBlock"],
@@ -296,7 +296,7 @@ for p, lengths in periods.items():
 
   for key,value in blocks_to_test.items():
     
-    n_stacks = 20//len(value)
+    n_stacks = 16//len(value)
     #n_stacks = 2
     thetas_dim = 5
     bps = 3
@@ -330,7 +330,7 @@ for p, lengths in periods.items():
       sum_losses = sum_losses
     ) 
 
-    name = f"{key}-{dataset_id}]" 
+    name = f"{key}-{dataset_id}-[{backcast_length},{forecast_length}]" 
     print(f"Model Name :{name}")
 
     trainer = get_trainer(name, fast_dev_run = fast_dev_run)
