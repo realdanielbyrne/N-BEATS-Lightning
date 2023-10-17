@@ -235,41 +235,31 @@ class ForecastingDataset(Dataset):
   def __getitem__(self, idx):
     return self.historical_data[idx]
 
+from torch.utils.data import Dataset
+import torch
+import pandas as pd
+
 class ColumnarTimeSeriesDataset(Dataset):
     def __init__(self, dataframe, backcast_length, forecast_length):
-      """
-      Initialize the ColumnarTimeSeriesDataset.
-      
-      Parameters:
-          dataframe (pd.DataFrame): The time series data as a Pandas DataFrame.
-          backcast_length (int): Number of past observations to use for prediction.
-          forecast_length (int): Number of future observations to predict.
-      """      
-      self.dataframe = dataframe.copy()
-      self.backcast_length = backcast_length
-      self.forecast_length = forecast_length
-      self.min_length = backcast_length + forecast_length
+        self.backcast_length = backcast_length
+        self.forecast_length = forecast_length
+        self.min_length = backcast_length + forecast_length
 
-      # Drop columns (time series) with insufficient data
-      self.dataframe.dropna(thresh=self.min_length, axis=1, inplace=True)
+        # Drop columns with insufficient data and convert to dictionary of NumPy arrays
+        self.data_dict = {col: dataframe[col].dropna().values for col in dataframe.columns if len(dataframe[col].dropna()) >= self.min_length}
 
-      # Precompute column indices and starting positions
-      self.col_indices = []
-      for col in self.dataframe.columns:
-          valid_length = len(self.dataframe[col].dropna())
-          for idx in range(valid_length - self.min_length + 1):
-              self.col_indices.append((col, idx))
+        # Precompute column indices and starting positions
+        self.col_indices = [(col, idx) for col, series in self.data_dict.items() for idx in range(len(series) - self.min_length + 1)]
 
     def __len__(self):
-      return len(self.col_indices)
+        return len(self.col_indices)
 
     def __getitem__(self, idx):
-      col, start_idx = self.col_indices[idx]
-      series = self.dataframe[col].dropna().values
-      x = torch.tensor(series[start_idx:start_idx + self.backcast_length], dtype=torch.float32)
-      y = torch.tensor(series[start_idx + self.backcast_length:start_idx + self.min_length], dtype=torch.float32)
-      return x, y
-
+        col, start_idx = self.col_indices[idx]
+        series = self.data_dict[col]
+        x = torch.from_numpy(series[start_idx:start_idx + self.backcast_length]).float()
+        y = torch.from_numpy(series[start_idx + self.backcast_length:start_idx + self.min_length]).float()
+        return x, y
 
     
 class ColumnarCollectionTimeSeriesDataModule(pl.LightningDataModule):
