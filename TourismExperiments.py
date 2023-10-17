@@ -56,7 +56,7 @@ def plot_data(df):
   plt.ylabel('Frequency')
   plt.show()
 
-def filter_dataset(data, backcast_length, forecast_length:int=4):
+def filter_dataset_by_removing_short_ts(data, backcast_length:int= 8, forecast_length:int=4):
   print("Filtering NANs, and sequences that are too short.")
   # Minimum length for each time series to be usable (backcast + forecast)
   min_length = forecast_length + backcast_length
@@ -75,6 +75,71 @@ def filter_dataset(data, backcast_length, forecast_length:int=4):
   print("Dataframe shape of invalid entries :",data[invalid_columns].shape)
   print ("Dataframe shape of valid test entries :",test_data.shape)
   
+  return train_data, test_data
+
+def fill_time_series_gaps(data, backcast_length:int= 8, forecast_length:int=4):
+  """
+  Fills gaps in time series data to ensure that each series in the DataFrame
+  meets a minimum length requirement. The minimum length is determined by the
+  sum of the backcast and forecast lengths. Missing values in series that
+  don't meet the minimum length are filled with the median of the available
+  values in that specific series.
+  
+  Parameters:
+  - data (pd.DataFrame): The DataFrame containing time series data. Each
+    column represents an individual time series.
+  - backcast_length (int): The number of past observations required for each
+    time series. Default is 8.
+  - forecast_length (int): The number of future observations required for each
+    time series. Default is 4.
+  
+  Side Effects:
+  - Modifies the input DataFrame in-place to fill missing values in columns
+    that are shorter than the minimum length.
+    
+  Prints:
+  - Dataframe shape of train entries
+  - Dataframe shape of test entries
+  
+  """
+  print("Handling NaNs and sequences that are too short.\n")
+  
+  # Minimum length for each time series to be usable (backcast + forecast)
+  min_length = forecast_length + backcast_length
+  
+  # Identify columns (time series) that have fewer data points than min_length
+  invalid_columns = [col for col in data.columns if data[col].dropna().shape[0] < min_length]
+  print("Number of columns with invalid length: ", len(invalid_columns))
+  
+  # Handle invalid columns
+  for col in invalid_columns:
+      series_median = data[col].median()  # Calculate median for this specific column
+      
+      missing_count = min_length - data[col].dropna().shape[0]
+      
+      if missing_count > 0:
+          # Calculate how many values should be imputed           
+          backfill_count = min(backcast_length, missing_count)
+          forecast_count = missing_count - backfill_count
+          
+          # Backfill and forecast using median
+          backfill_values = [series_median] * backfill_count
+          forecast_values = [series_median] * forecast_count
+          
+          non_na_values = data[col].dropna().tolist()
+          
+          # Create new series
+          new_series = backfill_values + non_na_values + forecast_values
+          
+          # Replace the column in DataFrame
+          data[col] = pd.Series(new_series)
+  
+  # Create train and test data
+  train_data = data.iloc[:-forecast_length, :]
+  test_data = data.iloc[-forecast_length:, :].reset_index(drop=True)
+  
+  print("Dataframe shape of train entries: ", train_data.shape)
+  print("Dataframe shape of test entries: ", test_data.shape)
   return train_data, test_data
 
 def get_dms(df_valid, df_holdout, backcast_length:int, forecast_length:int=4, batch_size:int=1024, split_ratio:float=0.8):
@@ -131,15 +196,15 @@ def get_tourism_data(data_freq:str="yearly"):
   monthly_quarterly_path = 'data/tourism2/tourism2_revision2.csv'
   
   if data_freq == "yearly":
-    print("Loading yearly data")
+    print("Loading yearly data...\n")
     file_path = yearly_path
     dataset_id = "TourismYr"
   elif data_freq == "monthly":
-    print("Loading monthly data")
+    print("Loading monthly data...\n")
     file_path = monthly_quarterly_path
     dataset_id = "TourismMth"
   else:
-    print("Loading quarterly data")
+    print("Loading quarterly data...\n")
     file_path = monthly_quarterly_path
     dataset_id = "TourismQtr"
         
@@ -156,8 +221,6 @@ def get_tourism_data(data_freq:str="yearly"):
 
 #%%
 # parameters
-backcast_length = 8
-forecast_length = 4
 fast_dev_run = False
 batch_size = 1024
 max_epochs = 200
@@ -169,80 +232,113 @@ if split_ratio == 1.0:
   no_val = True
 
 # Load the data
-df, dataset_id = get_tourism_data("yearly")
-df_valid, df_holdout = filter_dataset(df, backcast_length, forecast_length)
-dm, test_dm = get_dms(df_valid, df_holdout, backcast_length, forecast_length, batch_size, split_ratio)
-
-if viz:
-  plot_data(df_valid)
+#periods = {"yearly":[8,4], "monthly":[72,24], "quarterly":[24,8]}
+periods = { "monthly":[72,24], "quarterly":[24,8]}
+for p, lengths in periods.items():
+  backcast_length = lengths[0] 
+  forecast_length = lengths[1]  
+  print (f"Backcast Length: {backcast_length}, Forecast Length: {forecast_length}\n")
   
-#%%
-blocks_to_test = {
-  "Generic":["GenericBlock"],
-  "GenericAE":["GenericAEBlock"],
-  "GenericAEBackcast":["GenericAEBackcastBlock"],
-  "GenericAEBackcastAE":["GenericAEBackcastAEBlock"],
-  "TrendBlock":["TrendBlock"],
-  "TrendAE":["TrendAEBlock"],
-  "AutoEncoder":["AutoEncoderBlock"],
-  "AutoEncoderAE":["AutoEncoderAEBlock"],
-  "DB1":["DB1Block"],
-  "DB2":["DB2Block"],
-  "DB3":["DB3Block"],
-  "DB4":["DB4Block"],
-  "Haar":["HaarBlock"],
-  "TrendSeasonality":["TrendBlock","SeasonalityBlock"],
-  "TrendDB2":["TrendBlock","DB2Block"],
-  "TrendAEDB2":["TrendAEBlock","DB2Block"],
-  "SeasonalityDB2":["SeasonalityBlock","DB2Block"],
-  "TrendGeneric":["TrendBlock","GenericBlock"],
-  "SeasonalityGeneric":["SeasonalityBlock","GenericBlock"],
-  "AutoencoderDB2":["AutoEncoderBlock","DB2Block"],
-  "AutoencoderAEDB2":["AutoEncoderAEBlock","DB2Block"],
-}
-
-for key,value in blocks_to_test.items():
+  df, dataset_id = get_tourism_data(p)
+  print(f"Dataset ID: {dataset_id}")
   
-  n_stacks = 20//len(value)
-  thetas_dim = 4
-  bps = 1
-  active_g = True
-  share_w = False
-  latent = 4
-  g_width = 512
-  s_width = 2048
-  t_width = 256
-  ae_width = 512
-  sum_losses = False
+  df_valid, df_holdout = fill_time_series_gaps(df, backcast_length, forecast_length)
+  dm, test_dm = get_dms(df_valid, df_holdout, backcast_length, forecast_length, batch_size, split_ratio)
 
-  b_type = key
-  stack_types = value * n_stacks
-  
-  model = NBeatsNet (
-    backcast = backcast_length,
-    forecast = forecast_length, 
-    stack_types = stack_types,
-    n_blocks_per_stack = bps,
-    share_weights = share_w, # share initial weights
-    thetas_dim = thetas_dim,
-    loss = loss,
-    g_width = g_width,
-    s_width = s_width,
-    t_width = t_width,
-    active_g = active_g,
-    no_val = no_val,
-    ae_width = ae_width,
-    latent_dim = latent,
-    sum_losses = sum_losses
-  ) 
+  if viz:
+    plot_data(df_valid)
+          
+  blocks_to_test = {
+    "Generic":["GenericBlock"],
+    #"GenericAE":["GenericAEBlock"],
+    #"GenericAEBackcast":["GenericAEBackcastBlock"],
+    #"GenericAEBackcastAE":["GenericAEBackcastAEBlock"],
+    #"TrendBlock":["TrendBlock"],
+    #"TrandAEBlock":["TrendAEBlock"],
+    #"AutoEncoder":["AutoEncoderBlock"],
+    #"AutoEncoderAE":["AutoEncoderAEBlock"],
+    #"DB1":["DB1Block"],
+    #"DB2":["DB2Block"],
+    #"DB3":["DB3Block"],
+    #"DB4":["DB4Block"],
+    #"Haar":["HaarBlock"],
 
-  name = f"{key}-{n_stacks=}" 
-  print(f"Model Name :{name}")
+    #"TrendGeneric":["TrendBlock","GenericBlock"],
+    "TrendSeasonality":["TrendBlock","SeasonalityBlock"],
+    "TrendDB2":["TrendBlock","DB2Block"],
+    "TrendHaar":["TrendBlock","HaarBlock"],
+    "TrendGerericAEBackcast":["TrendBlock","GenericAEBackcastBlock"],
+    "TrendAEDB2":["TrendAEBlock","DB2Block"],
+    "TrendTrendAE":["TrendBlock","TrendAEBlock"],
+    
+    "SeasonalityGeneric":["SeasonalityBlock","GenericBlock"],
+    "SeasonalityDB2":["SeasonalityBlock","DB2Block"],
+    "SeasonalityHaar":["SeasonalityBlock","HaarBlock"],
+    "SeasonalityAutoEncoder":["SeasonalityBlock","AutoEncoderBlock"],
+    "SeasonalityGenericAEBackcast":["SeasonalityBlock","GenericAEBackcastBlock"],
+    
+    "AutoEncoderGeneric":["AutoEncoderBlock","GenericBlock"],
+    "AutoencoderDB2":["AutoEncoderBlock","DB2Block"],
+    "AutoEncoderHaar":["AutoEncoderBlock","HaarBlock"],
+    
+    "GenericDB2":["GenericBlock","DB2Block"],
+    "GenericAEBackcastDB2":["GenericAEBackcastBlock","DB2Block"], 
+    
+    "HaarDB2":["HaarBlock","DB2Block"],
+    
+    
+    "TrendDB2DB2":["TrendBlock","DB2Block","DB2Block"],
+    "TrendDB2DB3":["TrendBlock","DB2Block","DB3Block"],
+    "TrendHaarDB2":["TrendBlock","HaarBlock","DB2Block"],
+    "TrendSeasonalityDB2Generic":["TrendBlock","SeasonalityBlock","DB2Block","DB3Block","GenericBlock"],
+    
+  }
 
-  trainer = get_trainer(name, fast_dev_run = fast_dev_run)
-  trainer.fit(model, datamodule=dm)
-  trainer.validate(model, datamodule=dm)
-  trainer.test(model, datamodule=test_dm)
+  for key,value in blocks_to_test.items():
+    
+    n_stacks = 20//len(value)
+    #n_stacks = 2
+    thetas_dim = 5
+    bps = 3
+    active_g = True
+    share_w = True
+    latent = 4
+    g_width = 512
+    s_width = 2048
+    t_width = 256
+    ae_width = 512
+    sum_losses = False
+
+    b_type = key
+    stack_types = value * n_stacks
+    
+    model = NBeatsNet (
+      backcast = backcast_length,
+      forecast = forecast_length, 
+      stack_types = stack_types,
+      n_blocks_per_stack = bps,
+      share_weights = share_w, # share initial weights
+      thetas_dim = thetas_dim,
+      loss = loss,
+      g_width = g_width,
+      s_width = s_width,
+      t_width = t_width,
+      active_g = active_g,
+      no_val = no_val,
+      ae_width = ae_width,
+      latent_dim = latent,
+      sum_losses = sum_losses
+    ) 
+
+    name = f"{key}-{dataset_id}]" 
+    print(f"Model Name :{name}")
+
+    trainer = get_trainer(name, fast_dev_run = fast_dev_run)
+    trainer.fit(model, datamodule=dm)
+    trainer.validate(model, datamodule=dm)
+    trainer.test(model, datamodule=test_dm)
+
+
 
 
 # %%
