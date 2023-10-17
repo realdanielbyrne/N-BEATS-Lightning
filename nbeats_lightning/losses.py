@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 
+
 class MASELoss(nn.Module):
   """ Mean Absolute Scaled Error (MASE) PyTorch loss function."""  
   def __init__(self, seasonal_period=1):
@@ -8,7 +9,7 @@ class MASELoss(nn.Module):
 
       Args:
           seasonal_period (int, optional): The seasonal period of the data.  
-          For instance 12 for Yearly M4 data. Defaults to 1.
+          For instance 1 for Yearly M4 data. Defaults to 1.
       """
       super(MASELoss, self).__init__()
       self.seasonal_period = seasonal_period

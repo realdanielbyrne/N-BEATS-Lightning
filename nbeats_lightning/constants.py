@@ -45,14 +45,19 @@ OPTIMIZERS = [
 ]
 
 BLOCKS = [
-  "AutoEncoderBlock",
-  "AutoEncoderAEBlock",
   "GenericBlock",
   "GenericAEBlock",
-  "SeasonalityBlock",
-  "SeasonalityAEBlock",
+  "GenericAEBackcastBlock",
+  "GenericAEBackcastAEBlock",
   "TrendBlock",
   "TrendAEBlock",
-  "GenericAEBackcastBlock",
-  "GenericAEBackcastAEBlock"
+  "SeasonalityBlock",
+  "SeasonalityAEBlock",
+  "AutoEncoderBlock",
+  "AutoEncoderAEBlock",
+  "DB1Block",
+  "DB2Block",
+  "DB3Block",
+  "DB4Block", 
+  "HaarBlock",
 ]

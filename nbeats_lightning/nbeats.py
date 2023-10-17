@@ -23,9 +23,9 @@ class NBeatsNet(pl.LightningModule):
       stack_types:list = None,
       n_blocks_per_stack:int = 1, 
       g_width:int = 512, 
-      v_width:int = 512,
       s_width:int = 2048, 
       t_width:int = 256, 
+      ae_width:int = 512,
       share_weights:bool = False, 
       thetas_dim:int = 5, 
       learning_rate: float = 1e-4,  
@@ -36,7 +36,8 @@ class NBeatsNet(pl.LightningModule):
       frequency:int = 1, 
       active_g:bool = True, 
       latent_dim:int = 5,
-      sum_losses:bool = False
+      sum_losses:bool = False,
+      
     ):
 
     """A PyTorch Lightning module for the N-BEATS network for time series forecasting.
@@ -81,7 +82,7 @@ class NBeatsNet(pl.LightningModule):
     n_stacks : int, optional
         The number of stacks, by default 5 when Generic, else fixed at 2  (1 Seasonal
         + 1 Trend) when interpretable.
-    g_width, s_width, s_width : int, optional
+    g_width, s_width, t_width : int, optional
         The width of the fully connected layers in a Generic block(g), Seasonal
         Block(s), or Trend Block(t). 
         Default (g = 512, s = 2048, t = 256).
@@ -133,9 +134,9 @@ class NBeatsNet(pl.LightningModule):
     self.n_blocks_per_stack = n_blocks_per_stack
     self.share_weights = share_weights
     self.g_width = g_width
-    self.ae_width = v_width
     self.s_width = s_width
     self.t_width = t_width
+    self.ae_width = ae_width
     self.thetas_dim = thetas_dim
     self.learning_rate = learning_rate
     self.no_val = no_val
@@ -147,6 +148,7 @@ class NBeatsNet(pl.LightningModule):
     self.sum_losses = sum_losses
     self.latent_dim = latent_dim
     self.loss_fn = self.configure_loss()    
+    
     
     self.save_hyperparameters()   
       
@@ -169,28 +171,32 @@ class NBeatsNet(pl.LightningModule):
     
     for block_id in range(self.n_blocks_per_stack):
         if self.share_weights and block_id != 0:
-            # share initial weights across blocks
-            block = blocks[-1]  
+          # share weights across blocks
+          block = blocks[-1]  
         else:           
-            if (stack_type == "GenericBlock" or "GenericAEBlock" or "GenericAEBackcastBlock"):
-              width = self.g_width
-            elif (stack_type == "SeasonalityBlock" or "SeasonalityAEBlock"):
-              width = self.s_width
-            elif (stack_type == "TrendBlock" or "TrendAEBlock"):
-              width = self.t_width
-            elif (stack_type == "AutoEncoderBlock" or "AutoEncoderAEBlock"):
-              width = self.ae_width
+          if (stack_type == "GenericBlock" or "GenericAEBlock" or "GenericAEBackcastBlock"):
+            width = self.g_width
+          elif (stack_type == "SeasonalityBlock" or "SeasonalityAEBlock"):
+            width = self.s_width
+          elif (stack_type == "TrendBlock" or "TrendAEBlock"):
+            width = self.t_width
+          elif (stack_type == "AutoEncoderBlock" or "AutoEncoderAEBlock"):
+            width = self.ae_width
+          else: 
+            width = self.g_width
 
-            if (stack_type == "GenericAEBlock" or "SeasonalityAEBlock" or "AutoEncoderAEBlock0" or "TrendAEBlock"):
-              block = getattr(b,stack_type)(
-                  width, self.backcast, self.forecast, self.thetas_dim, 
-                  self.share_weights, self.activation, self.active_g)
-            else:
-              block = getattr(b,stack_type)(
-                  width, self.backcast, self.forecast, self.thetas_dim, 
-                  self.share_weights, self.activation, self.active_g, self.latent_dim) 
-            
-                
+          if (stack_type == "GenericAEBlock" or 
+              stack_type == "SeasonalityAEBlock" or 
+              stack_type == "AutoEncoderAEBlock" or 
+              stack_type == "TrendAEBlock"):
+            block = getattr(b,stack_type)(
+                width, self.backcast, self.forecast, self.thetas_dim, 
+                self.share_weights, self.activation, self.active_g, self.latent_dim)
+          else:
+            block = getattr(b,stack_type)(
+                width, self.backcast, self.forecast, self.thetas_dim, 
+                self.share_weights, self.activation, self.active_g) 
+                            
         blocks.append(block)   
 
     return blocks
@@ -212,13 +218,28 @@ class NBeatsNet(pl.LightningModule):
     stack_forecast = y
     return stack_residual, stack_forecast
 
+  
   def training_step(self, batch, batch_idx):
+    """Training step for the NBeatsNet model.
+
+    Args:
+        batch (Tensor): Batch of training data.
+        batch_idx (Tensor): Index of training batch.
+
+    Returns:
+        Tensor: Loss for the training step.
+    """
+    # run forward pass
     x, y = batch
     backcast, forecast = self(x)
-    loss = self.loss_fn(forecast, b.squeeze_last_dim(y))
-    backcast_loss = self.loss_fn(backcast, b.squeeze_last_dim(x))
+    
+    # calculate loss
+    loss = self.loss_fn(forecast, y) # squeeze_last_dim(y)) maybe
+    
     if self.sum_losses:
-      loss = loss + backcast_loss*0.5
+      backcast_loss = self.loss_fn(backcast, x) # squeeze_last_dim(x)) maybe
+      loss = loss + backcast_loss * 0.25
+    
     self.log('train_loss', loss, prog_bar=True)
     return loss
 
@@ -231,19 +252,16 @@ class NBeatsNet(pl.LightningModule):
     loss = self.loss_fn(forecast, b.squeeze_last_dim(y))
     backcast_loss = self.loss_fn(backcast, b.squeeze_last_dim(x))
     if self.sum_losses:
-      loss = loss + backcast_loss * 0.5    
+      loss = loss + backcast_loss * 0.25    
     
     self.log('val_loss', loss, prog_bar=True)
     return loss
-
+  
   def test_step(self, batch, batch_idx):
     x, y = batch
     backcast, forecast = self(x)
     loss = self.loss_fn(forecast, b.squeeze_last_dim(y))
-    backcast_loss = self.loss_fn(backcast, b.squeeze_last_dim(x))
-    if self.sum_losses:
-      loss = loss + backcast_loss * 0.5
-      
+          
     self.log('test_loss', loss)
     return loss
 
@@ -255,7 +273,7 @@ class NBeatsNet(pl.LightningModule):
   def configure_loss(self):
     if self.loss not in LOSSES:
         raise ValueError(f"Unknown loss function name: {self.loss}. Please select one of {LOSSES}")
-    if self.loss == 'MAPELoss':
+    if self.loss == 'MASELoss':
         return MASELoss(self.frequency)
     if self.loss == 'MAPELoss':
         return MAPELoss()

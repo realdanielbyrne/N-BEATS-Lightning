@@ -15,11 +15,11 @@ tqdm.pandas()
 import tensorboard
 import warnings
 warnings.filterwarnings('ignore')
+torch.set_float32_matmul_precision('medium')
 
 # Load the milk.csv dataset
-df = pd.read_csv('data/Electric_Production.csv', index_col=0)
+df = pd.read_csv('data/milk.csv', index_col=0)
 df_val = df.values.flatten() # flat numpy array
-torch.set_float32_matmul_precision('medium')
 
 
 forecast_length = 6
@@ -30,8 +30,8 @@ batch_size = 64
 dm = TimeSeriesDataModule(
   data=df_val,
   batch_size=batch_size,
-  backcast=backcast_length,
-  forecast=forecast_length)
+  backcast_length=backcast_length,
+  forecast_length=forecast_length)
 
 #%% ###########################################################################################
 # Generic Model
