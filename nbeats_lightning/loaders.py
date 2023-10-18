@@ -6,49 +6,38 @@ import lightning.pytorch as pl
 from torch.utils.data import random_split
 
 
+import numpy as np
+import torch
+from torch.utils.data import Dataset
+
 class TimeSeriesCollectionDataset(Dataset):
-  def __init__(self, 
-               data, 
-               backcast_length, 
-               forecast_length):
-      """The TimeSeriesCollectionDataset class is a PyTorch Dataset that takes a 
-      collection of time series as input and returns a single sample of the time 
-      series. Used for training a time series model whose input is a collection 
-      of time series.
+    def __init__(self, data, backcast_length, forecast_length):
+        super(TimeSeriesCollectionDataset, self).__init__()
+        self.data = data
+        self.backcast_length = backcast_length
+        self.forecast_length = forecast_length
+        self.items = []
+        
+        total_len = self.backcast_length + self.forecast_length
 
-      Parameters
-      ----------
-        train_data (numpy.ndarray): 
-          The univariate time series data. The data organization is assumed to be a 
-          numpy.ndarray with rows representingtime series and columns representing time steps. 
-        backcast (int, optional): 
-          The length of the historical data.
-        forecast (int, optional): 
-          The length of the future data to predict.
-      """
+        # Cache the indices of sequences with NaN values
+        nan_cache = np.any(np.isnan(self.data), axis=1)
+        
+        for row in range(self.data.shape[0]):
+            if nan_cache[row]:  # Skip rows with any NaN values
+                continue
+            for col_start in range(0, self.data.shape[1] - total_len + 1):
+                self.items.append((row, col_start))
+                
+    def __len__(self):
+        return len(self.items)
     
-      super(TimeSeriesCollectionDataset, self).__init__()
-      self.data = data
-      self.backcast_length = backcast_length
-      self.forecast_length = forecast_length
-      self.items = []
-
-      total_len = self.backcast_length + self.forecast_length
-      for row in range(self.data.shape[0]):
-          for col_start in range(0, self.data.shape[1] - total_len + 1):
-              seq = self.data[row, col_start:col_start + total_len]
-              if not np.isnan(seq).any():
-                  self.items.append((row, col_start))
-  
-  def __len__(self):
-      return len(self.items)
-
-  def __getitem__(self, idx):
-      row, col = self.items[idx]
-      x = self.data[row, col:col+self.backcast_length]
-      y = self.data[row, col+self.backcast_length:col+self.backcast_length+self.forecast_length]
-
-      return torch.FloatTensor(x), torch.FloatTensor(y)    
+    def __getitem__(self, idx):
+        row, col = self.items[idx]
+        x = self.data[row, col:col+self.backcast_length]
+        y = self.data[row, col+self.backcast_length:col+self.backcast_length+self.forecast_length]
+        
+        return torch.FloatTensor(x), torch.FloatTensor(y)
       
 class TimeSeriesCollectionDataModule(pl.LightningDataModule):
   def __init__(self, 
