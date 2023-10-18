@@ -1,10 +1,10 @@
 #%%
 import pandas as pd
 import numpy as np
-from nbeats_lightning.nbeats import *
+from nbeats_lightning.nbeats import *                   
 from nbeats_lightning.loaders import *
 from nbeats_lightning.losses import *
-from nbeats_lightning.constants import *
+from nbeats_lightning.constants import BLOCKS
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch import loggers as pl_loggers
@@ -68,8 +68,9 @@ def filter_dataset_by_removing_short_ts(data, backcast_length:int= 8, forecast_l
   # Create a new DataFrame with only the valid columns
   valid_data  = data[valid_columns]
 
-  train_data = valid_data.iloc[:-4, :]
-  test_data = valid_data.iloc[-4:, :].reset_index(drop=True)
+
+  train_data = valid_data.iloc[:-forecast_length, :]
+  test_data = valid_data.iloc[-forecast_length:, :].reset_index(drop=True)
 
   print ("Dataframe shape of valid train entries :",train_data.shape)
   print("Dataframe shape of invalid entries :",data[invalid_columns].shape)
@@ -198,15 +199,15 @@ def get_tourism_data(data_freq:str="yearly"):
   if data_freq == "yearly":
     print("Loading yearly data...\n")
     file_path = yearly_path
-    dataset_id = "TourismYr"
+    dataset_id = "Yrly"
   elif data_freq == "monthly":
     print("Loading monthly data...\n")
     file_path = monthly_quarterly_path
-    dataset_id = "TourismMth"
+    dataset_id = "Mth"
   else:
     print("Loading quarterly data...\n")
     file_path = monthly_quarterly_path
-    dataset_id = "TourismQtr"
+    dataset_id = "Qtr"
         
   df = pd.read_csv(file_path)
   df.dropna(how='all', inplace=True)
@@ -222,8 +223,8 @@ def get_tourism_data(data_freq:str="yearly"):
 #%%
 # parameters
 fast_dev_run = False
-batch_size = 3072
-max_epochs = 200
+batch_size = 1024
+max_epochs = 300
 loss = 'SMAPELoss'
 viz = False
 
@@ -232,8 +233,8 @@ if split_ratio == 1.0:
   no_val = True
 
 # Load the data
-#periods = {"yearly":[8,4], "monthly":[72,24], "quarterly":[24,8]}
-periods = { "monthly":[72,24], "quarterly":[24,8]}
+periods = {"yearly":[8,4], "monthly":[72,24], "quarterly":[24,8]}
+
 for p, lengths in periods.items():
   backcast_length = lengths[0] 
   forecast_length = lengths[1]  
@@ -247,59 +248,85 @@ for p, lengths in periods.items():
 
   if viz:
     plot_data(df_valid)
-          
+  
+  """BLOCKS = [
+  "GenericBlock",
+  "GenericAEBlock",
+  "GenericAEBackcastBlock",
+  "GenericAEBackcastAEBlock",
+  "TrendBlock",
+  "TrendAEBlock",
+  "SeasonalityBlock",
+  "SeasonalityAEBlock",
+  "AutoEncoderBlock",
+  "AutoEncoderAEBlock",
+  "DB1Block",
+  "DB2Block",
+  "DB3Block",
+  "DB4Block", 
+  "HaarBlock",
+  "Coif1Block",
+  "Coif2Block",
+  "Coif3Block",
+  "Coif4Block",
+  ]"""
+
   blocks_to_test = {
-    "Generic":["GenericBlock"],
-    #"GenericAE":["GenericAEBlock"],
+    # Mth leaders
     "GenericAEBackcast":["GenericAEBackcastBlock"],
-    #"GenericAEBackcastAE":["GenericAEBackcastAEBlock"],
-    "TrendBlock":["TrendBlock"],
-    #"TrandAEBlock":["TrendAEBlock"],
+    "TrendGeneric":["TrendBlock","GenericBlock"],
+    "GenericCoif2":["GenericBlock","Coif2Block"],
+
+    # Qtr leaders
+    "TrendGenericAeBackcast":["TrendBlock","GenericAEBackcastBlock"],
+    "TrendGeneric":["TrendBlock","GenericBlock"],
+    
+    # Yrly leaders
+    "TrendSeasonality":["TrendBlock","SeasonalityBlock"],
+    "TrendHaar":["TrendBlock","HaarBlock"],
+    "TrendDB2":["TrendBlock","DB2Block"],
+    "TrendGeneric":["TrendBlock","GenericBlock"],
+    "GenericDB2":["GenericBlock","DB2Block"],
+    "DB4":["DB4Block"],
+    "TrendGenericAeBackcast":["TrendBlock","GenericAEBackcastBlock"],
+    
+    # Testing
+    "Coif1Generic":["Coif1Block","GenericBlock"],
+    "Coif2Generic":["Coif1Block","GenericBlock"],
+    "DB1Generic":["DB1Block","GenericBlock"],
+    "DB2Generic":["DB2Block","GenericBlock"],
+    "DB1DB2":["DB1Block","DB2Block"],
+    "DB2Generic":["DB2Block","GenericBlock"],
+    "Coif1":["Coif1Block"],
+    "TrendCoif1":["TrendBlock","Coif1Block"],
+    "TrendGenericGenericAEBackcastDB2":["TrendBlock","GenericBlock","GenericAEBackcastBlock","DB2Block"],
+    
+    # ReTesting
+    "Generic":["GenericBlock"],
     "AutoEncoder":["AutoEncoderBlock"],
-    #"AutoEncoderAE":["AutoEncoderAEBlock"],
+    "TrendAutoEncoder":["TrendBlock","AutoEncoderBlock"],
+    "DB1AutoEncoder":["DB1Block","AutoEncoderBlock"],
+    "SeasonalityTrend":["SeasonalityBlock","TrendBlock"],
+    
+    "TrendSeasonality":["TrendBlock","SeasonalityBlock"],
+    "TrendHaar":["TrendBlock","HaarBlock"],
+    "TrendDB2":["TrendBlock","DB2Block"],
+    "TrendCoif2":["TrendBlock","Coif2Block"],
+    "GenericAeBackcast":["GenericBlock","GenericAEBackcastBlock"],
+    "GenericDB3":["GenericBlock","DB3Block"],
+    "GenericCoif2":["GenericBlock","Coif2Block"],
+    "GenericHaar":["GenericBlock","HaarBlock"],
     "DB1":["DB1Block"],
     "DB2":["DB2Block"],
-    #"DB3":["DB3Block"],
-    #"DB4":["DB4Block"],
-    "Haar":["HaarBlock"],
-
-    "TrendGeneric":["TrendBlock","GenericBlock"],
-    "TrendSeasonality":["TrendBlock","SeasonalityBlock"],
-    "TrendDB2":["TrendBlock","DB2Block"],
-    "TrendHaar":["TrendBlock","HaarBlock"],
-    "TrendGerericAEBackcast":["TrendBlock","GenericAEBackcastBlock"],
-    #"TrendAEDB2":["TrendAEBlock","DB2Block"],
-    "TrendTrendAE":["TrendBlock","TrendAEBlock"],
-    
-    "SeasonalityGeneric":["SeasonalityBlock","GenericBlock"],
-    "SeasonalityDB2":["SeasonalityBlock","DB2Block"],
-    "SeasonalityHaar":["SeasonalityBlock","HaarBlock"],
-    "SeasonalityAutoEncoder":["SeasonalityBlock","AutoEncoderBlock"],
-    #"SeasonalityGenericAEBackcast":["SeasonalityBlock","GenericAEBackcastBlock"],
-    
-    "AutoEncoderGeneric":["AutoEncoderBlock","GenericBlock"],
-    "AutoencoderDB2":["AutoEncoderBlock","DB2Block"],
-    "AutoEncoderHaar":["AutoEncoderBlock","HaarBlock"],
-    
-    "GenericDB2":["GenericBlock","DB2Block"],
-    "GenericAEBackcastDB2":["GenericAEBackcastBlock","DB2Block"], 
-    
-    "HaarDB2":["HaarBlock","DB2Block"],
-    
-    
-    "TrendDB2DB2":["TrendBlock","DB2Block","DB2Block"],
-    "TrendDB2DB3":["TrendBlock","DB2Block","DB3Block"],
-    "TrendHaarDB2":["TrendBlock","HaarBlock","DB2Block"],
-    "TrendSeasonalityDB2Generic":["TrendBlock","SeasonalityBlock","DB2Block","DB3Block","GenericBlock"],
-    
-  }
+    "DB3":["DB3Block"],
+      
+    }  
 
   for key,value in blocks_to_test.items():
     
-    n_stacks = 16//len(value)
-    #n_stacks = 2
-    thetas_dim = 5
-    bps = 3
+    n_stacks = 20//len(value)    
+    thetas_dim = 4
+    bps = 1
     active_g = True
     share_w = True
     latent = 4
