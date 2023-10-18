@@ -60,4 +60,8 @@ BLOCKS = [
   "DB3Block",
   "DB4Block", 
   "HaarBlock",
+  "Coif1Block",
+  "Coif2Block",
+  "Coif3Block",
+  "Coif4Block",
 ]
