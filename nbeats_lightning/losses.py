@@ -18,8 +18,8 @@ class MASELoss(nn.Module):
       """Calculates MASE loss between y_pred and y_true.
 
       Args:
-          y_pred (Tensor): predictions
-          y_true (Tensor): targets
+          y_pred (Tensor): The tensor of predicted values.
+          y_true (Tensor): The tensor of true values.
 
       Returns:
           Tensor: MASE loss
@@ -41,26 +41,24 @@ class MASELoss(nn.Module):
       return mase
 
 class SMAPELoss(nn.Module):
-  def __init__(self):
+  def __init__(self, epsilon=1e-8):
       super(SMAPELoss, self).__init__()
+      self.epsilon = epsilon
 
   def forward(self, y_pred, y_true):
       """Calculates SMAPE loss between y_pred and y_true.
 
       Args:
-          y_pred (Tensor): predictions
-          y_true (Tensor): targets
+          y_pred (Tensor): The tensor of predicted values.
+          y_true (Tensor): The tensor of true values.
 
       Returns:
           Tensor: SMAPE loss
       """
       # Calculate the SMAPE loss according to the formula
-      denominator = (torch.abs(y_true) + torch.abs(y_pred)) / 2.0
+      # Adding epsilon to the denominator to avoid division by zero
+      denominator = (torch.abs(y_true) + torch.abs(y_pred)) / 2.0 + self.epsilon
       diff = torch.abs(y_true - y_pred) / denominator
-      
-      # Handle the case where both the predicted and true values are 0
-      # which would result in a NaN SMAPE value; we set it to 0 in this case
-      diff[denominator == 0] = 0.0
       
       smape = torch.mean(diff) * 100.0
       
@@ -74,8 +72,8 @@ class MAPELoss(nn.Module):
       """Calculated MAPE, Mean Absolute Percentage Error (MAPE), loss between y_pred and y_true.
 
       Args:
-          y_pred (Tensor): predicitons
-          y_true (Tensor): targets
+          y_pred (torch.Tensor): The tensor of predicted values.
+          y_true (torch.Tensor): The tensor of true values.
 
       Returns:
           Tensor : MAPE loss
@@ -87,3 +85,30 @@ class MAPELoss(nn.Module):
       mape = torch.mean(torch.abs((y_true - y_pred) / denominator)) * 100.0
       
       return mape  
+
+class NormalizedDeviationLoss(nn.Module):
+  def __init__(self):
+    super(NormalizedDeviationLoss, self).__init__()
+
+  def forward(self, y_pred, y_true):
+      """
+      Computes the Normalized Deviation loss between the predicted and true tensors based on the given mathematical definition:
+      
+      ND = sum(|y_pred - y_true|) / sum(|y_true|)
+      
+      Parameters
+      ----------
+      y_pred (torch.Tensor) : The tensor of predicted values.
+          
+      y_true (torch.Tensor) : The tensor of true values.
+          
+      Returns
+      -------
+      torch.Tensor
+          The Normalized Deviation loss.
+      """
+      abs_deviation = torch.abs(y_pred - y_true)
+      sum_abs_deviation = torch.sum(abs_deviation)
+      sum_abs_true_value = torch.sum(torch.abs(y_true))
+      normalized_deviation = sum_abs_deviation / sum_abs_true_value
+      return normalized_deviation
