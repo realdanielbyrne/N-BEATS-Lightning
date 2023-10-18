@@ -719,28 +719,48 @@ class TrendAEBlock(AERootBlock):
 ##############################################################################################################
 # Wavelet Blocks
 
+import torch
+import torch.nn as nn
+import pywt
+import numpy as np
+
+def generate_wavelet_basis(wavelet_name, length):
+    # Initialize an empty matrix to hold the basis
+    basis_matrix = np.zeros((length, length))
+    
+    # Create a single-level Discrete Wavelet Transform (DWT) object
+    w = pywt.Wavelet(wavelet_name)
+    
+    for i in range(length):
+        x = np.zeros(length)
+        x[i] = 1.0
+        # Perform a single-level DWT on the data
+        cA, cD = pywt.dwt(x, w)
+        
+        # Concatenate and truncate/pad the coefficients to match the required length
+        c = np.concatenate([cA, cD])
+        if len(c) < length:
+            c = np.pad(c, (0, length - len(c)), 'constant', constant_values=(0,))
+        else:
+            c = c[:length]
+        
+        # Set the i-th column to the wavelet basis
+        basis_matrix[:, i] = c
+    
+    return basis_matrix
 
 class _WaveletGenerator(nn.Module):
     def __init__(self, thetas_dim, target_length, wavelet_type='haar'):
         super().__init__()
 
-        if wavelet_type not in ['haar','db1', 'db2','db3','db4']:
-            raise ValueError("Invalid wavelet_type. Choose either 'haar','db1', 'db2','db3', or 'db4'.")
-
-        # Generate a truncated wavelet basis using PyWavelets
-        wavelet = pywt.Wavelet(wavelet_type)
-        eye_matrix = np.eye(target_length)
-        wavelet_basis = np.zeros((thetas_dim, target_length))
+        if wavelet_type not in ['haar', 'db1', 'db2', 'db3', 'db4','coif1','coif2','coif3','coif4']:  
+            raise ValueError("Invalid wavelet_type. Choose either 'haar', 'db1', 'db2', 'db3', 'db4','coif1','coif2','coif3', or 'coif4'.")
         
-        for i in range(thetas_dim):
-            coeffs = pywt.wavedec(eye_matrix[:, i % target_length], wavelet, mode='zero', level=pywt.dwt_max_level(target_length, wavelet.dec_len))
-            wavelet_basis[i, :] = pywt.waverec(coeffs, wavelet, mode='zero')[:target_length]
-        
-        self.basis = nn.Parameter(torch.tensor(wavelet_basis, dtype=torch.float), requires_grad=False)
+        basis_matrix = generate_wavelet_basis(wavelet_type, target_length)[:thetas_dim, :]
+        self.basis = nn.Parameter(torch.tensor(basis_matrix, dtype=torch.float32), requires_grad=False)
 
     def forward(self, x):
         return torch.matmul(x, self.basis)
-
 
 class WaveletBlock(RootBlock):
     def __init__(self, units, backcast_length, forecast_length,  thetas_dim=4, 
@@ -808,3 +828,35 @@ class HaarBlock(WaveletBlock):
                                     share_weights, activation, active_g, wavelet_type='haar')
   def forward(self, x):
     return super(HaarBlock, self).forward(x)
+  
+class Coif1Block(WaveletBlock):
+  def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
+               share_weights = False, activation='ReLU', active_g:bool = False):
+    super(Coif1Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+                                    share_weights, activation, active_g, wavelet_type='coif1')
+  def forward(self, x):
+    return super(Coif1Block, self).forward(x)  
+  
+class Coif2Block(WaveletBlock):
+  def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
+               share_weights = False, activation='ReLU', active_g:bool = False):
+    super(Coif2Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+                                    share_weights, activation, active_g, wavelet_type='coif2')
+  def forward(self, x):
+    return super(Coif2Block, self).forward(x)   
+
+class Coif3Block(WaveletBlock):
+  def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
+               share_weights = False, activation='ReLU', active_g:bool = False):
+    super(Coif3Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+                                    share_weights, activation, active_g, wavelet_type='coif3')
+  def forward(self, x):
+    return super(Coif3Block, self).forward(x) 
+
+class Coif4Block(WaveletBlock):
+  def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
+               share_weights = False, activation='ReLU', active_g:bool = False):
+    super(Coif4Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+                                    share_weights, activation, active_g, wavelet_type='coif4')
+  def forward(self, x):
+    return super(Coif4Block, self).forward(x)   
