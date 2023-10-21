@@ -224,9 +224,6 @@ class ForecastingDataset(Dataset):
   def __getitem__(self, idx):
     return self.historical_data[idx]
 
-from torch.utils.data import Dataset
-import torch
-import pandas as pd
 
 class ColumnarTimeSeriesDataset(Dataset):
     def __init__(self, dataframe, backcast_length, forecast_length):
@@ -257,7 +254,7 @@ class ColumnarCollectionTimeSeriesDataModule(pl.LightningDataModule):
                backcast_length, 
                forecast_length, 
                batch_size=1024, 
-               split_ratio=0.8,
+               no_val = False,
                debug = False):
     """The ColumnarCollectionTimeSeriesDataModule class is a PyTorch Dataset that takes a 
     collection of time series as input and returns a single sample of the time 
@@ -275,7 +272,7 @@ class ColumnarCollectionTimeSeriesDataModule(pl.LightningDataModule):
     self.backcast_length = backcast_length
     self.forecast_length = forecast_length
     self.batch_size = batch_size
-    self.split_ratio = split_ratio
+    self.no_val = no_val
     self.debug = debug
     self.total_length = backcast_length + forecast_length
     self.dataframe = dataframe
@@ -284,13 +281,15 @@ class ColumnarCollectionTimeSeriesDataModule(pl.LightningDataModule):
     """
     Split the data into train and validation sets and prepare PyTorch datasets for each.
     """
-    full_dataset = ColumnarTimeSeriesDataset(self.dataframe, self.backcast_length, self.forecast_length)
-    full_length = len(full_dataset)
-    
-    train_length = int(self.split_ratio * full_length)
-    val_length = full_length - train_length
-    
-    self.train_dataset, self.val_dataset = random_split(full_dataset, [train_length, val_length])
+    if self.no_val:
+      train_data = self.dataframe
+      val_data = pd.DataFrame()
+    else:
+      train_data = self.dataframe.iloc[:-self.forecast_length]
+      val_data = self.dataframe.iloc[-self.forecast_length-self.backcast_length:]
+
+    self.val_dataset = ColumnarTimeSeriesDataset(val_data, self.backcast_length, self.forecast_length)
+    self.train_dataset = ColumnarTimeSeriesDataset(train_data, self.backcast_length, self.forecast_length)
 
   def train_dataloader(self):
     return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
@@ -306,16 +305,14 @@ class ColumnarCollectionTimeSeriesTestDataModule(pl.LightningDataModule):
                 forecast_length, 
                 batch_size=1024):
     super(ColumnarCollectionTimeSeriesTestDataModule, self).__init__()
-    self.train_data = train_data
-    self.holdout = holdout_data
-    
+
+    self.test_data = pd.concat([train_data, holdout_data]).reset_index(drop=True)
     self.backcast_length = backcast_length
     self.forecast_length = forecast_length
     self.batch_size = batch_size
 
   def setup(self, stage:str=None):
-    test_data = pd.concat([self.train_data, self.holdout]).reset_index(drop=True)
-    self.test_dataset = ColumnarTimeSeriesDataset(test_data, self.backcast_length, self.forecast_length) 
+    self.test_dataset = ColumnarTimeSeriesDataset(self.test_data, self.backcast_length, self.forecast_length) 
 
   def test_dataloader(self):
     return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle = False)
