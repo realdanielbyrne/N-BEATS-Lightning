@@ -18,33 +18,43 @@ torch.set_float32_matmul_precision('medium')
 
 
 #%%
+def plot_data(df):
+  # Visualization 1: Plotting a few random time series in the same plot
+  plt.figure(figsize=(14, 6))
+  sample_columns = df.sample(n=5, axis=1).columns
+  for col in sample_columns:
+      plt.plot(df[col].dropna().values, label=f"Time Series {col}")
+  plt.title('Random Sample of 5 Time Series')
+  plt.xlabel('Observations')
+  plt.ylabel('Value')
+  plt.legend()
+  plt.show()
 
-def get_tourism_data(data_freq:str="yearly"):
-  yearly_path = 'data/tourism1/tourism_data.csv'
-  monthly_quarterly_path = 'data/tourism2/tourism2_revision2.csv'
-  
-  if data_freq == "yearly":
-    print("Loading yearly data...\n")
-    file_path = yearly_path
-    dataset_id = "Yrly"
-  elif data_freq == "monthly":
-    print("Loading monthly data...\n")
-    file_path = monthly_quarterly_path
-    dataset_id = "Mth"
-  else:
-    print("Loading quarterly data...\n")
-    file_path = monthly_quarterly_path
-    dataset_id = "Qtr"
-        
-  df = pd.read_csv(file_path)
-  df.dropna(how='all', inplace=True)
-  
-  if data_freq == "monthly":
-    df = df.iloc[:, :365] # first 366 columns are monthly data
-  elif data_freq == "quarterly":
-    df = df.iloc[:, -427:] # last 427 columns are quarterly data
-    
-  return df, dataset_id
+
+  # Visualization 2: Plotting the longest and shortest valid time series
+  min_length = 10 + 4
+  valid_lengths = [(col, len(df[col].dropna())) for col in df.columns if len(df[col].dropna()) >= min_length]
+  sorted_valid_lengths = sorted(valid_lengths, key=lambda x: x[1])
+  shortest_col, longest_col = sorted_valid_lengths[0][0], sorted_valid_lengths[-1][0]
+
+  plt.figure(figsize=(14, 6))
+  plt.plot(df[shortest_col].dropna().values, label=f"Shortest Valid Time Series ({shortest_col})")
+  plt.plot(df[longest_col].dropna().values, label=f"Longest Valid Time Series ({longest_col})")
+  plt.title('Comparison of the Shortest and Longest Valid Time Series')
+  plt.xlabel('Observations')
+  plt.ylabel('Value')
+  plt.legend()
+  plt.show()
+
+  # Visualization 3: Histogram of the lengths of valid time series
+  valid_lengths_values = [length for _, length in sorted_valid_lengths]
+
+  plt.figure(figsize=(14, 6))
+  plt.hist(valid_lengths_values, bins=20, alpha=0.7, color='blue')
+  plt.title('Histogram of Lengths of Valid Time Series')
+  plt.xlabel('Length')
+  plt.ylabel('Frequency')
+  plt.show()
 
 def filter_dataset_by_removing_short_ts(data, backcast_length:int= 8, forecast_length:int=4):
   print("Filtering NANs, and sequences that are too short.")
@@ -133,50 +143,12 @@ def fill_time_series_gaps(data, backcast_length:int= 8, forecast_length:int=4):
   print("Dataframe shape of test entries: ", test_data.shape)
   return train_data, test_data
 
-def plot_data(df):
-  # Visualization 1: Plotting a few random time series in the same plot
-  plt.figure(figsize=(14, 6))
-  sample_columns = df.sample(n=5, axis=1).columns
-  for col in sample_columns:
-      plt.plot(df[col].dropna().values, label=f"Time Series {col}")
-  plt.title('Random Sample of 5 Time Series')
-  plt.xlabel('Observations')
-  plt.ylabel('Value')
-  plt.legend()
-  plt.show()
-
-
-  # Visualization 2: Plotting the longest and shortest valid time series
-  min_length = 10 + 4
-  valid_lengths = [(col, len(df[col].dropna())) for col in df.columns if len(df[col].dropna()) >= min_length]
-  sorted_valid_lengths = sorted(valid_lengths, key=lambda x: x[1])
-  shortest_col, longest_col = sorted_valid_lengths[0][0], sorted_valid_lengths[-1][0]
-
-  plt.figure(figsize=(14, 6))
-  plt.plot(df[shortest_col].dropna().values, label=f"Shortest Valid Time Series ({shortest_col})")
-  plt.plot(df[longest_col].dropna().values, label=f"Longest Valid Time Series ({longest_col})")
-  plt.title('Comparison of the Shortest and Longest Valid Time Series')
-  plt.xlabel('Observations')
-  plt.ylabel('Value')
-  plt.legend()
-  plt.show()
-
-  # Visualization 3: Histogram of the lengths of valid time series
-  valid_lengths_values = [length for _, length in sorted_valid_lengths]
-
-  plt.figure(figsize=(14, 6))
-  plt.hist(valid_lengths_values, bins=20, alpha=0.7, color='blue')
-  plt.title('Histogram of Lengths of Valid Time Series')
-  plt.xlabel('Length')
-  plt.ylabel('Frequency')
-  plt.show()
-
-def get_dms(df_valid, df_holdout, backcast_length:int, forecast_length:int=4, batch_size:int=1024, no_val:bool=False):
+def get_dms(df_valid, df_holdout, backcast_length:int, forecast_length:int=4, batch_size:int=1024, split_ratio:float=0.8):
   dm = ColumnarCollectionTimeSeriesDataModule(
     df_valid, 
     backcast_length=backcast_length,
-    forecast_length=forecast_length,    
-    no_val=no_val,
+    forecast_length=forecast_length,
+    split_ratio=split_ratio,
     batch_size=batch_size)
 
   test_dm = ColumnarCollectionTimeSeriesTestDataModule(
@@ -220,23 +192,50 @@ def get_trainer(name, **kwargs):
   
   return trainer
 
-
+def get_tourism_data(data_freq:str="yearly"):
+  yearly_path = 'data/tourism1/tourism_data.csv'
+  monthly_quarterly_path = 'data/tourism2/tourism2_revision2.csv'
+  
+  if data_freq == "yearly":
+    print("Loading yearly data...\n")
+    file_path = yearly_path
+    dataset_id = "Yrly"
+  elif data_freq == "monthly":
+    print("Loading monthly data...\n")
+    file_path = monthly_quarterly_path
+    dataset_id = "Mth"
+  else:
+    print("Loading quarterly data...\n")
+    file_path = monthly_quarterly_path
+    dataset_id = "Qtr"
+        
+  df = pd.read_csv(file_path)
+  df.dropna(how='all', inplace=True)
+  
+  if data_freq == "monthly":
+    df = df.iloc[:, :365] # first 366 columns are monthly data
+  elif data_freq == "quarterly":
+    df = df.iloc[:, -427:] # last 427 columns are quarterly data
+    
+  return df, dataset_id
     
 
 #%%
 # parameters
 fast_dev_run = False
 batch_size = 1024
-max_epochs = 200
+max_epochs = 300
 loss = 'SMAPELoss'
 viz = False
 
-no_val=False
-
+split_ratio = 1.0
+if split_ratio == 1.0:
+  no_val = True
 
 # Load the data
-periods = {"yearly":[8,4], "monthly":[72,24], "quarterly":[24,8]}
-#periods = {"monthly":[72,24], "quarterly":[24,8]}
+horizon_mult = 5
+periods = {"yearly":[6 *,6], "monthly":[106,18], "quarterly":[64,8], "daily":[84,14]}
+
 
 for p, lengths in periods.items():
   backcast_length = lengths[0] 
@@ -247,11 +246,33 @@ for p, lengths in periods.items():
   print(f"Dataset ID: {dataset_id}")
   
   df_valid, df_holdout = fill_time_series_gaps(df, backcast_length, forecast_length)
-  dm, test_dm = get_dms(df_valid, df_holdout, backcast_length, forecast_length, batch_size, no_val)
+  dm, test_dm = get_dms(df_valid, df_holdout, backcast_length, forecast_length, batch_size, split_ratio)
 
   if viz:
     plot_data(df_valid)
   
+  """BLOCKS = [
+  "GenericBlock",
+  "GenericAEBlock",
+  "GenericAEBackcastBlock",
+  "GenericAEBackcastAEBlock",
+  "TrendBlock",
+  "TrendAEBlock",
+  "SeasonalityBlock",
+  "SeasonalityAEBlock",
+  "AutoEncoderBlock",
+  "AutoEncoderAEBlock",
+  "DB1Block",
+  "DB2Block",
+  "DB3Block",
+  "DB4Block", 
+  "HaarBlock",
+  "Coif1Block",
+  "Coif2Block",
+  "Coif3Block",
+  "Coif4Block",
+  ]"""
+
   blocks_to_test = {
     # Mth leaders
     #"TrendSeasonality":["TrendBlock","SeasonalityBlock"],
@@ -281,23 +302,40 @@ for p, lengths in periods.items():
     #"TrendGeneric":["TrendBlock","GenericBlock"],
     #"GenericDB2":["GenericBlock","DB2Block"],
     #"DB4":["DB4Block"], # nan on mthly test
-    #"TrendGenericAeBackcast":["TrendBlock","GenericAEBackcastBlock"],    
-    #"Haar":["HaarBlock"], 
+    #"TrendGenericAeBackcast":["TrendBlock","GenericAEBackcastBlock"],
+    
+    # Testing
+    "Generic":["GenericBlock"],
+    "Trend":["TrendBlock"],
+    "TrendSeasonality":["TrendBlock","SeasonalityBlock"],
+    "DB1":["DB1Block"],
     "DB2":["DB2Block"],
     "DB4":["DB4Block"],
-    "TrendDB2":["TrendBlock","DB2Block"],
-    "TrendDB4":["TrendBlock","DB4Block"],
-    #"TrendSym10":["TrendBlock","Sym10Block"],
-    #"Sym10Generic":["Sym10Block","GenericBlock"],
     
-    #"TrendSeasonalityCoif2DB2Generic":["TrendBlock","SeasonalityBlock","Coif2Block","DB2Block","GenericBlock"],
+    "DB2Generic":["DB2Block","GenericBlock"], 
+    "DB2AutoEncoder":["DB2Block","AutoEncoderBlock"],
+    "DB2GenericAeBackcast":["DB2Block","GenericAEBackcastBlock"],
+    
+    "Haar":["HaarBlock"],
+    "HaarGeneric":["HaarBlock","GenericBlock"], 
+    "HaarGenericAEBackcast":["HaarBlock","GenericAEBackcastBlock"], 
+    
+    "Coif1":["Coif1Block"], 
+    "Coif2":["Coif2Block"],
+    "Coif2Generic":["Coif2Block","GenericBlock"],
+    "Coif2AutoEncoder":["Coif2Block","AutoEncoderBlock"], 
+    "Coif2GenericAeBackcast":["Coif2Block","GenericAEBackcastBlock"],
+    
+    "TrendHaar":["TrendBlock","HaarBlock"],
+    "TrendDB2":["TrendBlock","DB2Block"],
+    "TrendCoif2":["TrendBlock","Coif2Block"],
     
     }  
 
   for key,value in blocks_to_test.items():
     
     n_stacks = 20//len(value)    
-    thetas_dim = 5
+    thetas_dim = 4
     bps = 1
     active_g = True
     share_w = True
@@ -323,13 +361,13 @@ for p, lengths in periods.items():
       s_width = s_width,
       t_width = t_width,
       active_g = active_g,
+      no_val = no_val,
       ae_width = ae_width,
       latent_dim = latent,
-      sum_losses = sum_losses,
-      learning_rate=1e-5
+      sum_losses = sum_losses
     ) 
 
-    name = f"{key}-{dataset_id}-{thetas_dim=}" 
+    name = f"{key}-{dataset_id}-[{backcast_length},{forecast_length}]-ScaledWavelet" 
     print(f"Model Name :{name}")
 
     trainer = get_trainer(name, fast_dev_run = fast_dev_run)
