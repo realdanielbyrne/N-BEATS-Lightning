@@ -76,7 +76,7 @@ class MAPELoss(nn.Module):
           y_true (torch.Tensor): The tensor of true values.
 
       Returns:
-          Tensor : MAPE loss
+          (torch.Tensor) : MAPE loss
       """
       # Avoid division by zero by adding a small constant to the denominator
       denominator = torch.abs(y_true) + 1e-6
@@ -92,20 +92,17 @@ class NormalizedDeviationLoss(nn.Module):
 
   def forward(self, y_pred, y_true):
       """
-      Computes the Normalized Deviation loss between the predicted and true tensors based on the given mathematical definition:
+      Computes the Normalized Deviation loss between the predicted and true tensors based 
+      on the mathematical definition:
       
-      ND = sum(|y_pred - y_true|) / sum(|y_true|)
+          ND = sum(|y_pred - y_true|) / sum(|y_true|)
       
-      Parameters
-      ----------
-      y_pred (torch.Tensor) : The tensor of predicted values.
+      Parameters:      
+          y_pred (torch.Tensor) : The tensor of predicted values.          
+          y_true (torch.Tensor) : The tensor of true values.
           
-      y_true (torch.Tensor) : The tensor of true values.
-          
-      Returns
-      -------
-      torch.Tensor
-          The Normalized Deviation loss.
+      Returns:      
+          (torch.Tensor) : The Normalized Deviation loss.
       """
       abs_deviation = torch.abs(y_pred - y_true)
       sum_abs_deviation = torch.sum(abs_deviation)
