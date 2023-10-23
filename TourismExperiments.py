@@ -15,6 +15,9 @@ import tensorboard
 import warnings
 warnings.filterwarnings('ignore')
 torch.set_float32_matmul_precision('medium')
+import pywt
+from scipy.signal import resample
+from scipy.interpolate import interp1d
 
 
 #%%
@@ -127,11 +130,11 @@ def fill_time_series_gaps(data, backcast_length:int= 8, forecast_length:int=4):
   
   # Create train and test data
   train_data = data.iloc[:-forecast_length, :]
-  test_data = data.iloc[-forecast_length:, :].reset_index(drop=True)
+  holdout_data = data.iloc[-forecast_length:, :].reset_index(drop=True)
   
   print("Dataframe shape of train entries: ", train_data.shape)
-  print("Dataframe shape of test entries: ", test_data.shape)
-  return train_data, test_data
+  print("Dataframe shape of holdout entries: ", holdout_data.shape)
+  return train_data, holdout_data
 
 def plot_data(df):
   # Visualization 1: Plotting a few random time series in the same plot
@@ -231,7 +234,7 @@ max_epochs = 200
 loss = 'SMAPELoss'
 viz = False
 
-no_val=False
+no_val=True
 
 
 # Load the data
@@ -285,8 +288,8 @@ for p, lengths in periods.items():
     #"Haar":["HaarBlock"], 
     "DB2":["DB2Block"],
     "DB4":["DB4Block"],
-    "TrendDB2":["TrendBlock","DB2Block"],
-    "TrendDB4":["TrendBlock","DB4Block"],
+    "TrendDB3":["TrendBlock","DB3Block"],
+    #s"TrendDB4":["TrendBlock","DB4Block"],
     #"TrendSym10":["TrendBlock","Sym10Block"],
     #"Sym10Generic":["Sym10Block","GenericBlock"],
     
@@ -325,12 +328,12 @@ for p, lengths in periods.items():
       active_g = active_g,
       ae_width = ae_width,
       latent_dim = latent,
-      sum_losses = sum_losses,
-      learning_rate=1e-5
+      sum_losses = sum_losses      
     ) 
+    print(model)
 
     name = f"{key}-{dataset_id}-{thetas_dim=}" 
-    print(f"Model Name :{name}")
+    
 
     trainer = get_trainer(name, fast_dev_run = fast_dev_run)
     trainer.fit(model, datamodule=dm)

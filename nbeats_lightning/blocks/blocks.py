@@ -369,12 +369,11 @@ class TrendBlock(RootBlock):
 
     
 class _WaveletGenerator(nn.Module):
-  def __init__(self, target_length, wavelet_type='db2'):
+  def __init__(self, N, wavelet_type='db4'):
     super().__init__()
     
     wavelet = pywt.Wavelet(wavelet_type)
     phi, psi, x = wavelet.wavefun(level=10)
-    M = len(phi)
     
     
     # Create an interpolation function
@@ -382,30 +381,33 @@ class _WaveletGenerator(nn.Module):
     interp_psi = interp1d(x, psi, kind='linear')
 
     # Define new x-values where you want to sample the wavelet function
-    new_x = np.linspace(min(x), max(x), target_length**2//2)
+    new_x = np.linspace(min(x), max(x), N)
 
     # Get the wavelet function values at these new x-values
     new_phi = interp_phi(new_x)
     new_psi = interp_psi(new_x)
+    M = len(new_phi)
 
     
     # Initialize basis matrix
-    basis = np.zeros((target_length, target_length))
+    W = np.zeros((N, N))
     
     # Populate basis matrix
-    for i in range(target_length):
-        basis[:, i] = np.roll(new_phi, i)[:target_length] if i < M else np.roll(new_psi, i - M)[:target_length]
+    for i in range(N):
+        W[:, i] = np.roll(new_phi, i)[:N] if i < N//2 else np.roll(new_psi, i - M)[:N]
                         
             
-    self.basis = nn.Parameter(torch.tensor(basis, dtype=torch.float32), requires_grad=False)
+    self.basis = nn.Parameter(torch.tensor(W, dtype=torch.float32), requires_grad=False)
+    
 
   def forward(self, x):
-      return torch.matmul(x, self.basis) 
+    return torch.matmul(x, self.basis) 
+    
 
     
 class WaveletBlock(RootBlock):
     def __init__(self, units, backcast_length, forecast_length,  thetas_dim=3, 
-               share_weights = False, activation='ReLU', active_g:bool = False, wavelet_type='db2'):
+               share_weights = False, activation='ReLU', active_g:bool = False, wavelet_type='db4'):
       super(WaveletBlock, self).__init__(backcast_length, units, activation)
 
       self.activation = getattr(nn, activation)()  
@@ -413,24 +415,23 @@ class WaveletBlock(RootBlock):
 
       self.backcast_linear = nn.Linear(units, backcast_length*2)
       self.forecast_linear = nn.Linear(units, forecast_length*2)
-          
       self.backcast_g = _WaveletGenerator(backcast_length*2, wavelet_type=wavelet_type)
       self.forecast_g = _WaveletGenerator(forecast_length*2, wavelet_type=wavelet_type)
+      self.backcast_down_sample = nn.Linear(backcast_length*2, backcast_length, bias=False)
+      self.forecast_down_sample = nn.Linear(forecast_length*2, forecast_length, bias=False)
           
-      self.backcast_downsample = nn.Linear(backcast_length*2, backcast_length)
-      self.forecast_downsample = nn.Linear(forecast_length*2, forecast_length)
-
       
     def forward(self, x):
       x = super(WaveletBlock, self).forward(x)
       
-      # Linear compression
-      backcast_thetas = self.backcast_linear(x)
-      forecast_thetas = self.forecast_linear(x)
       
       # Wavelet basis expansion
-      b = self.backcast_g(backcast_thetas)    
-      f = self.forecast_g(forecast_thetas)
+      b = self.backcast_linear(x)
+      f = self.forecast_linear(x)
+      b = self.backcast_g(b)    
+      b = self.backcast_down_sample(b)
+      f = self.forecast_g(f)
+      f = self.forecast_down_sample(f)      
       
       return b, f
 
