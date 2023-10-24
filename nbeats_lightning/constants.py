@@ -68,5 +68,6 @@ BLOCKS = [
   "Coif20Block",
   "ShannonBlock",
   "Symlet2Block",
-  "Symlet10Block",
+  "Symlet3Block",
+  "WaveletStackBlock"
 ]
