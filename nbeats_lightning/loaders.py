@@ -39,10 +39,10 @@ class TimeSeriesCollectionDataset(Dataset):
 
       total_len = self.backcast_length + self.forecast_length
       for row in range(self.data.shape[0]):
-          for col_start in range(0, self.data.shape[1] - total_len + 1):
-              seq = self.data[row, col_start:col_start + total_len]
-              if not np.isnan(seq).any():
-                  self.items.append((row, col_start))
+          col_starts = np.arange(0, self.data.shape[1] - total_len + 1)
+          seqs = [self.data[row, start:start + total_len] for start in col_starts]
+          valid_indices = [i for i, seq in enumerate(seqs) if not np.isnan(seq).any()]
+          self.items.extend([(row, col_starts[i]) for i in valid_indices])
                 
   def __len__(self):
       return len(self.items)
