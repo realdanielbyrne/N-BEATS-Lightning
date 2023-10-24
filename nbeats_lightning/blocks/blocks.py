@@ -367,7 +367,90 @@ class TrendBlock(RootBlock):
             
     return backcast, forecast
 
+
+class _WaveletStackGenerator(nn.Module):  
+  def __init__(self, N, wavelet_type='db3'):
+    """In practical terms, the DWT often involves passing a signal through a pair of complementary filters: 
+       phi(t) a low-pass filter nd psi(t) a high-pass filter. The filters are applied to the signal in a
+       hierarchical fashion, producing a set of coefficients at each level of the decomposition.
+       This block attempts to recreate that process.
+
+    Args:
+        N (the input dimension): Recommended to be 2 * target_length (either forecast or backccast dimension)
+        wavelet_type (str, optional): On of the wavelet types defiend by PyWavelets. Defaults to 'db3'.
+    """
+    super().__init__()
     
+    wavelet = pywt.Wavelet(wavelet_type)
+    phi, psi, x = wavelet.wavefun(level=10)
+    
+    
+    # Create an interpolation function
+    interp_phi = interp1d(x, phi, kind='linear')
+    interp_psi = interp1d(x, psi, kind='linear')
+
+    # Define new x-values where you want to sample the wavelet function
+    new_x = np.linspace(min(x), max(x), N)
+
+    # Get the wavelet function values at these new x-values
+    new_phi = interp_phi(new_x)
+    new_psi = interp_psi(new_x)
+    M = len(new_phi)
+
+    
+    # Initialize basis matrix
+    Wphi = np.zeros((N, N))
+    Wpsi = np.zeros((N, N))
+    
+    # Populate basis matrix
+    for i in range(N):
+        Wphi[:, i] = np.roll(new_phi, i)[:N] 
+        Wpsi[:, i] = np.roll(new_psi, i)[:N]
+                        
+            
+    self.phibasis = nn.Parameter(torch.tensor(Wphi, dtype=torch.float32), requires_grad=False)
+    self.psibasis = nn.Parameter(torch.tensor(Wpsi, dtype=torch.float32), requires_grad=False)
+    
+
+  def forward(self, x):
+    x = torch.matmul(x, self.phibasis)   
+    x = torch.matmul(x, self.psibasis)
+    return x
+    
+class WaveletStackBlock(RootBlock):
+  def __init__(self, units, backcast_length, forecast_length,  thetas_dim=3, 
+              share_weights = False, activation='ReLU', active_g:bool = False, wavelet_type='db3'):
+    super(WaveletStackBlock, self).__init__(backcast_length, units, activation)
+
+    self.activation = getattr(nn, activation)()  
+    self.wavelet_type = wavelet_type
+    self.share_weights = share_weights
+    
+    if share_weights:
+      self.backcast_linear = self.forecast_linear = nn.Linear(units, thetas_dim)
+    else:
+      self.backcast_linear = nn.Linear(units, thetas_dim)
+      self.forecast_linear = nn.Linear(units, thetas_dim)
+      
+    self.backcast_g = _WaveletStackGenerator(thetas_dim, wavelet_type=wavelet_type)
+    self.forecast_g = _WaveletStackGenerator(thetas_dim, wavelet_type=wavelet_type)
+    self.backcast_down_sample = nn.Linear(thetas_dim, backcast_length, bias=False)
+    self.forecast_down_sample = nn.Linear(thetas_dim, forecast_length, bias=False)
+        
+    
+  def forward(self, x):
+    x = super(WaveletStackBlock, self).forward(x)
+    
+    # Wavelet basis expansion
+    b = self.backcast_linear(x)
+    f = self.forecast_linear(x)
+    b = self.backcast_g(b)    
+    b = self.backcast_down_sample(b)
+    f = self.forecast_g(f)
+    f = self.forecast_down_sample(f)      
+    
+    return b, f    
+  
 class _WaveletGenerator(nn.Module):
   def __init__(self, N, wavelet_type='db4'):
     super().__init__()
@@ -392,9 +475,9 @@ class _WaveletGenerator(nn.Module):
     # Initialize basis matrix
     W = np.zeros((N, N))
     
-    # Populate basis matrix
-    for i in range(N):
-        W[:, i] = np.roll(new_phi, i)[:N] if i < N//2 else np.roll(new_psi, i - M)[:N]
+    # Populate basis matrix half with phi and half with psi
+    for i in range(N):        
+        W[:, i] = np.roll(new_phi, i)[:N] if i < N//2 else np.roll(new_psi, i - N//2)[:N]
                         
             
     self.basis = nn.Parameter(torch.tensor(W, dtype=torch.float32), requires_grad=False)
@@ -403,37 +486,41 @@ class _WaveletGenerator(nn.Module):
   def forward(self, x):
     return torch.matmul(x, self.basis) 
     
-
     
 class WaveletBlock(RootBlock):
-    def __init__(self, units, backcast_length, forecast_length,  thetas_dim=3, 
-               share_weights = False, activation='ReLU', active_g:bool = False, wavelet_type='db4'):
-      super(WaveletBlock, self).__init__(backcast_length, units, activation)
+  def __init__(self, units, backcast_length, forecast_length,  thetas_dim=3, 
+              share_weights = False, activation='ReLU', active_g:bool = False, wavelet_type='db3'):
+    super(WaveletBlock, self).__init__(backcast_length, units, activation)
 
-      self.activation = getattr(nn, activation)()  
-      self.wavelet_type = wavelet_type
+    self.activation = getattr(nn, activation)()  
+    self.wavelet_type = wavelet_type
+    self.sharre_weights = share_weights
 
-      self.backcast_linear = nn.Linear(units, backcast_length*2)
-      self.forecast_linear = nn.Linear(units, forecast_length*2)
-      self.backcast_g = _WaveletGenerator(backcast_length*2, wavelet_type=wavelet_type)
-      self.forecast_g = _WaveletGenerator(forecast_length*2, wavelet_type=wavelet_type)
-      self.backcast_down_sample = nn.Linear(backcast_length*2, backcast_length, bias=False)
-      self.forecast_down_sample = nn.Linear(forecast_length*2, forecast_length, bias=False)
-          
+    if share_weights:
+      self.backcast_linear = self.forecast_linear = nn.Linear(units, thetas_dim)
+    else:
+      self.backcast_linear = nn.Linear(units, thetas_dim)
+      self.forecast_linear = nn.Linear(units, thetas_dim)
       
-    def forward(self, x):
-      x = super(WaveletBlock, self).forward(x)
-      
-      
-      # Wavelet basis expansion
-      b = self.backcast_linear(x)
-      f = self.forecast_linear(x)
-      b = self.backcast_g(b)    
-      b = self.backcast_down_sample(b)
-      f = self.forecast_g(f)
-      f = self.forecast_down_sample(f)      
-      
-      return b, f
+    self.backcast_g = _WaveletGenerator(thetas_dim, wavelet_type=wavelet_type)
+    self.forecast_g = _WaveletGenerator(thetas_dim, wavelet_type=wavelet_type)
+    self.backcast_down_sample = nn.Linear(thetas_dim, backcast_length, bias=False)
+    self.forecast_down_sample = nn.Linear(thetas_dim, forecast_length, bias=False)
+        
+    
+  def forward(self, x):
+    x = super(WaveletBlock, self).forward(x)
+    
+    
+    # Wavelet basis expansion
+    b = self.backcast_linear(x)
+    f = self.forecast_linear(x)
+    b = self.backcast_g(b)    
+    b = self.backcast_down_sample(b)
+    f = self.forecast_g(f)
+    f = self.forecast_down_sample(f)      
+    
+    return b, f
 
  
 
@@ -483,8 +570,6 @@ class DB20Block(WaveletBlock):
                                     share_weights, activation, active_g, wavelet_type='db20')
   def forward(self, x):
     return super(DB20Block, self).forward(x)  
-
-  
   
 class Coif1Block(WaveletBlock):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
@@ -534,18 +619,18 @@ class ShannonBlock(WaveletBlock):
   def forward(self, x):
     return super(ShannonBlock, self).forward(x)    
   
-class SymletBlock2(WaveletBlock):
+class Symlet2Block(WaveletBlock):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(ShannonBlock, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(Symlet2Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='sym10')
   def forward(self, x):
-    return super(ShannonBlock, self).forward(x)   
+    return super(Symlet2Block, self).forward(x)   
   
-class SymletBlock10(WaveletBlock):
+class Symlet3Block(WaveletBlock):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(ShannonBlock, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(Symlet3Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='sym20')
   def forward(self, x):
-    return super(ShannonBlock, self).forward(x)   
+    return super(Symlet3Block, self).forward(x)   
