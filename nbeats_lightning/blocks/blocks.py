@@ -10,11 +10,6 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 
-def squeeze_last_dim(tensor):
-  if len(tensor.shape) == 3 and tensor.shape[-1] == 1:  # (128, 10, 1) => (128, 10).
-      return tensor[..., 0]
-  return tensor
-
 class RootBlock(nn.Module):
   def __init__(self, backcast_length, units, activation='ReLU'):
     """The Block class is the basic building block of the N-BEATS network.  
@@ -50,7 +45,7 @@ class RootBlock(nn.Module):
     self.fc4 = nn.Linear(units, units)
 
   def forward(self, x): 
-    x = squeeze_last_dim(x)
+    x = torch.squeeze(x,-1)
     x = self.activation(self.fc1(x))
     x = self.activation(self.fc2(x))
     x = self.activation(self.fc3(x))

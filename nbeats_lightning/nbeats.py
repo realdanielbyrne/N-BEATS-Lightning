@@ -234,10 +234,10 @@ class NBeatsNet(pl.LightningModule):
     backcast, forecast = self(x)
     
     # calculate loss
-    loss = self.loss_fn(forecast, y) # squeeze_last_dim(y)) maybe
+    loss = self.loss_fn(forecast, torch.squeeze(y,-1))
     
     if self.sum_losses:
-      backcast_loss = self.loss_fn(backcast, x) # squeeze_last_dim(x)) maybe
+      backcast_loss = self.loss_fn(backcast, torch.squeeze(x,-1)) 
       loss = loss + backcast_loss * 0.25
     
     self.log('train_loss', loss, prog_bar=True)
@@ -249,9 +249,10 @@ class NBeatsNet(pl.LightningModule):
     
     x, y = batch
     backcast, forecast = self(x)
-    loss = self.loss_fn(forecast, b.squeeze_last_dim(y))
-    backcast_loss = self.loss_fn(backcast, b.squeeze_last_dim(x))
+    loss = self.loss_fn(forecast, torch.squeeze(y,-1))
+    
     if self.sum_losses:
+      backcast_loss = self.loss_fn(backcast, torch.squeeze(x,-1))
       loss = loss + backcast_loss * 0.25    
     
     self.log('val_loss', loss, prog_bar=True)
@@ -260,7 +261,7 @@ class NBeatsNet(pl.LightningModule):
   def test_step(self, batch, batch_idx):
     x, y = batch
     backcast, forecast = self(x)
-    loss = self.loss_fn(forecast, b.squeeze_last_dim(y))
+    loss = self.loss_fn(forecast, torch.squeeze(y,-1))
           
     self.log('test_loss', loss)
     return loss
