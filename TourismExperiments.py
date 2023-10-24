@@ -10,6 +10,8 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch import loggers as pl_loggers
 from tqdm.notebook import tqdm
 import matplotlib.pyplot as plt
+from utils.utils import *
+
 tqdm.pandas()
 import tensorboard
 import warnings
@@ -49,93 +51,6 @@ def get_tourism_data(data_freq:str="yearly"):
     
   return df, dataset_id
 
-def filter_dataset_by_removing_short_ts(data, backcast_length:int= 8, forecast_length:int=4):
-  print("Filtering NANs, and sequences that are too short.")
-  # Minimum length for each time series to be usable (backcast + forecast)
-  min_length = forecast_length + backcast_length
-
-  # Identify columns (time series) that have enough data points for training and validation
-  valid_columns = [col for col in data.columns if data[col].dropna().shape[0] >= min_length]
-  invalid_columns = [col for col in data.columns if data[col].dropna().shape[0] < min_length]
-  
-  # Create a new DataFrame with only the valid columns
-  valid_data  = data[valid_columns]
-
-
-  train_data = valid_data.iloc[:-forecast_length, :]
-  test_data = valid_data.iloc[-forecast_length:, :].reset_index(drop=True)
-
-  print ("Dataframe shape of valid train entries :",train_data.shape)
-  print("Dataframe shape of invalid entries :",data[invalid_columns].shape)
-  print ("Dataframe shape of valid test entries :",test_data.shape)
-  
-  return train_data, test_data
-
-def fill_time_series_gaps(data, backcast_length:int= 8, forecast_length:int=4):
-  """
-  Fills gaps in time series data to ensure that each series in the DataFrame
-  meets a minimum length requirement. The minimum length is determined by the
-  sum of the backcast and forecast lengths. Missing values in series that
-  don't meet the minimum length are filled with the median of the available
-  values in that specific series.
-  
-  Parameters:
-  - data (pd.DataFrame): The DataFrame containing time series data. Each
-    column represents an individual time series.
-  - backcast_length (int): The number of past observations required for each
-    time series. Default is 8.
-  - forecast_length (int): The number of future observations required for each
-    time series. Default is 4.
-  
-  Side Effects:
-  - Modifies the input DataFrame in-place to fill missing values in columns
-    that are shorter than the minimum length.
-    
-  Prints:
-  - Dataframe shape of train entries
-  - Dataframe shape of test entries
-  
-  """
-  #print("Handling NaNs and sequences that are too short.\n")
-  
-  # Minimum length for each time series to be usable (backcast + forecast)
-  min_length = forecast_length + backcast_length
-  
-  # Identify columns (time series) that have fewer data points than min_length
-  invalid_columns = [col for col in data.columns if data[col].dropna().shape[0] < min_length]
-  print("Number of columns with invalid length. Missing values are imputed with median: ", len(invalid_columns))
-  
-  # Handle invalid columns
-  for col in invalid_columns:
-      series_median = data[col].median()  # Calculate median for this specific column
-      
-      missing_count = min_length - data[col].dropna().shape[0]
-      
-      if missing_count > 0:
-          # Calculate how many values should be imputed           
-          backfill_count = min(backcast_length, missing_count)
-          forecast_count = missing_count - backfill_count
-          
-          # Backfill and forecast using median
-          backfill_values = [series_median] * backfill_count
-          forecast_values = [series_median] * forecast_count
-          
-          non_na_values = data[col].dropna().tolist()
-          
-          # Create new series
-          new_series = backfill_values + non_na_values + forecast_values
-          
-          # Replace the column in DataFrame
-          data[col] = pd.Series(new_series)
-  
-  # Create train and test data
-  train_data = data.iloc[:-forecast_length, :]
-  holdout_data = data.iloc[-forecast_length:, :].reset_index(drop=True)
-  
-  print("Dataframe shape of train entries: ", train_data.shape)
-  print("Dataframe shape of holdout entries: ", holdout_data.shape)
-  return train_data, holdout_data
-
 def plot_data(df):
   # Visualization 1: Plotting a few random time series in the same plot
   plt.figure(figsize=(14, 6))
@@ -174,72 +89,20 @@ def plot_data(df):
   plt.ylabel('Frequency')
   plt.show()
 
-def get_dms(df_valid, df_holdout, backcast_length:int, forecast_length:int=4, batch_size:int=1024, no_val:bool=False):
-  dm = ColumnarCollectionTimeSeriesDataModule(
-    df_valid, 
-    backcast_length=backcast_length,
-    forecast_length=forecast_length,    
-    no_val=no_val,
-    batch_size=batch_size)
-
-  test_dm = ColumnarCollectionTimeSeriesTestDataModule(
-    df_valid,
-    df_holdout,
-    backcast_length=backcast_length,
-    forecast_length=forecast_length, 
-    batch_size=batch_size)
-  
-  return dm, test_dm
-
-def get_trainer(name, **kwargs):
-  """Returns a Pytorch Lightning Trainer object
-
-  Args:
-      name (string): The model name to be used for logging and checkpointing
-
-  Returns:
-       pl.Trainer: A Pytorch Lightning Trainer object which defaults the
-  """
-  # Define a model checkpoint callback
-  chk_callback = ModelCheckpoint(
-    dirpath="checkpoints",
-    filename="best-checkpoint",
-    save_top_k = 1, # save top 2 models
-    monitor = "val_loss", # monitor validation loss as evaluation 
-    mode = "min"
-  )
-
-  # Define a tensorboard loger
-  tb_logger = pl_loggers.TensorBoardLogger(save_dir="lightning_logs/tourism", name=name)
-
-  # Train the generic model
-  trainer =  pl.Trainer(
-    accelerator='auto' # use GPU if available
-    ,max_epochs=max_epochs
-    ,callbacks=[chk_callback]  
-    ,logger=[tb_logger],
-    **kwargs
-  )
-  
-  return trainer
-
-
-    
 
 #%%
 # parameters
 fast_dev_run = False
 batch_size = 1024
-max_epochs = 200
+max_epochs = 175
 loss = 'SMAPELoss'
 viz = False
-
-no_val=True
+no_val=False
 
 
 # Load the data
-periods = {"yearly":[8,4], "monthly":[72,24], "quarterly":[24,8]}
-#periods = {"monthly":[72,24], "quarterly":[24,8]}
+#periods = {"yearly":[8,4], "monthly":[72,24], "quarterly":[24,8]}
+periods = {"yearly":[8,4], "quarterly":[24,8]}
 
 for p, lengths in periods.items():
   backcast_length = lengths[0] 
@@ -249,8 +112,8 @@ for p, lengths in periods.items():
   df, dataset_id = get_tourism_data(p)
   print(f"Dataset ID: {dataset_id}")
   
-  df_valid, df_holdout = fill_time_series_gaps(df, backcast_length, forecast_length)
-  dm, test_dm = get_dms(df_valid, df_holdout, backcast_length, forecast_length, batch_size, no_val)
+  df_valid, df_holdout = fill_columnar_ts_gaps(df, backcast_length, forecast_length)
+  dm, test_dm = get_columnar_datamodules(df_valid, df_holdout, backcast_length, forecast_length, batch_size, no_val)
 
   if viz:
     plot_data(df_valid)
@@ -274,7 +137,8 @@ for p, lengths in periods.items():
     
     # Yrly leaders
     #"SeasonalityTrend":["SeasonalityBlock","TrendBlock"], #potentially same as TrendSeasonality    
-    #"TrendSeasonality":["TrendBlock","SeasonalityBlock"],
+    "TrendSeasonalityControl":["TrendBlock","SeasonalityBlock"],
+    "TrendSeasonality":["TrendBlock","SeasonalityBlock"],
     #"TrendCoif2":["TrendBlock","Coif2Block"],
     #"TrendGenericGenericAEBackcastDB2":["TrendBlock","GenericBlock","GenericAEBackcastBlock","DB2Block"],        
     #"TrendCoif1":["TrendBlock","Coif1Block"],
@@ -285,11 +149,17 @@ for p, lengths in periods.items():
     #"GenericDB2":["GenericBlock","DB2Block"],
     #"DB4":["DB4Block"], # nan on mthly test
     #"TrendGenericAeBackcast":["TrendBlock","GenericAEBackcastBlock"],    
-    #"Haar":["HaarBlock"], 
-    "DB2":["DB2Block"],
-    "DB4":["DB4Block"],
+    "WaveletStack":["WaveletStackBlock"], #DB3
+    "Haar":["HaarBlock"], # DB1
+    #"DB2":["DB2Block"],
+    "DB3":["DB2Block"],
     "TrendDB3":["TrendBlock","DB3Block"],
-    #s"TrendDB4":["TrendBlock","DB4Block"],
+    #"DB4":["DB4Block"],
+    #"DB20":["DB20Block"],
+    #"Symlet3Block":["Symlet3Block"],
+    #"Coif3Block":["Coif3Block"],
+    
+    #"TrendDB4":["TrendBlock","DB4Block"],
     #"TrendSym10":["TrendBlock","Sym10Block"],
     #"Sym10Generic":["Sym10Block","GenericBlock"],
     
@@ -299,9 +169,24 @@ for p, lengths in periods.items():
 
   for key,value in blocks_to_test.items():
     
-    n_stacks = 20//len(value)    
-    thetas_dim = 5
-    bps = 1
+    if key == "TrendSeasonalityControl":
+      n_stacks = 2
+    else:
+      n_stacks = 10//len(value)    
+    
+    if key == "TrendSeasonalityControl":
+      thetas_dim = 5
+    elif key == "TrendSeasonality":
+      thetas_dim = 5
+    else:
+      thetas_dim = 32
+      
+    
+    if key == "TrendSeasonalityControl":
+      bps = 3
+    else:
+      bps = 1
+      
     active_g = True
     share_w = True
     latent = 4
@@ -330,17 +215,15 @@ for p, lengths in periods.items():
       latent_dim = latent,
       sum_losses = sum_losses      
     ) 
-    print(model)
-
-    name = f"{key}-{dataset_id}-{thetas_dim=}" 
     
 
-    trainer = get_trainer(name, fast_dev_run = fast_dev_run)
+    name = f"{key}-{dataset_id}-{thetas_dim=}" 
+    print(name + '\n')
+
+    trainer = get_trainer(name, max_epochs, subdirectory='tourism',fast_dev_run = fast_dev_run)
     trainer.fit(model, datamodule=dm)
     trainer.validate(model, datamodule=dm)
     trainer.test(model, datamodule=test_dm)
-
-
 
 
 # %%
