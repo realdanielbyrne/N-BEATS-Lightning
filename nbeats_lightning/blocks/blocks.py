@@ -9,7 +9,10 @@ from scipy.signal import resample
 from scipy.interpolate import interp1d
 import numpy as np
 
-
+def squeeze_last_dim(tensor):
+  if len(tensor.shape) == 3 and tensor.shape[-1] == 1:  # (128, 10, 1) => (128, 10).
+      return tensor[..., 0]
+  return tensor
 class RootBlock(nn.Module):
   def __init__(self, backcast_length, units, activation='ReLU'):
     """The Block class is the basic building block of the N-BEATS network.  
@@ -52,7 +55,7 @@ class RootBlock(nn.Module):
     x = self.activation(self.fc4(x))
     return x
 
-class AutoEncoderBlock(RootBlock):  
+class AutoEncoder(RootBlock):  
   def __init__(self, 
                 units:int,
                 backcast_length:int,
@@ -62,7 +65,7 @@ class AutoEncoderBlock(RootBlock):
                 activation:str = 'ReLU',
                 active_g:bool = False):
     
-      super(AutoEncoderBlock, self).__init__(backcast_length, units, activation)
+      super(AutoEncoder, self).__init__(backcast_length, units, activation)
       
       self.units = units
       self.thetas_dim = thetas_dim
@@ -101,7 +104,7 @@ class AutoEncoderBlock(RootBlock):
       )
 
   def forward(self, x):
-      x = super(AutoEncoderBlock, self).forward(x)
+      x = super(AutoEncoder, self).forward(x)
       b = self.b_encoder(x)
       b = self.b_decoder(b)
       
@@ -115,7 +118,7 @@ class AutoEncoderBlock(RootBlock):
 
       return b,f          
 
-class GenericBlock(RootBlock):
+class Generic(RootBlock):
   def __init__(self, 
                units:int, 
                backcast_length:int, 
@@ -159,7 +162,7 @@ class GenericBlock(RootBlock):
           The parameter `active_g` is not a feature found in the original 
           N-Beats paper. Defaults to False.
     """
-    super(GenericBlock, self).__init__(backcast_length, units, activation)
+    super(Generic, self).__init__(backcast_length, units, activation)
     
     if share_weights:
         self.backcast_linear = self.forecast_linear = nn.Linear(units, thetas_dim)
@@ -172,7 +175,7 @@ class GenericBlock(RootBlock):
     self.active_g = active_g
     
   def forward(self, x):
-    x = super(GenericBlock, self).forward(x)
+    x = super(Generic, self).forward(x)
     theta_b = self.backcast_linear(x)
     theta_f = self.forecast_linear(x)
     
@@ -187,7 +190,7 @@ class GenericBlock(RootBlock):
     return backcast_length, forecast_length
   
 
-class GenericAEBackcastBlock(RootBlock):  
+class GenericAEBackcast(RootBlock):  
   def __init__(self, 
                 units:int,
                 backcast_length:int,
@@ -197,7 +200,7 @@ class GenericAEBackcastBlock(RootBlock):
                 activation:str = 'ReLU',
                 active_g:bool = False):
     
-      super(GenericAEBackcastBlock, self).__init__(backcast_length, units, activation)
+      super(GenericAEBackcast, self).__init__(backcast_length, units, activation)
       
       self.units = units
       self.thetas_dim = thetas_dim
@@ -207,26 +210,18 @@ class GenericAEBackcastBlock(RootBlock):
       self.forecast_length = forecast_length
       self.active_g = active_g        
       
-      self.forecast_linear = nn.Linear(units, thetas_dim)
-      self.forecast_g = nn.Linear(thetas_dim, forecast_length, bias = False)
+      self.forecast_linear = nn.Linear(units, self.thetas_dim)
+      self.forecast_g = nn.Linear(self.thetas_dim, forecast_length, bias = False)
       
-      # Encoders
-      self.b_encoder = nn.Sequential(
-          nn.Linear(units, thetas_dim),
-          nn.ReLU(),
-      )
-      
-      # Decoders
-      self.b_decoder = nn.Sequential(
-          nn.Linear(thetas_dim, units),
-          nn.ReLU(),
-          nn.Linear(units, backcast_length),          
-      )
+      self.b_encoder = nn.Linear(units, self.thetas_dim)
+      self.b_decoder = nn.Linear(self.thetas_dim, units)
+      self.backcast_g = nn.Linear(units, backcast_length)          
 
   def forward(self, x):
-    x = super(GenericAEBackcastBlock, self).forward(x)
-    b = self.b_encoder(x)
-    b = self.b_decoder(b)
+    x = super(GenericAEBackcast, self).forward(x)
+    b = self.activation(self.b_encoder(x))
+    b = self.activation(self.b_decoder(b))
+    b = self.backcast_g(b)
 
     theta_f = self.forecast_linear(x)
     f = self.forecast_g(theta_f)
@@ -265,11 +260,11 @@ class _SeasonalityGenerator(nn.Module):
   def forward(self, x):
     return torch.matmul(x, self.basis)
 
-class SeasonalityBlock(RootBlock):
+class Seasonality(RootBlock):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
     
-    super(SeasonalityBlock, self).__init__(backcast_length, units, activation)
+    super(Seasonality, self).__init__(backcast_length, units, activation)
 
     self.backcast_linear = nn.Linear(units, 2 * int(backcast_length / 2 - 1) + 1, bias = True)
     self.forecast_linear = nn.Linear(units, 2 * int(forecast_length / 2 - 1) + 1, bias = True)
@@ -278,7 +273,7 @@ class SeasonalityBlock(RootBlock):
     self.forecast_g = _SeasonalityGenerator(forecast_length)
 
   def forward(self, x):
-    x = super(SeasonalityBlock, self).forward(x)
+    x = super(Seasonality, self).forward(x)
     # linear compression
     backcast_thetas = self.backcast_linear(x)
     forecast_thetas = self.forecast_linear(x)
@@ -319,7 +314,7 @@ class _TrendGenerator(nn.Module):
   def forward(self, x):
     return torch.matmul(x, self.basis)
 
-class TrendBlock(RootBlock):
+class Trend(RootBlock):
   def __init__(self, units, backcast_length, forecast_length, thetas_dim, 
                share_weights = True, activation='LeakyReLU', active_g:bool = False):
     """The Trend Block implements the function whose parameters are generated by the _TrendGenerator block.  
@@ -338,7 +333,7 @@ class TrendBlock(RootBlock):
         activation (str, optional): 
           The activation function passed to the parent class Block. Defaults to 'LeakyReLU'.
     """
-    super(TrendBlock, self).__init__(backcast_length, units, activation)
+    super(Trend, self).__init__(backcast_length, units, activation)
     self.share_weights = share_weights
     if self.share_weights:
         self.backcast_linear = self.forecast_linear = nn.Linear(units, thetas_dim)
@@ -350,7 +345,7 @@ class TrendBlock(RootBlock):
     self.forecast_g = _TrendGenerator(thetas_dim, forecast_length)
 
   def forward(self, x):
-    x = super(TrendBlock, self).forward(x)
+    x = super(Trend, self).forward(x)
     
     # linear compression
     backcast_thetas = self.backcast_linear(x)
@@ -412,29 +407,29 @@ class _WaveletStackGenerator(nn.Module):
     x = torch.matmul(x, self.psibasis)
     return x
     
-class WaveletStackBlock(RootBlock):
-  def __init__(self, units, backcast_length, forecast_length,  thetas_dim=3, 
+class WaveletStack(RootBlock):
+  def __init__(self, units, backcast_length, forecast_length,  basis_dim=32,
               share_weights = False, activation='ReLU', active_g:bool = False, wavelet_type='db3'):
-    super(WaveletStackBlock, self).__init__(backcast_length, units, activation)
+    super(WaveletStack, self).__init__(backcast_length, units, activation)
 
     self.activation = getattr(nn, activation)()  
     self.wavelet_type = wavelet_type
     self.share_weights = share_weights
     
     if share_weights:
-      self.backcast_linear = self.forecast_linear = nn.Linear(units, thetas_dim)
+      self.backcast_linear = self.forecast_linear = nn.Linear(units, basis_dim)
     else:
-      self.backcast_linear = nn.Linear(units, thetas_dim)
-      self.forecast_linear = nn.Linear(units, thetas_dim)
+      self.backcast_linear = nn.Linear(units, basis_dim)
+      self.forecast_linear = nn.Linear(units, basis_dim)
       
-    self.backcast_g = _WaveletStackGenerator(thetas_dim, wavelet_type=wavelet_type)
-    self.forecast_g = _WaveletStackGenerator(thetas_dim, wavelet_type=wavelet_type)
-    self.backcast_down_sample = nn.Linear(thetas_dim, backcast_length, bias=False)
-    self.forecast_down_sample = nn.Linear(thetas_dim, forecast_length, bias=False)
+    self.backcast_g = _WaveletStackGenerator(basis_dim, wavelet_type=wavelet_type)
+    self.forecast_g = _WaveletStackGenerator(basis_dim, wavelet_type=wavelet_type)
+    self.backcast_down_sample = nn.Linear(basis_dim, backcast_length, bias=False)
+    self.forecast_down_sample = nn.Linear(basis_dim, forecast_length, bias=False)
         
     
   def forward(self, x):
-    x = super(WaveletStackBlock, self).forward(x)
+    x = super(WaveletStack, self).forward(x)
     
     # Wavelet basis expansion
     b = self.backcast_linear(x)
@@ -445,9 +440,9 @@ class WaveletStackBlock(RootBlock):
     f = self.forecast_down_sample(f)      
     
     return b, f    
-  
-class _WaveletGenerator(nn.Module):
-  def __init__(self, N, wavelet_type='db4'):
+
+class _AltWaveletGenerator(nn.Module):
+  def __init__(self, N, target_length, wavelet_type='db3'):
     super().__init__()
     
     wavelet = pywt.Wavelet(wavelet_type)
@@ -464,15 +459,78 @@ class _WaveletGenerator(nn.Module):
     # Get the wavelet function values at these new x-values
     new_phi = interp_phi(new_x)
     new_psi = interp_psi(new_x)
-    M = len(new_phi)
-
+    
     
     # Initialize basis matrix
-    W = np.zeros((N, N))
+    W = np.zeros((N, target_length))
     
     # Populate basis matrix half with phi and half with psi
-    for i in range(N):        
-        W[:, i] = np.roll(new_phi, i)[:N] if i < N//2 else np.roll(new_psi, i - N//2)[:N]
+    for i in range(target_length):        
+        W[:, i] = np.roll(new_phi, i)[:N] if i < target_length//2 else np.roll(new_psi, i - target_length//2)[:N]
+                        
+            
+    self.basis = nn.Parameter(torch.tensor(W, dtype=torch.float32), requires_grad=False)
+    
+  def forward(self, x):
+    return torch.matmul(x, self.basis) 
+
+class AltWavelet(RootBlock):
+  def __init__(self, units, backcast_length, forecast_length,  basis_dim=32, 
+              share_weights = False, activation='ReLU', active_g:bool = False, wavelet_type='db3'):
+    super(AltWavelet, self).__init__(backcast_length, units, activation)
+
+    self.activation = getattr(nn, activation)()  
+    self.wavelet_type = wavelet_type
+    self.sharre_weights = share_weights
+
+    if share_weights:
+      self.backcast_linear = self.forecast_linear = nn.Linear(units, basis_dim)
+    else:
+      self.backcast_linear = nn.Linear(units, basis_dim)
+      self.forecast_linear = nn.Linear(units, basis_dim)
+      
+    self.backcast_g = _AltWaveletGenerator(basis_dim, backcast_length, wavelet_type=wavelet_type)
+    self.forecast_g = _AltWaveletGenerator(basis_dim, forecast_length, wavelet_type=wavelet_type)
+        
+    
+  def forward(self, x):
+    x = super(AltWavelet, self).forward(x)
+    
+    # Wavelet basis expansion
+    b = self.backcast_linear(x)
+    f = self.forecast_linear(x)
+    b = self.backcast_g(b)        
+    f = self.forecast_g(f)
+    
+    
+    return b, f
+  
+class _WaveletGenerator(nn.Module):
+  def __init__(self, basis_dim, wavelet_type='db3'):
+    super().__init__()
+    
+    wavelet = pywt.Wavelet(wavelet_type)
+    phi, psi, x = wavelet.wavefun(level=10)
+    
+    
+    # Create an interpolation function
+    interp_phi = interp1d(x, phi, kind='linear')
+    interp_psi = interp1d(x, psi, kind='linear')
+
+    # Define new x-values where you want to sample the wavelet function
+    new_x = np.linspace(min(x), max(x), basis_dim)
+
+    # Get the wavelet function values at these new x-values
+    new_phi = interp_phi(new_x)
+    new_psi = interp_psi(new_x)
+    
+    
+    # Initialize basis matrix
+    W = np.zeros((basis_dim, basis_dim))
+    
+    # Populate basis matrix half with phi and half with psi
+    for i in range(basis_dim):        
+        W[:, i] = np.roll(new_phi, i)[:basis_dim] if i < basis_dim//2 else np.roll(new_psi, i - basis_dim//2)[:basis_dim]
                         
             
     self.basis = nn.Parameter(torch.tensor(W, dtype=torch.float32), requires_grad=False)
@@ -482,30 +540,29 @@ class _WaveletGenerator(nn.Module):
     return torch.matmul(x, self.basis) 
     
     
-class WaveletBlock(RootBlock):
-  def __init__(self, units, backcast_length, forecast_length,  thetas_dim=3, 
+class Wavelet(RootBlock):
+  def __init__(self, units, backcast_length, forecast_length,  basis_dim=32, 
               share_weights = False, activation='ReLU', active_g:bool = False, wavelet_type='db3'):
-    super(WaveletBlock, self).__init__(backcast_length, units, activation)
+    super(Wavelet, self).__init__(backcast_length, units, activation)
 
     self.activation = getattr(nn, activation)()  
     self.wavelet_type = wavelet_type
     self.sharre_weights = share_weights
 
     if share_weights:
-      self.backcast_linear = self.forecast_linear = nn.Linear(units, thetas_dim)
+      self.backcast_linear = self.forecast_linear = nn.Linear(units, basis_dim)
     else:
-      self.backcast_linear = nn.Linear(units, thetas_dim)
-      self.forecast_linear = nn.Linear(units, thetas_dim)
+      self.backcast_linear = nn.Linear(units, basis_dim)
+      self.forecast_linear = nn.Linear(units, basis_dim)
       
-    self.backcast_g = _WaveletGenerator(thetas_dim, wavelet_type=wavelet_type)
-    self.forecast_g = _WaveletGenerator(thetas_dim, wavelet_type=wavelet_type)
-    self.backcast_down_sample = nn.Linear(thetas_dim, backcast_length, bias=False)
-    self.forecast_down_sample = nn.Linear(thetas_dim, forecast_length, bias=False)
+    self.backcast_g = _WaveletGenerator(basis_dim, wavelet_type=wavelet_type)
+    self.forecast_g = _WaveletGenerator(basis_dim, wavelet_type=wavelet_type)
+    self.backcast_down_sample = nn.Linear(basis_dim, backcast_length, bias=False)
+    self.forecast_down_sample = nn.Linear(basis_dim, forecast_length, bias=False)
         
     
   def forward(self, x):
-    x = super(WaveletBlock, self).forward(x)
-    
+    x = super(Wavelet, self).forward(x)
     
     # Wavelet basis expansion
     b = self.backcast_linear(x)
@@ -516,116 +573,443 @@ class WaveletBlock(RootBlock):
     f = self.forecast_down_sample(f)      
     
     return b, f
-
  
 
-class HaarBlock(WaveletBlock):
+class HaarWavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(HaarBlock, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(HaarWavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='haar')
   def forward(self, x):
-    return super(HaarBlock, self).forward(x)
+    return super(HaarWavelet, self).forward(x)
   
-class DB2Block(WaveletBlock):
+class DB2Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length, thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(DB2Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(DB2Wavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='db2')
   def forward(self, x):
-    return super(DB2Block, self).forward(x)
+    return super(DB2Wavelet, self).forward(x)
 
-class DB3Block(WaveletBlock):
+class DB3Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length, thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(DB3Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(DB3Wavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='db3')
   def forward(self, x):
-    return super(DB3Block, self).forward(x)
+    return super(DB3Wavelet, self).forward(x)
   
-class DB4Block(WaveletBlock):
+class DB4Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(DB4Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(DB4Wavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='db4')
   def forward(self, x):
-    return super(DB4Block, self).forward(x)
-class DB10Block(WaveletBlock):
+    return super(DB4Wavelet, self).forward(x)
+class DB10Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(DB10Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(DB10Wavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='db10')
   def forward(self, x):
-    return super(DB10Block, self).forward(x)    
+    return super(DB10Wavelet, self).forward(x)    
   
-class DB20Block(WaveletBlock):
+class DB20Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(DB20Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(DB20Wavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='db20')
   def forward(self, x):
-    return super(DB20Block, self).forward(x)  
+    return super(DB20Wavelet, self).forward(x)  
   
-class Coif1Block(WaveletBlock):
+class Coif1Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(Coif1Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(Coif1Wavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='coif1')
   def forward(self, x):
-    return super(Coif1Block, self).forward(x)  
+    return super(Coif1Wavelet, self).forward(x)  
   
-class Coif2Block(WaveletBlock):
+class Coif2Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(Coif2Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(Coif2Wavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='coif2')
   def forward(self, x):
-    return super(Coif2Block, self).forward(x)   
+    return super(Coif2Wavelet, self).forward(x)   
 
-class Coif3Block(WaveletBlock):
+class Coif3Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(Coif3Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(Coif3Wavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='coif3')
   def forward(self, x):
-    return super(Coif3Block, self).forward(x)   
+    return super(Coif3Wavelet, self).forward(x)   
   
-class Coif10Block(WaveletBlock):
+class Coif10Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(Coif10Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(Coif10Wavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='coif10')
   def forward(self, x):
-    return super(Coif10Block, self).forward(x)    
+    return super(Coif10Wavelet, self).forward(x)    
   
-class Coif20Block(WaveletBlock):
+class Coif20Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(Coif20Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(Coif20Wavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='coif20')
   def forward(self, x):
-    return super(Coif20Block, self).forward(x)    
+    return super(Coif20Wavelet, self).forward(x)    
   
-class ShannonBlock(WaveletBlock):
+class ShannonWavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(ShannonBlock, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(ShannonWavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='shan')
   def forward(self, x):
-    return super(ShannonBlock, self).forward(x)    
+    return super(ShannonWavelet, self).forward(x)    
   
-class Symlet2Block(WaveletBlock):
+class Symlet2Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(Symlet2Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(Symlet2Wavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='sym10')
   def forward(self, x):
-    return super(Symlet2Block, self).forward(x)   
+    return super(Symlet2Wavelet, self).forward(x)   
   
-class Symlet3Block(WaveletBlock):
+class Symlet3Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
                share_weights = False, activation='ReLU', active_g:bool = False):
-    super(Symlet3Block, self).__init__(units, backcast_length, forecast_length, thetas_dim,
+    super(Symlet3Wavelet, self).__init__(units, backcast_length, forecast_length, thetas_dim,
                                     share_weights, activation, active_g, wavelet_type='sym20')
   def forward(self, x):
-    return super(Symlet3Block, self).forward(x)   
+    return super(Symlet3Wavelet, self).forward(x)   
+  
+
+class AERootBlock(nn.Module):
+  def __init__(self, backcast_length, units, activation='ReLU', latent_dim=5):
+    """The AERootBlock class is the basic building block of the N-BEATS network.  
+    It consists of a stack of fully connected layers organized as an Autoencoder.
+    It serves as the base class for the GenericAEBlock, SeasonalityAEBlock, 
+    and the TrendAEBlock classes.
+    
+    Args:
+        backcast_length (int): 
+          The length of the historical data.  It is customary to use a multiple 
+          of the forecast_length (H)orizon (2H,3H,4H,5H,...).
+        units (int): 
+          The width of the fully connected layers in the blocks comprising the 
+          stacks of the generic model.
+        activation (str, optional): 
+          The activation function applied to each of the fully connected Linear 
+          layers. Defaults to 'ReLU'.
+        latent_dim (int, optional):
+          The dimensionality of the latent space. Defaults to 5.
+
+    Raises:
+          ValueError: If the activation function is not in ACTIVATIONS.
+    """
+    super(AERootBlock, self).__init__()
+    self.units = units
+    self.backcast_length = backcast_length
+    self.latent_dim = latent_dim
+    
+    if not activation in ACTIVATIONS:
+      raise ValueError(f"'{activation}' is not in {ACTIVATIONS}")
+    
+    self.activation = getattr(nn, activation)()    
+    
+    self.fc1 = nn.Linear(backcast_length, units//2)
+    self.fc2 = nn.Linear(units//2, latent_dim)
+    self.fc3 = nn.Linear(latent_dim, units//2)
+    self.fc4 = nn.Linear(units//2, units)
+    
+
+  def forward(self, x): 
+    x = squeeze_last_dim(x)
+    x = self.activation(self.fc1(x))
+    x = self.activation(self.fc2(x))
+    x = self.activation(self.fc3(x))
+    x = self.activation(self.fc4(x))
+    return x
+
+class SeasonalityAE(AERootBlock):
+  def __init__(self, units, backcast_length, forecast_length,  thetas_dim=5, 
+               share_weights = False, activation='ReLU', active_g:bool = False, latent_dim = 5):
+    """The SeasonalityAEBlock is the basic building block of the N-BEATS network.  
+    It consists of a stack of fully connected layers defined the parent class Block, 
+    followed by a linear layer, which generates the parameters of a Fourier expansion.
+
+    The SeasonalityAEBlock is an AutoEncoder version of the SeasonalityBlock where the presplit
+    section of the network is an AutoEncoder.    
+
+    Args:
+        units (int): 
+          The width of the fully connected layers in the blocks comprising the parent 
+          class Block.
+        backcast_length (int): 
+          The length of the historical data.  It is customary to use a multiple of 
+          the forecast_length (H)orizon (2H,3H,4H,5H,...).
+        forecast_length (int): 
+          The length of the forecast_length horizon.
+        activation (str, optional): 
+          The activation function passed to the parent class Block. Defaults to 'LeakyReLU'.
+    """
+    super(SeasonalityAE, self).__init__(backcast_length, units, activation, latent_dim = latent_dim)
+
+    self.backcast_linear = nn.Linear(units, 2 * int(backcast_length / 2 - 1) + 1, bias = False)
+    self.forecast_linear = nn.Linear(units, 2 * int(forecast_length / 2 - 1) + 1, bias = False)
+      
+    self.backcast_g = _SeasonalityGenerator(backcast_length)
+    self.forecast_g = _SeasonalityGenerator(forecast_length)
+
+  def forward(self, x):
+    x = super(SeasonalityAE, self).forward(x)
+    # linear compression
+    backcast_thetas = self.backcast_linear(x)
+    forecast_thetas = self.forecast_linear(x)
+    
+    # fourier expansion
+    backcast = self.backcast_g(backcast_thetas)  
+    forecast = self.forecast_g(forecast_thetas)
+    
+    return backcast, forecast
+    
+    return backcast_length, forecast_length
+
+     
+class GenericAEBackcastAE(AERootBlock):  
+  def __init__(self, 
+                units:int,
+                backcast_length:int,
+                forecast_length:int,
+                thetas_dim:int,
+                share_weights:bool,
+                activation:str = 'ReLU',
+                active_g:bool = False,
+                latent_dim:int = 5):
+    
+      super(GenericAEBackcastAE, self).__init__(backcast_length, units, activation,latent_dim=latent_dim)
+      
+      self.units = units
+      self.thetas_dim = thetas_dim
+      self.share_weights = share_weights
+      self.activation = getattr(nn, activation)()
+      self.backcast_length = backcast_length
+      self.forecast_length = forecast_length
+      self.active_g = active_g        
+      
+      self.forecast_linear = nn.Linear(units, thetas_dim)
+      self.forecast_g = nn.Linear(thetas_dim, forecast_length, bias = False)
+      
+      # Encoders
+      self.b_encoder = nn.Sequential(
+          nn.Linear(units, thetas_dim),
+          nn.ReLU(),
+      )
+      
+      # Decoders
+      self.b_decoder = nn.Sequential(
+          nn.Linear(thetas_dim, units),
+          nn.ReLU(),
+          nn.Linear(units, backcast_length),          
+      )
+
+  def forward(self, x):
+    x = super(GenericAEBackcastAE, self).forward(x)
+    b = self.b_encoder(x)
+    b = self.b_decoder(b)
+
+    theta_f = self.forecast_linear(x)
+    f = self.forecast_g(theta_f)
+    
+    # N-BEATS paper does not apply activation here, but Generic models will not converge sometimes without it
+    if self.active_g:
+      b = self.activation(b)
+      f = self.activation(f)
+    return b,f     
+  
+class AutoEncoderAE(AERootBlock):  
+  def __init__(self, 
+                units:int,
+                backcast_length:int,
+                forecast_length:int,
+                thetas_dim:int,
+                share_weights:bool,
+                activation:str = 'ReLU',
+                active_g:bool = False,
+                latent_dim:int = 5):
+    
+    super(AutoEncoderAE, self).__init__(backcast_length, units, activation, latent_dim=latent_dim)
+    
+    self.units = units
+    self.thetas_dim = thetas_dim
+    self.share_weights = share_weights
+    self.activation = getattr(nn, activation)()
+    self.backcast_length = backcast_length
+    self.forecast_length = forecast_length      
+    self.active_g = active_g  
+    
+    # Encoders
+    if share_weights:
+      self.b_encoder = self.f_encoder = nn.Sequential(
+        nn.Linear(units, thetas_dim),
+        nn.ReLU(),
+      )
+    else:
+      self.b_encoder = nn.Sequential(
+          nn.Linear(units, thetas_dim),
+          nn.ReLU(),
+      )      
+      self.f_encoder = nn.Sequential(
+          nn.Linear(units, thetas_dim),
+          nn.ReLU(),
+      )      
+
+    self.b_decoder = nn.Sequential(
+        nn.Linear(thetas_dim, units),
+        nn.ReLU(),
+        nn.Linear(units, backcast_length),
+    )
+    self.f_decoder = nn.Sequential(
+        nn.Linear(thetas_dim, units),
+        nn.ReLU(),
+        nn.Linear(units, forecast_length),
+    )
+
+  def forward(self, x):
+    x = super(AutoEncoderAE, self).forward(x)
+    b = self.b_encoder(x)
+    b = self.b_decoder(b)
+    
+    f = self.f_encoder(x)
+    f = self.f_decoder(f)
+
+    # N-BEATS paper does not apply activation here, but Generic models will not converge sometimes without it
+    if self.active_g:
+      b = self.activation(b)
+      f = self.activation(f)        
+  
+    return b,f          
+
+class GenericAE(AERootBlock):
+  def __init__(self, 
+               units:int, 
+               backcast_length:int, 
+               forecast_length:int, 
+               thetas_dim:int = 5, 
+               share_weights:bool= False, 
+               activation:str = 'ReLU', 
+               active_g:bool = False,
+               latent_dim:int = 5):
+    """The GenericAEBlock is the basic building block of the N-BEATS network.  
+    It consists of a stack of fully connected layers, followed by
+    two linear layers. The first, backcast_linear, generates the parameters 
+    of a waveform generator, which is implemented by the function 
+    defined in the next layer. These two layers can also be thought of os a 
+    compression and expansion layer or rudimentary AutoEncoder.
+
+    The GenericAEBlock is an AutoEncoder version of the GenericBlock where the presplit
+    section of the network is an AutoEncoder.
+    
+    Args:
+        units (int): 
+          The width of the fully connected layers in the blocks comprising 
+          the stacks of the generic model
+        backcast_length (int): 
+          The length of the historical data.  It is customary to use a 
+          multiple of the forecast_length (H)orizon (2H,3H,4H,5H,...).
+        forecast_length (int): 
+          The length of the forecast_length horizon.
+        thetas_dim (int, optional): 
+          The dimensionality of the wavefor generator parameters. Defaults 
+          to 5.
+        share_weights (bool, optional): 
+          If True, the initial weights of the Linear laers are shared. 
+          Defaults to False.
+        activation (str, optional): ß
+          The activation function used in the parent class Block, and 
+          optionally as the non-linear activation of the backcast_g and 
+          forecast_g layers. Defaults to 'ReLU'.
+        active_g (bool, optional): 
+          This parameter when enabled applies the model's activation 
+          funtion to the linear funtions (gb and gf) which are found by 
+          the network in the last layer of each block using the theta parameters
+          found in the preceding layer. Enabling this activation function 
+          seems to help the Generic model converge. 
+          The parameter `active_g` is not a feature found in the original 
+          N-Beats paper. Defaults to False.
+    """
+    super(GenericAE, self).__init__(backcast_length, units, activation, latent_dim=latent_dim)
+    
+    if share_weights:
+        self.backcast_linear = self.forecast_linear = nn.Linear(units, thetas_dim)
+    else:
+        self.backcast_linear = nn.Linear(units, thetas_dim)
+        self.forecast_linear = nn.Linear(units, thetas_dim)
+        
+    self.backcast_g = nn.Linear(thetas_dim, backcast_length, bias = False) 
+    self.forecast_g = nn.Linear(thetas_dim, forecast_length, bias = False)
+    self.active_g = active_g
+    
+  def forward(self, x):
+    x = super(GenericAE, self).forward(x)
+    theta_b = self.backcast_linear(x)
+    theta_f = self.forecast_linear(x)
+    
+    backcast_length = self.backcast_g(theta_b)
+    forecast_length = self.forecast_g(theta_f)
+    
+    # N-BEATS paper does not apply activation here, but Generic models will not converge sometimes without it
+    if self.active_g:
+      backcast_length = self.activation(backcast_length)
+      forecast_length = self.activation(forecast_length)
+
+    return backcast_length, forecast_length  
+
+
+class TrendAE(AERootBlock):
+  def __init__(self, units, backcast_length, forecast_length, thetas_dim, 
+               share_weights = True, activation='LeakyReLU', active_g:bool = False, latent_dim = 5):
+    """The TrendAEBlock implements the function whose parameters are generated by the _TrendGenerator block.  
+    The TrendAEBlock is an AutoEncoder version of the TrendBlock where the presplit section of the network
+    is an AutoEncoder.
+
+    Args:
+        units (int): 
+          The width of the fully connected layers in the blocks comprising the parent class Block.
+        backcast_length (int): 
+          The length of the historical data.  It is customary to use a multiple of the forecast_length (H)orizon (2H,3H,4H,5H,...).
+        forecast_length (int): 
+          The length of the forecast_length horizon.
+        thetas_dim (int): 
+          The dimensionality of the _TrendGenerator polynomial.
+        share_weights (bool, optional): 
+          If True, the inital weights of the Linear layers are shared. Defaults to True.
+        activation (str, optional): 
+          The activation function passed to the parent class Block. Defaults to 'LeakyReLU'.
+    """
+    super(TrendAE, self).__init__(backcast_length, units, activation, latent_dim=latent_dim)
+    if share_weights:
+        self.backcast_linear = self.forecast_linear = nn.Linear(units, thetas_dim)
+    else:
+        self.backcast_linear = nn.Linear(units, thetas_dim)
+        self.forecast_linear = nn.Linear(units, thetas_dim)
+        
+    self.backcast_g = _TrendGenerator(thetas_dim, backcast_length)
+    self.forecast_g = _TrendGenerator(thetas_dim, forecast_length)
+
+  def forward(self, x):
+    x = super(TrendAE, self).forward(x)
+    
+    # linear compression
+    backcast_thetas = self.backcast_linear(x)
+    forecast_thetas = self.forecast_linear(x)
+    
+    #  Vandermonde basis expansion
+    backcast = self.backcast_g(backcast_thetas)    
+    forecast = self.forecast_g(forecast_thetas)
+            
+    return backcast, forecast
+

@@ -45,8 +45,8 @@ share_w = False
 
 stack_types = ["GenericBlock"] * n_stacks
 generic = NBeatsNet (
-  backcast = backcast_length,
-  forecast = forecast_length, 
+  backcast_length = backcast_length,
+  forecast_length = forecast_length, 
   stack_types = stack_types,
   n_blocks_per_stack = bps,
   share_weights = share_w, # share initial weights
@@ -97,8 +97,8 @@ share_w = False
 
 stack_types = ["GenericAEBlock"] * n_stacks
 genericAE = NBeatsNet (
-  backcast = backcast_length,
-  forecast = forecast_length, 
+  backcast_length = backcast_length,
+  forecast_length = forecast_length, 
   stack_types = stack_types,
   n_blocks_per_stack = bps,  
   share_weights = share_w, # share initial weights
@@ -149,8 +149,8 @@ loss='SMAPELoss'
 
 stack_types = ["TrendBlock","SeasonalityBlock"] 
 interp = NBeatsNet (
-  backcast = backcast_length,
-  forecast = forecast_length, 
+  backcast_length = backcast_length,
+  forecast_length = forecast_length, 
   stack_types = stack_types,
   n_blocks_per_stack = bps,
   share_weights = share_w, # share initial weights
@@ -199,8 +199,8 @@ latent = 5
 
 stack_types = ["TrendAEBlock","SeasonalityAEBlock"] 
 iae = NBeatsNet (
-  backcast = backcast_length,
-  forecast = forecast_length, 
+  backcast_length = backcast_length,
+  forecast_length = forecast_length, 
   stack_types = stack_types,
   n_blocks_per_stack = bps,
   share_weights = share_w, # share initial weights
@@ -251,8 +251,8 @@ share_w = False
 
 stack_types = ["AutoEncoderBlock"] * n_stacks
 ae = NBeatsNet (
-  backcast = backcast_length,
-  forecast = forecast_length, 
+  backcast_length = backcast_length,
+  forecast_length = forecast_length, 
   stack_types = stack_types,
   n_blocks_per_stack = bps,
   share_weights = share_w, # share initial weights
@@ -302,8 +302,8 @@ latent = 5
 
 stack_types = ["AutoEncoderAEBlock"] * n_stacks
 aeae = NBeatsNet (
-  backcast = backcast_length,
-  forecast = forecast_length, 
+  backcast_length = backcast_length,
+  forecast_length = forecast_length, 
   stack_types = stack_types,
   n_blocks_per_stack = bps,
   share_weights = share_w, # share initial weights
@@ -353,8 +353,8 @@ share_w = False
 
 stack_types = ["GenericAEBackcastBlock"] * n_stacks
 ae_bckcast = NBeatsNet (
-  backcast = backcast_length,
-  forecast = forecast_length, 
+  backcast_length = backcast_length,
+  forecast_length = forecast_length, 
   stack_types = stack_types,
   n_blocks_per_stack = bps,
   share_weights = share_w, # share initial weights
@@ -403,8 +403,8 @@ latent = 5
 
 stack_types = ["GenericAEBackcastAEBlock"] * n_stacks
 ae_bckcast_ae = NBeatsNet (
-  backcast = backcast_length,
-  forecast = forecast_length, 
+  backcast_length = backcast_length,
+  forecast_length = forecast_length, 
   stack_types = stack_types,
   n_blocks_per_stack = bps,
   share_weights = share_w, # share initial weights
