@@ -26,7 +26,7 @@ from utils.utils import *
 #%%
 # Training parameters
 batch_size = 2048
-max_epochs = 100
+max_epochs = 250
 fast_dev_run = False
 no_val=False
 debug = False
@@ -34,7 +34,7 @@ dataset_id = 'Tourism'
 
 # Define stacks, by creating a list.  
 # Stacks will be created in the order they appear in the list.
-stacks_to_test = [    
+stacks_to_test = [
     ["HaarWavelet"],
     ["DB2Wavelet"],
     ["DB3Wavelet"],
@@ -45,16 +45,14 @@ stacks_to_test = [
     ["Coif2Wavelet"],
     ["Coif3Wavelet"],
     ["Coif10Wavelet"], 
-    ["Coif20Wavelet"],
-    ["ShannonWavelet"],
     ["Symlet2Wavelet"],
     ["Symlet3Wavelet"],
     ["WaveletStack"],
     ["AltWavelet"]
   ]
 
-
-periods = {"Yearly":[8,4], "Quarterly":[24,8]}
+horizon_mult = 4
+periods = {"Yearly":[horizon_mult*4,4], "Monthly":[horizon_mult*24,24], "Quarterly":[horizon_mult*8,8]}
 for seasonal_period, lengths in periods.items():
   
   backcast_length = lengths[0] 
@@ -67,7 +65,7 @@ for seasonal_period, lengths in periods.items():
   
   for s in stacks_to_test:
     
-    n_stacks = 12
+    n_stacks = 20
     n_stacks = n_stacks//len(s)  
     stack_types = s * n_stacks
     basis = 128
@@ -87,11 +85,11 @@ for seasonal_period, lengths in periods.items():
     
     
     model_id="".join(s)
-    model_name = f"{model_id}-{seasonal_period}[{backcast_length},{forecast_length}]{basis=}-WaveExp" 
+    model_name = f"{model_id}-{seasonal_period}[{backcast_length},{forecast_length}]{basis=}-Wave4Horizon" 
     print(f'{model_name=}\n\n')
 
 
-    trainer = get_trainer(model_name, max_epochs, subdirectory=dataset_id, fast_dev_run = fast_dev_run)
+    trainer = get_trainer(model_name, max_epochs, subdirectory=dataset_id, no_val=no_val, fast_dev_run = fast_dev_run)
     dm, test_dm = get_columnar_dms(df_valid, df_holdout, backcast_length, forecast_length, batch_size, no_val)
     
     trainer.fit(model, datamodule=dm)

@@ -10,6 +10,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch import loggers as pl_loggers
 from tqdm.notebook import tqdm
 import matplotlib.pyplot as plt
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 tqdm.pandas()
 import tensorboard
 import warnings
@@ -25,47 +26,49 @@ from utils.utils import *
 #%%
 # Training parameters
 batch_size = 2048
-max_epochs = 100
-loss = 'SMAPELoss'
+max_epochs = 250
 fast_dev_run = False
 no_val=False
-split_ratio = .9
-forecast_multiplier = 7
 debug = False
-dataset_id = 'M4'
+dataset_id = 'Tourism'
 
 # Define stacks, by creating a list.  
 # Stacks will be created in the order they appear in the list.
 stacks_to_test = [
-    ["Generic"],
-    ["Trend","Seasonality"],
-    ["AltWaveletBlock"], 
+    ["HaarWavelet"],
+    ["DB2Wavelet"],
+    ["DB3Wavelet"],
+    ["DB4Wavelet"],
+    ["DB10Wavelet"],
+    ["DB20Wavelet"],
+    ["Coif1Wavelet"],
+    ["Coif2Wavelet"],
+    ["Coif3Wavelet"],
+    ["Coif10Wavelet"], 
+    ["Symlet2Wavelet"],
+    ["Symlet3Wavelet"],
     ["WaveletStack"],
-    ["DB3"],
-    ["GenericAEBackcast"],
-    ["Trend","GenericAEBackcast"],
-    ["Trend","Generic"],
-    ["Trend","AutoEncoder"],
+    ["AltWavelet"]
   ]
 
-
-periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
-for seasonal_period in periods:
-  train_file = f"data/M4/Train/{seasonal_period}-train.csv"
-  test_file  = f"data/M4/Test/{seasonal_period}-test.csv"
-  category = 'All' 
-
+horizon_mult = 4
+periods = {"Yearly":[horizon_mult*4,4], "Monthly":[horizon_mult*24,24], "Quarterly":[horizon_mult*8,8]}
+for seasonal_period, lengths in periods.items():
+  
+  backcast_length = lengths[0] 
+  forecast_length = lengths[1]  
+  
   # load data
-  frequency, forecast_length, backcast_length, indicies = get_M4infofile_info (
-                      m4_info_path, seasonal_period, forecast_multiplier, category)
-  train_data = load_m4_train_data(train_file, debug, indicies)
-  test_data = load_m4_test_data(test_file, debug, indicies)
-
-
+  df = get_tourism_data(seasonal_period)  
+  df_valid, df_holdout = fill_columnar_ts_gaps(df, backcast_length, forecast_length)
+  
+  
   for s in stacks_to_test:
-    n_stacks = 12
+    
+    n_stacks = 20
     n_stacks = n_stacks//len(s)  
     stack_types = s * n_stacks
+    basis = 32
       
     model = NBeatsNet (
       backcast_length = backcast_length,
@@ -76,19 +79,25 @@ for seasonal_period in periods:
       thetas_dim = 5,      
       loss = 'SMAPELoss',
       active_g = True,
-      latent_dim = 4,
-      basis_dim = 128
+      latent_dim = 12,
+      basis_dim = basis
     ) 
     
+    
     model_id="".join(s)
-    name = f"{model_id}{seasonal_period}{category}[{backcast_length},{forecast_length}]" 
-    print(f"Model Name : {name}\n")
-    
-    
-    trainer = get_trainer(name, max_epochs, subdirectory=dataset_id, fast_dev_run = fast_dev_run)
-    dm, test_dm = get_row_dms(train_data, test_data, backcast_length, forecast_length, batch_size, split_ratio)
+    model_name = f"{model_id}-{seasonal_period}[{backcast_length},{forecast_length}]{basis=}-Wave4Horizon" 
+    print(f'{model_name=}\n\n')
 
+
+    trainer = get_trainer(model_name, max_epochs, subdirectory=dataset_id, no_val=no_val, fast_dev_run = fast_dev_run)
+    dm, test_dm = get_columnar_dms(df_valid, df_holdout, backcast_length, forecast_length, batch_size, no_val)
+    
     trainer.fit(model, datamodule=dm)
-    trainer.validate(model, datamodule=dm)  
+    trainer.validate(model, datamodule=dm)
     trainer.test(model, datamodule=test_dm)
-  
+    print('### TEST END ###\n\n\n')
+
+
+
+
+# %%

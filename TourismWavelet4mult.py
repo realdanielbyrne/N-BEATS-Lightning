@@ -26,7 +26,7 @@ from utils.utils import *
 #%%
 # Training parameters
 batch_size = 2048
-max_epochs = 160
+max_epochs = 250
 fast_dev_run = False
 no_val=False
 debug = False
@@ -35,17 +35,6 @@ dataset_id = 'Tourism'
 # Define stacks, by creating a list.  
 # Stacks will be created in the order they appear in the list.
 stacks_to_test = [
-    ["Generic"],
-    ["Trend","Seasonality"], 
-    ["GenericAE"],
-    ["GenericAEBackcast"],
-    ["GenericAEBackcastAE"],
-    ["Trend"],
-    ["TrendAE"],
-    ["Seasonality"],
-    ["SeasonalityAE"],
-    ["AutoEncoder"],
-    ["AutoEncoderAE"],
     ["HaarWavelet"],
     ["DB2Wavelet"],
     ["DB3Wavelet"],
@@ -56,17 +45,14 @@ stacks_to_test = [
     ["Coif2Wavelet"],
     ["Coif3Wavelet"],
     ["Coif10Wavelet"], 
-    ["Coif20Wavelet"],
-    ["ShannonWavelet"],
     ["Symlet2Wavelet"],
     ["Symlet3Wavelet"],
     ["WaveletStack"],
     ["AltWavelet"]
   ]
 
-
-periods = {"Yearly":[8,4], "Monthly":[72,24], "Quarterly":[24,8]}
-#periods = {"Monthly":[72,24], "Quarterly":[24,8]}
+horizon_mult = 4
+periods = {"Yearly":[horizon_mult*4,4], "Monthly":[horizon_mult*24,24], "Quarterly":[horizon_mult*8,8]}
 for seasonal_period, lengths in periods.items():
   
   backcast_length = lengths[0] 
@@ -99,11 +85,11 @@ for seasonal_period, lengths in periods.items():
     
     
     model_id="".join(s)
-    model_name = f"{model_id}-{seasonal_period}[{backcast_length},{forecast_length}]{basis=}-Allblocks" 
+    model_name = f"{model_id}-{seasonal_period}[{backcast_length},{forecast_length}]{basis=}-Wave4Horizon" 
     print(f'{model_name=}\n\n')
 
 
-    trainer = get_trainer(model_name, max_epochs, subdirectory=dataset_id, fast_dev_run = fast_dev_run)
+    trainer = get_trainer(model_name, max_epochs, subdirectory=dataset_id, no_val=no_val, fast_dev_run = fast_dev_run)
     dm, test_dm = get_columnar_dms(df_valid, df_holdout, backcast_length, forecast_length, batch_size, no_val)
     
     trainer.fit(model, datamodule=dm)

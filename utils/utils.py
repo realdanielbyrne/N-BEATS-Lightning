@@ -14,7 +14,7 @@ m4_info_path  = "data/M4/M4-info.csv"
 yearly_tourism_data_path = "data/tourism1/tourism_data.csv"
 mth_qtr_tourism_data_path = 'data/tourism2/tourism2_revision2.csv'
 
-def get_trainer(name, max_epochs:int=100, subdirectory :str="", **kwargs):
+def get_trainer(name, max_epochs:int=100, subdirectory :str="", no_val:bool=False, **kwargs):
   """Returns a Pytorch Lightning Trainer object
 
   Args:
@@ -27,15 +27,17 @@ def get_trainer(name, max_epochs:int=100, subdirectory :str="", **kwargs):
        pl.Trainer: A Pytorch Lightning Trainer object
   """
   # Define a model checkpoint callback
-  chk_callback = ModelCheckpoint(
-    dirpath="checkpoints",
+  if no_val:
+    monitor = "train_loss"
+  else:
+    monitor = "val_loss"
+  chk_callback = ModelCheckpoint(    
     filename="best-checkpoint",
     save_top_k = 1, 
-    monitor = "val_loss", # monitor validation loss as evaluation 
+    monitor = monitor, # monitor validation loss as evaluation 
     mode = "min"
   )
   
-  callbacks=[chk_callback]
   # Define a tensorboard loger
   tb_logger = pl_loggers.TensorBoardLogger(save_dir=f"lightning_logs/{subdirectory}", name=name)
 
@@ -43,7 +45,7 @@ def get_trainer(name, max_epochs:int=100, subdirectory :str="", **kwargs):
   trainer =  pl.Trainer(
     accelerator='auto' # use GPU if available
     ,max_epochs=max_epochs
-    ,callbacks=callbacks  
+    ,callbacks=[chk_callback]  
     ,logger=[tb_logger],
     **kwargs
   )
