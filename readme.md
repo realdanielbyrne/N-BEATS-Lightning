@@ -33,7 +33,7 @@ The N-BEATS algorithm is a powerful tool for time series forecasting, providing 
 
 **Installation**
 ```bash
-  pip install nbeats-lightning
+  pip install nbeats_lightning
 ```
 
 First load the required libraries and your data.
