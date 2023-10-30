@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name="nbeats_lightning"
+version="0.1.0"
+authors =[{name="Daniel Byrne",email="realdanielbyrne@icloud.com"}]
+description = "A Pytorch Lightning implementation of the N-BEATS algorithm"
+requires-python=">=3.9.0"
+classifiers=[
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Topic :: Software Development",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",    
+]
+dependencies = [
+  "lightning",
+  "matplotlib",
+  "numpy",
+  "pandas",
+  "pytorch_lightning",
+  "PyWavelets",
+  "scipy",
+  "seaborn",
+  "tensorboard",
+  "torch",
+  "tqdm",
+  "ipykernel",
+  "ipython",
+  "statsmodels",
+]
+dynamic = ["readme"]
+
+
+[project.urls]
+"Homepage"="https://github.com/realdanielbyrne/N-BEATS-Lightning"
+
+[tool.setuptools.dynamic]
+readme = {file = ["readme.md"]}
