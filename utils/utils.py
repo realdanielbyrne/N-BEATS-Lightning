@@ -1,3 +1,4 @@
+#%%
 import pandas as pd
 import numpy as np
 from nbeats_lightning.nbeats import *                   
@@ -9,6 +10,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
+#%%# 
 # M4 info file
 m4_info_path  = "data/M4/M4-info.csv"
 yearly_tourism_data_path = "data/tourism1/tourism_data.csv"
@@ -214,7 +216,33 @@ def get_row_dms(
       batch_size:int=1024, 
       split_ratio:float=0.8):
   
-  dm = TimeSeriesCollectionDataModule(
+  dm = TimeSeriesImputedCollectionDataModule(
+    train_data=train_data, 
+    backcast_length=backcast_length, 
+    forecast_length=forecast_length, 
+    batch_size=batch_size, 
+    split_ratio=split_ratio
+    )
+
+  test_dm = TimeSeriesCollectionTestModule(
+    test_data=test_data, 
+    train_data=train_data,
+    backcast_length=backcast_length, 
+    forecast_length=forecast_length, 
+    batch_size=batch_size
+  )
+  
+  return dm, test_dm
+
+def get_imputed_row_dms(
+      train_data, 
+      test_data, 
+      backcast_length:int, 
+      forecast_length:int=4, 
+      batch_size:int=1024, 
+      split_ratio:float=0.8):
+  
+  dm = TimeSeriesImputedCollectionDataModule(
     train_data=train_data, 
     backcast_length=backcast_length, 
     forecast_length=forecast_length, 
@@ -256,7 +284,11 @@ def get_columnar_dms(
   
   return dm, test_dm
 
-def load_m4_train_data(train_file, debug = False, indicies=None):
+seasonal_period = "Monthly"
+train_file_path = f"data/M4/Train/{seasonal_period}-train.csv"
+test_file_path  = f"data/M4/Test/{seasonal_period}-test.csv"
+
+def load_m4_train_data(train_file_path = train_file_path, debug = False, indicies=None):
     """
     Loads the training data from the M4 dataset specified by the train_file parameter.
 
@@ -266,11 +298,10 @@ def load_m4_train_data(train_file, debug = False, indicies=None):
                                 Defaults to False.
         indicies (Index, optional): Indexes of selected category.
                                 Defaults to None.
-
     Returns:
         Tensor : Train data
     """
-    all_train_data = pd.read_csv(train_file, index_col=0)
+    all_train_data = pd.read_csv(train_file_path, index_col=0)
           
     if indicies is not None:
       all_train_data = all_train_data.loc[indicies]
@@ -280,7 +311,7 @@ def load_m4_train_data(train_file, debug = False, indicies=None):
       
     return all_train_data
 
-def load_m4_test_data(test_file, debug = False, indicies = None):
+def load_m4_test_data(test_file_path = test_file_path, debug = False, indicies = None):
     """
     Loads the test data from the M4 dataset specified by the test_file parameter.
 
@@ -292,7 +323,7 @@ def load_m4_test_data(test_file, debug = False, indicies = None):
     Returns:
         _type_: _description_
     """
-    all_test_data = pd.read_csv(test_file, index_col=0)
+    all_test_data = pd.read_csv(test_file_path, index_col=0)
     
     if indicies is not None:
       all_test_data = all_test_data.loc[indicies]
@@ -392,3 +423,5 @@ def fill_rowwise_ts_gaps(data, backcast_length:int= 8, forecast_length:int=4):
   print("Dataframe shape of holdout entries: ", holdout_data.shape)
   return train_data, holdout_data
 
+
+# %%

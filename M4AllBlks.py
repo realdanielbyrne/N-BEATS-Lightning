@@ -37,7 +37,7 @@ dataset_id = 'M4'
 category = 'All'
 #periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
 periods = ["Monthly"]
-
+m4_info_file  = "data/M4/M4-info.csv"
 # Define stacks, by creating a list.  
 # Stacks will be created in the order they appear in the list.
 stacks_to_test = [
@@ -55,7 +55,6 @@ stacks_to_test = [
     ["DB3Wavelet"],
     ["DB4Wavelet"],
     ["DB10Wavelet"],
-    ["DB20Wavelet"],
     ["Coif1Wavelet"],
     ["Coif2Wavelet"],
     ["Coif2AltWavelet"],
@@ -66,22 +65,18 @@ stacks_to_test = [
     ["Symlet3Wavelet"],
     ["Symlet10Wavelet"],
     ["Symlet20Wavelet"],
-#    ["Trend","Coif2Wavelet"],
-#    ["Trend","DB2Wavelet"],
-#    ["Trend","AutoEncoder"],
-#    ["GenericAEBackcast","DB2Wavelet"]    
   ]
 
 for seasonal_period in periods:
-  train_file = f"data/M4/Train/{seasonal_period}-train.csv"
-  test_file  = f"data/M4/Test/{seasonal_period}-test.csv"
+  train_file_path = f"data/M4/Train/{seasonal_period}-train.csv"
+  test_file_path  = f"data/M4/Test/{seasonal_period}-test.csv"
 
 
   # load data
   frequency, forecast_length, backcast_length, indicies = get_M4infofile_info (
                       m4_info_path, seasonal_period, forecast_multiplier, category)
-  train_data = load_m4_train_data(train_file, debug, indicies)
-  test_data = load_m4_test_data(test_file, debug, indicies)
+  train_data = load_m4_train_data(train_file_path, debug, indicies)
+  test_data = load_m4_test_data(test_file_path, debug, indicies)
 
 
   for s in stacks_to_test:
@@ -111,9 +106,11 @@ for seasonal_period in periods:
     trainer = get_trainer(name, max_epochs, subdirectory=dataset_id, no_val=no_val)
     dm, test_dm = get_row_dms(train_data, test_data, backcast_length, forecast_length, batch_size, split_ratio)
 
+
     trainer.fit(model, datamodule=dm)
     #trainer.test(model, datamodule=test_dm)
-
     model = NBeatsNet.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
     trainer.test(model, datamodule=test_dm)
 
+
+# %%

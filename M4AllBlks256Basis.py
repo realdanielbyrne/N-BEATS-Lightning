@@ -25,7 +25,7 @@ from utils.utils import *
 #%%
 # Training parameters
 batch_size = 2048
-max_epochs = 75
+max_epochs = 50
 loss = 'SMAPELoss'
 fast_dev_run = False
 split_ratio = .9
@@ -35,18 +35,19 @@ debug = False
 dataset_id = 'M4'
 #categories = "Micro","Macro","Industry","Finance","Demographic","Other", "All"
 category = 'All'
-periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
+#periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
+periods = ["Monthly"]
 
 
 # Define stacks, by creating a list.  
 # Stacks will be created in the order they appear in the list.
 stacks_to_test = [
-#    ["Generic"],
-#    ["Trend","Seasonality"], 
-#    ["TrendAE","SeasonalityAE"], 
-#    ["GenericAE"],
-#    ["GenericAEBackcast"],
-#    ["GenericAEBackcastAE"],
+    ["Generic"],
+    ["Trend","Seasonality"], 
+    ["TrendAE","SeasonalityAE"], 
+    ["GenericAE"],
+    ["GenericAEBackcast"],
+    ["GenericAEBackcastAE"],
 #    ["AutoEncoder"],
 #    ["AutoEncoderAE"],
 #    ["HaarWavelet"],
@@ -54,8 +55,8 @@ stacks_to_test = [
     ["DB2AltWavelet"],
     ["DB3Wavelet"],
     ["DB3AltWavelet"],
-    ["DB4Wavelet"],
-    ["DB4AltWavelet"], 
+#    ["DB4Wavelet"],
+#    ["DB4AltWavelet"], 
     ["Symlet2Wavelet"],
     ["Symlet2AltWavelet"],
 #    ["Trend","Coif2Wavelet"],
@@ -65,15 +66,15 @@ stacks_to_test = [
   ]
 
 for seasonal_period in periods:
-  train_file = f"data/M4/Train/{seasonal_period}-train.csv"
-  test_file  = f"data/M4/Test/{seasonal_period}-test.csv"
+  train_file_path = f"data/M4/Train/{seasonal_period}-train.csv"
+  test_file_path  = f"data/M4/Test/{seasonal_period}-test.csv"
 
 
   # load data
   frequency, forecast_length, backcast_length, indicies = get_M4infofile_info (
                       m4_info_path, seasonal_period, forecast_multiplier, category)
-  train_data = load_m4_train_data(train_file, debug, indicies)
-  test_data = load_m4_test_data(test_file, debug, indicies)
+  train_data = load_m4_train_data(train_file_path, debug, indicies)
+  test_data = load_m4_test_data(test_file_path, debug, indicies)
 
 
   for s in stacks_to_test:
@@ -103,9 +104,10 @@ for seasonal_period in periods:
     trainer = get_trainer(name, max_epochs, subdirectory=dataset_id, no_val=no_val)
     dm, test_dm = get_row_dms(train_data, test_data, backcast_length, forecast_length, batch_size, split_ratio)
 
-    trainer.fit(model, datamodule=dm)
-    #trainer.test(model, datamodule=test_dm)
 
+    trainer.fit(model, datamodule=dm)
     model = NBeatsNet.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
     trainer.test(model, datamodule=test_dm)
 
+
+# %%
