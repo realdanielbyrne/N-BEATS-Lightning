@@ -58,61 +58,13 @@ class TimeSeriesCollectionDataset(Dataset):
     
     return torch.FloatTensor(x), torch.FloatTensor(y)
 
-class TimeSeriesImputedCollectionDataset(Dataset):
-    def __init__(self, data, backcast_length, forecast_length):
-        super(TimeSeriesImputedCollectionDataset, self).__init__()
-        
-        self.data = data
-        self.backcast_length = backcast_length
-        self.forecast_length = forecast_length
-        self.items = []
-        
-        total_len = self.backcast_length + self.forecast_length
-        num_rows = self.data.shape[0]
-        
-        # Iterate through each row (time series)
-        for row in range(num_rows):
-          nan_indices = np.isnan(self.data[row])
-          row_length = np.sum(~nan_indices)
-          
-          # Calculate the median for the row, ignoring NaN values
-          row_median = np.nanmedian(self.data[row])
-          
-          # Determine the number of elements to add to meet the minimum length
-          elements_to_add = total_len - row_length
-          
-          if elements_to_add > 0:
-            # Create an array of imputed values
-            imputed_values = np.full(elements_to_add, row_median)
-            
-            # Insert the imputed values before the first backcast observation
-            new_row = np.concatenate([imputed_values, self.data[row][~nan_indices]])
-            nan_padding = np.full(self.data.shape[1] - len(new_row), np.nan)
-            self.data[row] = np.concatenate([new_row, nan_padding])
-            
-          # Create indices for items
-          col_starts = np.arange(0, self.data.shape[1] - total_len + 1)
-          seqs = [self.data[row, start:start + total_len] for start in col_starts]
-          valid_indices = [i for i, seq in enumerate(seqs) if not np.isnan(seq).any()]
-          self.items.extend([(row, col_starts[i]) for i in valid_indices])
-               
-    def __len__(self):
-        return len(self.items)
-    
-    def __getitem__(self, idx):
-        row, col = self.items[idx]
-        x = self.data[row, col:col + self.backcast_length]
-        y = self.data[row, col + self.backcast_length:col + self.backcast_length + self.forecast_length]
-        
-        return torch.FloatTensor(x), torch.FloatTensor(y)
-
 class TimeSeriesCollectionDataModule(pl.LightningDataModule):
   def __init__(self, 
                train_data, 
                backcast_length, 
                forecast_length, 
                batch_size=1024, 
-               split_ratio=0.8,
+               split_ratio=0.9,
                debug = False):
     """The TimeSeriesCollectionDataModule class is a PyTorch Lightning DataModule
     used for training a time series model whose input is a collection of time series.
@@ -160,61 +112,87 @@ class TimeSeriesCollectionDataModule(pl.LightningDataModule):
   def val_dataloader(self):
     return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle = False)
 
+
 class TimeSeriesImputedCollectionDataModule(pl.LightningDataModule):
-  def __init__(self, 
-               train_data, 
-               backcast_length, 
-               forecast_length, 
-               batch_size=1024, 
-               split_ratio=0.8,
-               debug = False):
-    """The TimeSeriesImputedCollectionDataModule class is a PyTorch Lightning DataModule
-    used for training a time series model whose input is a collection of time series.
-    
+    def __init__(self, 
+                 data, 
+                 backcast_length, 
+                 forecast_length, 
+                 batch_size=1024, 
+                 split_ratio=0.8,
+                 impute_short_ts=True):
+      """The TimeSeriesImputedCollectionDataModule class is a PyTorch Lightning DataModule
+      used for training a time series model whose input is a collection of time series.
+      
 
-    Parameters
-    ----------
-        train_data (numpy.ndarray): 
-          The univariate time series data. The data organization is assumed to be a 
-          numpy.ndarray with rows representingtime series and columns representing time steps. 
-        backcast (int, optional): 
-          The length of the historical data.
-        forecast (int, optional): 
-          The length of the future data to predict.
-        batch_size (int, optional): 
-          The batch size. Defaults to 1024.
-        split_ratio (float, optional): 
-          The ratio of the data to use for training/validation.
-        debug (bool, optional): 
-          If True, only use a small subset of the data. Defaults False.
-    """
-          
-    super(TimeSeriesImputedCollectionDataModule, self).__init__()
-    self.train_data_raw = train_data
-    self.backcast_length = backcast_length
-    self.forecast_length = forecast_length
-    self.batch_size = batch_size
-    self.split_ratio = split_ratio
-    self.debug = debug
+      Parameters
+      ----------
+          data (pd.Dataframe): 
+            The univariate time series data. The data organization is assumed to be a 
+            pandas dataframe with rows representing time series and columns representing time steps. 
+          backcast_length (int, optional): 
+            The length of the historical data.
+          forecast_length (int, optional): 
+            The length of the future data to predict.
+          batch_size (int, optional): 
+            The batch size. Defaults to 1024.
+          split_ratio (float, optional): 
+            The ratio of the data to use for training/validation.
+          impute_short_ts (bool, optional): 
+            If True, impute short training sequences with row median. Validation sequences are not imputed.
+      """      
+      super(TimeSeriesImputedCollectionDataModule, self).__init__()
+      
+      self.data = data    
+      self.backcast_length = backcast_length
+      self.forecast_length = forecast_length
+      self.batch_size = batch_size
+      self.split_ratio = split_ratio
+      self.impute = impute_short_ts
 
-  def setup(self, stage:str=None):      
-        
-    #shuffled = self.train_data_raw.sample(frac=1).reset_index(drop=True)
-    shuffled = self.train_data_raw
-    
-    train_rows = int(self.split_ratio * len(shuffled))
-    
-    self.train_data = shuffled.iloc[:train_rows].values      
-    self.val_data = shuffled.iloc[train_rows:].values
-          
-    self.train_dataset = TimeSeriesImputedCollectionDataset(self.train_data, self.backcast_length, self.forecast_length)
-    self.val_dataset = TimeSeriesImputedCollectionDataset(self.val_data, self.backcast_length, self.forecast_length)    
-    
-  def train_dataloader(self):
-    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle = True)
+    def setup(self, stage:str=None):
+      shuffled = self.data.sample(frac=1).reset_index(drop=True)        
+      train_rows = int(self.split_ratio * len(shuffled))
+      total_len = self.backcast_length + self.forecast_length
 
-  def val_dataloader(self):
-    return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle = False)
+      initial_train_data = shuffled.iloc[:train_rows].values.copy()
+      initial_val_data = shuffled.iloc[train_rows:].values.copy()
+      
+      # Identify short validation sequences
+      short_val_indices = []
+      for row in range(initial_val_data.shape[0]):
+        nan_indices = np.isnan(initial_val_data[row])
+        row_length = np.sum(~nan_indices)
+        if row_length < total_len:
+          short_val_indices.append(row)
+
+      # Move short validation sequences to training data
+      short_val_data = initial_val_data[short_val_indices]
+      initial_val_data = np.delete(initial_val_data, short_val_indices, axis=0)
+      self.train_data = np.vstack([initial_train_data, short_val_data])
+      self.val_data = initial_val_data
+      
+      # Perform imputation
+      if self.impute:
+        for row in range(self.train_data.shape[0]):
+          nan_indices = np.isnan(self.train_data[row])
+          row_length = np.sum(~nan_indices)
+          elements_to_add = total_len - row_length
+          if elements_to_add > 0:
+            row_median = np.nanmedian(self.train_data[row])
+            imputed_values = np.full(elements_to_add, row_median)
+            new_row = np.concatenate([imputed_values, self.train_data[row][~nan_indices]])
+            nan_padding = np.full(self.data.shape[1] - len(new_row), np.nan)
+            self.train_data[row] = np.concatenate([new_row, nan_padding])
+
+      self.train_dataset = TimeSeriesCollectionDataset(self.train_data, self.backcast_length, self.forecast_length)
+      self.val_dataset = TimeSeriesCollectionDataset(self.val_data, self.backcast_length, self.forecast_length)
+
+    def train_dataloader(self):
+      return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+
+    def val_dataloader(self):
+      return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
 
 class TimeSeriesCollectionTestModule(pl.LightningDataModule):
   def __init__(self, 
@@ -266,6 +244,76 @@ class TimeSeriesCollectionTestModule(pl.LightningDataModule):
       
     self.test_data = np.array(test_data_sequences)     
     self.test_dataset = TimeSeriesCollectionDataset(self.test_data, self.backcast_length, self.forecast_length)  
+    
+  def test_dataloader(self):
+    return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle = False, num_workers=0)
+
+class TimeSeriesImputedCollectionTestModule(pl.LightningDataModule):
+  def __init__(self, 
+                train_data,
+                test_data,
+                backcast_length, 
+                forecast_length, 
+                batch_size=1024,
+                impute_short_ts:bool=True):
+    
+    """The TimeSeriesCollectionTestModule class is a PyTorch Lightning DataModule
+    used for testing a time series model whose input is a collection of time series.
+    The final `backcast` samples of each time series in `train_data` are concatenated
+    with the first `forecast` samples of the corresponding time series in `test_data`. 
+    If a time series in `train_data` is shorter than `backcast`, the missing values are
+    imputed with the median of the training row. 
+    
+    Parameters
+    ----------
+      backcast_length (int, optional): 
+        The length of the historical data.
+      forecast_length (int, optional): 
+        The length of the future data to predict.
+      batch_size (int, optional): 
+        The batch size. Defaults to 1024.
+    """
+
+    super(TimeSeriesCollectionTestModule, self).__init__()
+    self.train_data = train_data    
+    self.test_data_raw = test_data
+    
+    self.backcast_length = backcast_length
+    self.forecast_length = forecast_length
+    self.batch_size = batch_size
+    self.impute = impute_short_ts
+
+  def setup(self, stage:str=None):      
+    # Create test data by concatenating last `backcast` samples from 
+    # train_data and first `forecast` samples from test_data
+      
+    test_data_sequences = []      
+    total_len = self.backcast_length + self.forecast_length
+    
+    for train_row, test_row in zip(self.train_data.values, self.test_data_raw.values):
+      train_row = train_row[~np.isnan(train_row)]
+      sequence = np.concatenate((train_row[-self.backcast_length:], test_row[:self.forecast_length]))
+
+      if self.impute:
+        nan_indices = np.isnan(sequence)
+        seq_length = np.sum(~nan_indices)
+        elements_to_add = total_len - seq_length      
+        
+        if (elements_to_add > 0):
+          # Calculate the median for the training row, ignoring NaN values
+          train_median = np.nanmedian(train_row)
+
+          # Create an array of imputed values
+          imputed_values = np.full(elements_to_add, train_median)
+                          
+          # Insert the imputed values before the first backcast observation
+          sequence = np.concatenate([imputed_values, sequence]) 
+      
+      if (sequence.shape[0] == self.backcast_length + self.forecast_length):
+        test_data_sequences.append(sequence)
+      
+    test_data = np.array(test_data_sequences)     
+    self.test_dataset = TimeSeriesCollectionDataset(test_data, self.backcast_length, self.forecast_length)  
     
   def test_dataloader(self):
     return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle = False, num_workers=0)

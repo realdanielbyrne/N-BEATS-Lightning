@@ -1,7 +1,7 @@
 #%%
 import pandas as pd
 import numpy as np
-from nbeats_lightning.models import *                   
+from nbeats_lightning.models import NBeatsNet              
 from nbeats_lightning.loaders import *
 from nbeats_lightning.losses import *
 from nbeats_lightning.constants import BLOCKS

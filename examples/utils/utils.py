@@ -215,7 +215,7 @@ def get_row_dms(
       split_ratio:float=0.8):
   
   dm = TimeSeriesImputedCollectionDataModule(
-    train_data=train_data, 
+    data=train_data, 
     backcast_length=backcast_length, 
     forecast_length=forecast_length, 
     batch_size=batch_size, 
@@ -241,7 +241,7 @@ def get_imputed_row_dms(
       split_ratio:float=0.8):
   
   dm = TimeSeriesImputedCollectionDataModule(
-    train_data=train_data, 
+    data=train_data, 
     backcast_length=backcast_length, 
     forecast_length=forecast_length, 
     batch_size=batch_size, 
