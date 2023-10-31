@@ -1,14 +1,12 @@
 #%%
 import pandas as pd
 import numpy as np
-from nbeats_lightning.nbeats import *                   
+                 
 from nbeats_lightning.loaders import *
-from nbeats_lightning.losses import *
+from nbeats_lightning.data
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch import loggers as pl_loggers
-import seaborn as sns
 import matplotlib.pyplot as plt
-from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
 #%%# 
 # M4 info file
@@ -198,7 +196,7 @@ def get_M4infofile_info(info_file, seasonal_period, forecast_multiplier, categor
   forecast_length = data_id_info.Horizon
   backcast_length = data_id_info.Horizon * forecast_multiplier
   
-  if category is not 'All':
+  if category != 'All':
     mask = (data_info.index.str.startswith(seasonal_period[0])) & (data_info.category == category)
     category_subset = data_info[mask]
     indicies = category_subset[mask].index

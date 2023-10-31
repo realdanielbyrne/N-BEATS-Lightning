@@ -58,11 +58,6 @@ class TimeSeriesCollectionDataset(Dataset):
     
     return torch.FloatTensor(x), torch.FloatTensor(y)
 
-
-import numpy as np
-import torch
-from torch.utils.data import Dataset
-
 class TimeSeriesImputedCollectionDataset(Dataset):
     def __init__(self, data, backcast_length, forecast_length):
         super(TimeSeriesImputedCollectionDataset, self).__init__()
@@ -110,7 +105,6 @@ class TimeSeriesImputedCollectionDataset(Dataset):
         y = self.data[row, col + self.backcast_length:col + self.backcast_length + self.forecast_length]
         
         return torch.FloatTensor(x), torch.FloatTensor(y)
-
 
 class TimeSeriesCollectionDataModule(pl.LightningDataModule):
   def __init__(self, 
@@ -222,7 +216,6 @@ class TimeSeriesImputedCollectionDataModule(pl.LightningDataModule):
   def val_dataloader(self):
     return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle = False)
 
-
 class TimeSeriesCollectionTestModule(pl.LightningDataModule):
   def __init__(self, 
                 train_data,
@@ -276,7 +269,6 @@ class TimeSeriesCollectionTestModule(pl.LightningDataModule):
     
   def test_dataloader(self):
     return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle = False, num_workers=0)
-
 
 class TimeSeriesDataset(Dataset):
   def __init__(self, data, backcast_length, forecast_length):
@@ -354,7 +346,6 @@ class ForecastingDataset(Dataset):
   def __getitem__(self, idx):
     return self.historical_data[idx]
 
-
 class ColumnarTimeSeriesDataset(Dataset):
     def __init__(self, dataframe, backcast_length, forecast_length):
         self.backcast_length = backcast_length
@@ -376,7 +367,6 @@ class ColumnarTimeSeriesDataset(Dataset):
         x = torch.from_numpy(series[start_idx:start_idx + self.backcast_length]).float()
         y = torch.from_numpy(series[start_idx + self.backcast_length:start_idx + self.min_length]).float()
         return x, y
-
     
 class ColumnarCollectionTimeSeriesDataModule(pl.LightningDataModule):
   def __init__(self, 

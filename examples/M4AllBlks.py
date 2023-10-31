@@ -1,7 +1,7 @@
 #%%
 import pandas as pd
 import numpy as np
-from nbeats_lightning.nbeats import *                   
+from nbeats_lightning.models import *                   
 from nbeats_lightning.loaders import *
 from nbeats_lightning.losses import *
 from nbeats_lightning.constants import BLOCKS
@@ -38,6 +38,7 @@ category = 'All'
 #periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
 periods = ["Monthly"]
 m4_info_file  = "data/M4/M4-info.csv"
+
 # Define stacks, by creating a list.  
 # Stacks will be created in the order they appear in the list.
 stacks_to_test = [
