@@ -43,10 +43,11 @@ class TimeSeriesCollectionDataset(Dataset):
 
     total_len = self.backcast_length + self.forecast_length
     for row in range(self.data.shape[0]):
-        col_starts = np.arange(0, self.data.shape[1] - total_len + 1)
-        seqs = [self.data[row, start:start + total_len] for start in col_starts]
-        valid_indices = [i for i, seq in enumerate(seqs) if not np.isnan(seq).any()]
-        self.items.extend([(row, col_starts[i]) for i in valid_indices])
+      col_starts = np.arange(0, self.data.shape[1] - total_len + 1)
+      seqs = [self.data[row, start:start + total_len] for start in col_starts]
+      valid_indices = [i for i, seq in enumerate(seqs) if not np.isnan(seq).any()]
+      self.items.extend([(row, col_starts[i]) for i in valid_indices])
+          
                 
   def __len__(self):
     return len(self.items)
@@ -56,197 +57,75 @@ class TimeSeriesCollectionDataset(Dataset):
     x = self.data[row, col:col+self.backcast_length]
     y = self.data[row, col+self.backcast_length:col+self.backcast_length+self.forecast_length]
     
-    return torch.FloatTensor(x), torch.FloatTensor(y)
+    return torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
 
-class TimeSeriesCollectionDataModule(pl.LightningDataModule):
+class TimeSeriesImputedCollectionDataModule(pl.LightningDataModule):
   def __init__(self, 
-               train_data, 
-               backcast_length, 
-               forecast_length, 
-               batch_size=1024, 
-               split_ratio=0.9,
-               debug = False):
-    """The TimeSeriesCollectionDataModule class is a PyTorch Lightning DataModule
+                data, 
+                backcast_length, 
+                forecast_length, 
+                batch_size=1024, 
+                split_ratio=0.8,
+                impute_short_ts=True):
+    """The TimeSeriesImputedCollectionDataModule class is a PyTorch Lightning DataModule
     used for training a time series model whose input is a collection of time series.
     
 
     Parameters
     ----------
-        train_data (numpy.ndarray): 
+        data (pd.Dataframe): 
           The univariate time series data. The data organization is assumed to be a 
-          numpy.ndarray with rows representingtime series and columns representing time steps. 
-        backcast (int, optional): 
+          pandas dataframe with rows representing time series and columns representing time steps. 
+        backcast_length (int, optional): 
           The length of the historical data.
-        forecast (int, optional): 
+        forecast_length (int, optional): 
           The length of the future data to predict.
         batch_size (int, optional): 
           The batch size. Defaults to 1024.
         split_ratio (float, optional): 
           The ratio of the data to use for training/validation.
-        debug (bool, optional): 
-          If True, only use a small subset of the data. Defaults False.
-    """
-          
-    super(TimeSeriesCollectionDataModule, self).__init__()
-    self.train_data_raw = train_data
+        impute_short_ts (bool, optional): 
+          If True, impute short training sequences with row median. Validation sequences are not imputed.
+    """      
+    super(TimeSeriesImputedCollectionDataModule, self).__init__()
+    
+    self.data = data    
     self.backcast_length = backcast_length
     self.forecast_length = forecast_length
     self.batch_size = batch_size
     self.split_ratio = split_ratio
-    self.debug = debug
+    self.impute = impute_short_ts
 
-  def setup(self, stage:str=None):      
-        
-    shuffled = self.train_data_raw.sample(frac=1).reset_index(drop=True)
+  def setup(self, stage:str=None):
+    shuffled = self.data.sample(frac=1, axis = 0).reset_index(drop=True)        
     train_rows = int(self.split_ratio * len(shuffled))
-    
-    self.train_data = shuffled.iloc[:train_rows].values      
-    self.val_data = shuffled.iloc[train_rows:].values
-          
-    self.train_dataset = TimeSeriesCollectionDataset(self.train_data, self.backcast_length, self.forecast_length)
-    self.val_dataset = TimeSeriesCollectionDataset(self.val_data, self.backcast_length, self.forecast_length)    
-    
-  def train_dataloader(self):
-    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle = True)
+    total_len = self.backcast_length + self.forecast_length
 
-  def val_dataloader(self):
-    return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle = False)
-
-
-class TimeSeriesImputedCollectionDataModule(pl.LightningDataModule):
-    def __init__(self, 
-                 data, 
-                 backcast_length, 
-                 forecast_length, 
-                 batch_size=1024, 
-                 split_ratio=0.8,
-                 impute_short_ts=True):
-      """The TimeSeriesImputedCollectionDataModule class is a PyTorch Lightning DataModule
-      used for training a time series model whose input is a collection of time series.
-      
-
-      Parameters
-      ----------
-          data (pd.Dataframe): 
-            The univariate time series data. The data organization is assumed to be a 
-            pandas dataframe with rows representing time series and columns representing time steps. 
-          backcast_length (int, optional): 
-            The length of the historical data.
-          forecast_length (int, optional): 
-            The length of the future data to predict.
-          batch_size (int, optional): 
-            The batch size. Defaults to 1024.
-          split_ratio (float, optional): 
-            The ratio of the data to use for training/validation.
-          impute_short_ts (bool, optional): 
-            If True, impute short training sequences with row median. Validation sequences are not imputed.
-      """      
-      super(TimeSeriesImputedCollectionDataModule, self).__init__()
-      
-      self.data = data    
-      self.backcast_length = backcast_length
-      self.forecast_length = forecast_length
-      self.batch_size = batch_size
-      self.split_ratio = split_ratio
-      self.impute = impute_short_ts
-
-    def setup(self, stage:str=None):
-      shuffled = self.data.sample(frac=1).reset_index(drop=True)        
-      train_rows = int(self.split_ratio * len(shuffled))
-      total_len = self.backcast_length + self.forecast_length
-
-      initial_train_data = shuffled.iloc[:train_rows].values.copy()
-      initial_val_data = shuffled.iloc[train_rows:].values.copy()
-      
-      # Identify short validation sequences
-      short_val_indices = []
-      for row in range(initial_val_data.shape[0]):
-        nan_indices = np.isnan(initial_val_data[row])
-        row_length = np.sum(~nan_indices)
-        if row_length < total_len:
-          short_val_indices.append(row)
-
-      # Move short validation sequences to training data
-      short_val_data = initial_val_data[short_val_indices]
-      initial_val_data = np.delete(initial_val_data, short_val_indices, axis=0)
-      self.train_data = np.vstack([initial_train_data, short_val_data])
-      self.val_data = initial_val_data
-      
-      # Perform imputation
-      if self.impute:
-        for row in range(self.train_data.shape[0]):
-          nan_indices = np.isnan(self.train_data[row])
+    self.train_data = shuffled.iloc[:train_rows].values.copy()
+    self.val_data = shuffled.iloc[train_rows:].values.copy()
+        
+    # Perform imputation on both training and validation data if self.impute is True
+    if self.impute:
+      for dataset in [self.train_data, self.val_data]:
+        for row in range(dataset.shape[0]):
+          nan_indices = np.isnan(dataset[row])
           row_length = np.sum(~nan_indices)
           elements_to_add = total_len - row_length
           if elements_to_add > 0:
-            row_median = np.nanmedian(self.train_data[row])
-            imputed_values = np.full(elements_to_add, row_median)
-            new_row = np.concatenate([imputed_values, self.train_data[row][~nan_indices]])
-            nan_padding = np.full(self.data.shape[1] - len(new_row), np.nan)
-            self.train_data[row] = np.concatenate([new_row, nan_padding])
+            row_median = np.nanmedian(dataset[row])
+            imputed_values = np.full(elements_to_add, 0.0)
+            new_row = np.concatenate([imputed_values, dataset[row][~nan_indices]])
+            nan_padding = np.full(dataset.shape[1] - len(new_row), np.nan)
+            dataset[row] = np.concatenate([new_row, nan_padding])
 
-      self.train_dataset = TimeSeriesCollectionDataset(self.train_data, self.backcast_length, self.forecast_length)
-      self.val_dataset = TimeSeriesCollectionDataset(self.val_data, self.backcast_length, self.forecast_length)
+    self.train_dataset = TimeSeriesCollectionDataset(self.train_data, self.backcast_length, self.forecast_length)
+    self.val_dataset = TimeSeriesCollectionDataset(self.val_data, self.backcast_length, self.forecast_length)
 
-    def train_dataloader(self):
-      return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+  def train_dataloader(self):
+    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
 
-    def val_dataloader(self):
-      return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
-
-class TimeSeriesCollectionTestModule(pl.LightningDataModule):
-  def __init__(self, 
-                train_data,
-                test_data,
-                backcast_length, 
-                forecast_length, 
-                batch_size=1024):
-    """The TimeSeriesCollectionTestModule class is a PyTorch Lightning DataModule
-    used for testing a time series model whose input is a collection of time series.
-    The final `backcast` samples of each time series in `train_data` are concatenated
-    with the first `forecast` samples of the corresponding time series in `test_data`.
-    
-    Parameters
-    ----------
-      backcast_length (int, optional): 
-        The length of the historical data.
-      forecast_length (int, optional): 
-        The length of the future data to predict.
-      batch_size (int, optional): 
-        The batch size. Defaults to 1024.
-    """
-
-    super(TimeSeriesCollectionTestModule, self).__init__()
-    if (isinstance(train_data, pd.DataFrame)):
-      self.train_data = train_data.values
-    else:
-      self.train_data = train_data
-    
-    if (isinstance(test_data, pd.DataFrame)):  
-      self.test_data_raw = test_data.values
-    else:
-      self.test_data_raw = test_data
-    
-    self.backcast_length = backcast_length
-    self.forecast_length = forecast_length
-    self.batch_size = batch_size
-
-  def setup(self, stage:str=None):      
-    # Create test data by concatenating last `backcast` samples from 
-    # train_data and first `forecast` samples from test_data
-      
-    test_data_sequences = []      
-    for train_row, test_row in zip(self.train_data, self.test_data_raw):
-      train_row = train_row[~np.isnan(train_row)]
-      sequence = np.concatenate((train_row[-self.backcast_length:], test_row[:self.forecast_length]))
-      if (sequence.shape[0] == self.backcast_length + self.forecast_length):
-        test_data_sequences.append(sequence)
-      
-    self.test_data = np.array(test_data_sequences)     
-    self.test_dataset = TimeSeriesCollectionDataset(self.test_data, self.backcast_length, self.forecast_length)  
-    
-  def test_dataloader(self):
-    return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle = False, num_workers=0)
+  def val_dataloader(self):
+    return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
 
 class TimeSeriesImputedCollectionTestModule(pl.LightningDataModule):
   def __init__(self, 
@@ -274,7 +153,7 @@ class TimeSeriesImputedCollectionTestModule(pl.LightningDataModule):
         The batch size. Defaults to 1024.
     """
 
-    super(TimeSeriesCollectionTestModule, self).__init__()
+    super(TimeSeriesImputedCollectionTestModule, self).__init__()
     self.train_data = train_data    
     self.test_data_raw = test_data
     
@@ -304,7 +183,7 @@ class TimeSeriesImputedCollectionTestModule(pl.LightningDataModule):
           train_median = np.nanmedian(train_row)
 
           # Create an array of imputed values
-          imputed_values = np.full(elements_to_add, train_median)
+          imputed_values = np.full(elements_to_add, 0.0)
                           
           # Insert the imputed values before the first backcast observation
           sequence = np.concatenate([imputed_values, sequence]) 
@@ -312,8 +191,8 @@ class TimeSeriesImputedCollectionTestModule(pl.LightningDataModule):
       if (sequence.shape[0] == self.backcast_length + self.forecast_length):
         test_data_sequences.append(sequence)
       
-    test_data = np.array(test_data_sequences)     
-    self.test_dataset = TimeSeriesCollectionDataset(test_data, self.backcast_length, self.forecast_length)  
+    self.test_data = np.array(test_data_sequences)  
+    self.test_dataset = TimeSeriesCollectionDataset(self.test_data, self.backcast_length, self.forecast_length)  
     
   def test_dataloader(self):
     return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle = False, num_workers=0)
@@ -342,7 +221,7 @@ class TimeSeriesDataset(Dataset):
     end_idx = index + self.total_length
     x = self.data[start_idx:end_idx - self.forecast_length]
     y = self.data[start_idx + self.backcast_length:end_idx]
-    return torch.FloatTensor(x), torch.FloatTensor(y)
+    return torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
 
 class TimeSeriesDataModule(pl.LightningDataModule):
   def __init__(self, data, batch_size, backcast_length, forecast_length):

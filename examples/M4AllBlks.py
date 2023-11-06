@@ -1,10 +1,12 @@
 #%%
 import pandas as pd
 import numpy as np
-from nbeats_lightning.models import NBeatsNet              
+from nbeats_lightning.models import NBeatsNet
 from nbeats_lightning.loaders import *
 from nbeats_lightning.losses import *
 from nbeats_lightning.constants import BLOCKS
+
+from nbeats_lightning.data import M4Dataset
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch import loggers as pl_loggers
@@ -19,25 +21,26 @@ import pywt
 from scipy.signal import resample
 from scipy.interpolate import interp1d
 import seaborn as sns
-from utils.utils import *
+from utils import *
 
 
 #%%
 # Training parameters
+
 batch_size = 2048
 max_epochs = 75
 loss = 'SMAPELoss'
 fast_dev_run = False
-split_ratio = .9
+split_ratio = .8
 no_val = True if split_ratio == 1.0 else False
 forecast_multiplier = 7
 debug = False
 dataset_id = 'M4'
 #categories = "Micro","Macro","Industry","Finance","Demographic","Other", "All"
+
 category = 'All'
 #periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
-periods = ["Monthly"]
-m4_info_file  = "data/M4/M4-info.csv"
+periods = ["Yearly"]
 
 # Define stacks, by creating a list.  
 # Stacks will be created in the order they appear in the list.
@@ -69,17 +72,15 @@ stacks_to_test = [
   ]
 
 for seasonal_period in periods:
-  train_file_path = f"data/M4/Train/{seasonal_period}-train.csv"
-  test_file_path  = f"data/M4/Test/{seasonal_period}-test.csv"
-
-
   # load data
-  frequency, forecast_length, backcast_length, indicies = get_M4infofile_info (
-                      m4_info_path, seasonal_period, forecast_multiplier, category)
-  train_data = load_m4_train_data(train_file_path, debug, indicies)
-  test_data = load_m4_test_data(test_file_path, debug, indicies)
-
-
+  m4 = M4Dataset(seasonal_period, category)
+  backcast_length = m4.forecast_length * forecast_multiplier  
+  train_data = m4.train_df
+  test_data = m4.test_df
+  print(f"Train Data Shape: {train_data.shape}")
+  print(f"Test Data Shape: {test_data.shape}")
+  
+  
   for s in stacks_to_test:
     n_stacks = 10
     n_stacks = n_stacks//len(s)  
@@ -88,7 +89,7 @@ for seasonal_period in periods:
       
     model = NBeatsNet (
       backcast_length = backcast_length,
-      forecast_length = forecast_length, 
+      forecast_length = m4.forecast_length, 
       stack_types = stack_types,
       n_blocks_per_stack = 1,
       share_weights = True, 
@@ -100,16 +101,35 @@ for seasonal_period in periods:
     ) 
     
     model_id="".join(s)
-    name = f"{model_id}{seasonal_period}{category}[{backcast_length},{forecast_length}]-{basis=}" 
+    name = f"{model_id}{seasonal_period}{category}[{backcast_length},{m4.forecast_length}]-{basis=}" 
     print(f"Model Name : {name}\n")
     
     
     trainer = get_trainer(name, max_epochs, subdirectory=dataset_id, no_val=no_val)
-    dm, test_dm = get_row_dms(train_data, test_data, backcast_length, forecast_length, batch_size, split_ratio)
-
-
+    dm = TimeSeriesImputedCollectionDataModule(
+      data=train_data, 
+      backcast_length=backcast_length, 
+      forecast_length=m4.forecast_length, 
+      batch_size=batch_size, 
+      split_ratio=split_ratio
+      )
+    dm.setup()
+    print(f"Train Data Shape: {dm.train_data.shape}")
+    print(f"Val Data Shape: {dm.val_data.shape}")
+    
+    
+    test_dm = TimeSeriesImputedCollectionTestModule(
+      test_data=test_data, 
+      train_data=train_data,
+      backcast_length=backcast_length, 
+      forecast_length=m4.forecast_length, 
+      batch_size=batch_size
+    )
+    test_dm.setup()
+    print(f"Test Data Shape: {test_dm.test_data.shape}")
+    
     trainer.fit(model, datamodule=dm)
-    #trainer.test(model, datamodule=test_dm)
+    trainer.test(model, datamodule=test_dm)
     model = NBeatsNet.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
     trainer.test(model, datamodule=test_dm)
 

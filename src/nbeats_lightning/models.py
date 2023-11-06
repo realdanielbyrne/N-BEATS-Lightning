@@ -28,7 +28,7 @@ class NBeatsNet(pl.LightningModule):
       ae_width:int = 512,
       share_weights:bool = False, 
       thetas_dim:int = 5, 
-      learning_rate: float = 1e-4,  
+      learning_rate: float = 1e-5,  
       loss: str = 'SMAPELoss', 
       no_val:bool = False,  
       optimizer_name:str = 'Adam', # 'Adam', 'SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'AdamW'

@@ -1,14 +1,13 @@
-#%%
 import pandas as pd
 import numpy as np
                  
 from nbeats_lightning.loaders import *
-from nbeats_lightning.data
+
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch import loggers as pl_loggers
 import matplotlib.pyplot as plt
 
-#%%# 
+
 # M4 info file
 m4_info_path  = "data/M4/M4-info.csv"
 yearly_tourism_data_path = "data/tourism1/tourism_data.csv"
@@ -178,85 +177,6 @@ def fill_columnar_ts_gaps(data, backcast_length:int= 8, forecast_length:int=4):
   print(f"Dataframe shape of holdout entries: {holdout_data.shape}")
   return train_data, holdout_data
 
-def get_M4infofile_info(info_file, seasonal_period, forecast_multiplier, category = 'All'):
-  
-  """
-    Reads the M4_info file and returns the frequency, forecast, backcast, and
-    indicies of the target time series for the specified category, if any. The
-    indicies are used to identify the target rows in the M4 training and test
-    data files.
-
-  Returns:
-    (int,int,int,[int]): frequency, forecast_length, backcast_length, indicies
-  """
-  
-  data_info  = pd.read_csv(info_file, index_col=0)
-  data_id_info = data_info.loc[seasonal_period[0] + f"{1}"]
-  frequency = data_id_info.Frequency
-  forecast_length = data_id_info.Horizon
-  backcast_length = data_id_info.Horizon * forecast_multiplier
-  
-  if category != 'All':
-    mask = (data_info.index.str.startswith(seasonal_period[0])) & (data_info.category == category)
-    category_subset = data_info[mask]
-    indicies = category_subset[mask].index
-    
-  else:
-    indicies = None
-  
-  return frequency, forecast_length, backcast_length, indicies
-
-def get_row_dms(
-      train_data, 
-      test_data, 
-      backcast_length:int, 
-      forecast_length:int=4, 
-      batch_size:int=1024, 
-      split_ratio:float=0.8):
-  
-  dm = TimeSeriesImputedCollectionDataModule(
-    data=train_data, 
-    backcast_length=backcast_length, 
-    forecast_length=forecast_length, 
-    batch_size=batch_size, 
-    split_ratio=split_ratio
-    )
-
-  test_dm = TimeSeriesCollectionTestModule(
-    test_data=test_data, 
-    train_data=train_data,
-    backcast_length=backcast_length, 
-    forecast_length=forecast_length, 
-    batch_size=batch_size
-  )
-  
-  return dm, test_dm
-
-def get_imputed_row_dms(
-      train_data, 
-      test_data, 
-      backcast_length:int, 
-      forecast_length:int=4, 
-      batch_size:int=1024, 
-      split_ratio:float=0.8):
-  
-  dm = TimeSeriesImputedCollectionDataModule(
-    data=train_data, 
-    backcast_length=backcast_length, 
-    forecast_length=forecast_length, 
-    batch_size=batch_size, 
-    split_ratio=split_ratio
-    )
-
-  test_dm = TimeSeriesCollectionTestModule(
-    test_data=test_data, 
-    train_data=train_data,
-    backcast_length=backcast_length, 
-    forecast_length=forecast_length, 
-    batch_size=batch_size
-  )
-  
-  return dm, test_dm
 
 def get_columnar_dms(
       df_train, 
@@ -282,54 +202,6 @@ def get_columnar_dms(
   
   return dm, test_dm
 
-seasonal_period = "Monthly"
-train_file_path = f"data/M4/Train/{seasonal_period}-train.csv"
-test_file_path  = f"data/M4/Test/{seasonal_period}-test.csv"
-
-def load_m4_train_data(train_file_path = train_file_path, debug = False, indicies=None):
-    """
-    Loads the training data from the M4 dataset specified by the train_file parameter.
-
-    Args:
-        train_file (string): Path to the M4 training data file. 
-        debug (bool, optional): Limits training data to first 1000 rows. 
-                                Defaults to False.
-        indicies (Index, optional): Indexes of selected category.
-                                Defaults to None.
-    Returns:
-        Tensor : Train data
-    """
-    all_train_data = pd.read_csv(train_file_path, index_col=0)
-          
-    if indicies is not None:
-      all_train_data = all_train_data.loc[indicies]
-    
-    if debug:
-      all_train_data[:1000]
-      
-    return all_train_data
-
-def load_m4_test_data(test_file_path = test_file_path, debug = False, indicies = None):
-    """
-    Loads the test data from the M4 dataset specified by the test_file parameter.
-
-    Args:
-        test_file (string): Path to the M4 test data file.
-        debug (bool, optional): Limits data to first 100 rowes Defaults to False.
-        indicies (Index, optional): Indexes of selected category. Defaults to None.
-
-    Returns:
-        _type_: _description_
-    """
-    all_test_data = pd.read_csv(test_file_path, index_col=0)
-    
-    if indicies is not None:
-      all_test_data = all_test_data.loc[indicies]
-      
-    if debug:
-      all_test_data[:1000]
-            
-    return all_test_data
 
 def get_tourism_data(data_freq:str="Yearly"):
 
