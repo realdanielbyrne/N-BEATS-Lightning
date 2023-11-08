@@ -111,7 +111,7 @@ def plot_tourism_data(df):
   plt.ylabel('Frequency')
   plt.show()
 
-def fill_columnar_ts_gaps(data, backcast_length:int= 8, forecast_length:int=4):
+def fill_columnar_ts_gaps(data, backcast_length:int= 8, forecast_length:int=4, fill_method:str='zero'):
   """
   Fills gaps in time series data to ensure that each series in the DataFrame
   meets a minimum length requirement. The minimum length is determined by the
@@ -151,8 +151,10 @@ def fill_columnar_ts_gaps(data, backcast_length:int= 8, forecast_length:int=4):
   
   # Handle invalid columns
   for col in invalid_columns:
-      # Calculate median for this specific train_data column.
-      series_median = train_data[col].median()  
+      if fill_method == 'zero':
+        fill_val = 0.0
+      else:
+        fill_val = train_data[col].median()  
       
       missing_count = min_length - train_data[col].dropna().shape[0]
       
@@ -161,7 +163,7 @@ def fill_columnar_ts_gaps(data, backcast_length:int= 8, forecast_length:int=4):
           backfill_count = min(backcast_length, missing_count)          
           
           # Backfill and forecast using median
-          backfill_values = [series_median] * backfill_count          
+          backfill_values = [fill_val] * backfill_count          
           non_na_values = train_data[col].dropna().tolist()
           
           # Create new series

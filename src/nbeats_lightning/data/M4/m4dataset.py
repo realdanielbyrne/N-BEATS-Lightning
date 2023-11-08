@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import os
 
 class M4Dataset:
@@ -27,8 +28,8 @@ class M4Dataset:
     self.indicies = self._get_category_indicies()
     
     
-    self.train_df = self._load_train_data()
-    self.test_df = self._load_test_data()
+    self.train_data = self._load_train_data()
+    self.test_data = self._load_test_data()
     
   def _get_category_indicies(self):
       
@@ -41,20 +42,37 @@ class M4Dataset:
     return indicies
 
   def _load_train_data(self):
-    self.train_df = pd.read_csv(self.m4_train_filepath, index_col=0)
+    train_df = pd.read_csv(self.m4_train_filepath, index_col=0)
           
     if self.category != 'All':
       if self.indicies is not None:
-        self.train_df = self.train_df[self.indicies]
-
-    return self.train_df
+        train_df = train_df[self.indicies]
+    self.train_data = self.transform_array(train_df.values)
+    return self.train_data
   
   def _load_test_data(self):    
-    self.test_df = pd.read_csv(self.m4_test_filepath, index_col=0)
+    test_df = pd.read_csv(self.m4_test_filepath, index_col=0)
       
     if self.category != 'All':
       if self.indicies is not None:
-        self.test_data = self.test_data[self.indicies]
-  
-    return self.test_df
+        test_df = test_df[self.indicies]
+    self.test_data = self.transform_array(test_df.values)
+    return self.test_data
+
+  def transform_array(self, arr):
+      # Calculate the maximum valid length of the time series
+      valid_lengths = np.array([np.max(np.where(~np.isnan(row))) + 1 for row in arr])
+      max_length = np.max(valid_lengths)
+      
+      # Initialize a new array with nans
+      new_arr = np.full((max_length, len(arr)), np.nan)
+      
+      # Populate the new array with the valid values from the input array
+      for i, row in enumerate(arr):
+          # Count the number of valid (non-nan) entries in the current row
+          valid_entries = valid_lengths[i]
+          # Fill the corresponding column in the new array with the valid values, aligned at the end
+          new_arr[-valid_entries:, i] = row[:valid_entries]
+      
+      return pd.DataFrame(new_arr)
   

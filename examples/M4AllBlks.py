@@ -28,17 +28,17 @@ from utils import *
 # Training parameters
 
 batch_size = 2048
-max_epochs = 75
+max_epochs = 25
 loss = 'SMAPELoss'
 fast_dev_run = False
-split_ratio = .8
-no_val = True if split_ratio == 1.0 else False
-forecast_multiplier = 7
+
+no_val = True
+forecast_multiplier = 5
 debug = False
 dataset_id = 'M4'
 #categories = "Micro","Macro","Industry","Finance","Demographic","Other", "All"
-
 category = 'All'
+
 #periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
 periods = ["Yearly"]
 
@@ -47,36 +47,37 @@ periods = ["Yearly"]
 stacks_to_test = [
     ["Generic"],
     ["Trend","Seasonality"], 
-    ["TrendAE","SeasonalityAE"], 
-    ["GenericAE"],
-    ["GenericAEBackcast"],
-    ["GenericAEBackcastAE"],
-    ["AutoEncoder"],
-    ["AutoEncoderAE"],
-    ["HaarWavelet"],
-    ["DB2Wavelet"],
-    ["DB2AltWavelet"],
-    ["DB3Wavelet"],
-    ["DB4Wavelet"],
-    ["DB10Wavelet"],
-    ["Coif1Wavelet"],
-    ["Coif2Wavelet"],
-    ["Coif2AltWavelet"],
-    ["Coif3Wavelet"],
-    ["Coif10Wavelet"], 
-    ["Symlet2Wavelet"],
-    ["Symlet2AltWavelet"],
-    ["Symlet3Wavelet"],
-    ["Symlet10Wavelet"],
-    ["Symlet20Wavelet"],
+    ["Trend","DB2AltWavelet"],
+#    ["TrendAE","SeasonalityAE"], 
+#    ["GenericAE"],
+#    ["GenericAEBackcast"],
+#    ["GenericAEBackcastAE"],
+#    ["AutoEncoder"],
+#    ["AutoEncoderAE"],
+#    ["HaarWavelet"],
+#    ["DB2Wavelet"],
+#    ["DB2AltWavelet"],
+#    ["DB3Wavelet"],
+#    ["DB4Wavelet"],
+#    ["DB10Wavelet"],
+#    ["Coif1Wavelet"],
+#    ["Coif2Wavelet"],
+#    ["Coif2AltWavelet"],
+#    ["Coif3Wavelet"],
+#    ["Coif10Wavelet"], 
+#    ["Symlet2Wavelet"],
+#    ["Symlet2AltWavelet"],
+#    ["Symlet3Wavelet"],
+#    ["Symlet10Wavelet"],
+#    ["Symlet20Wavelet"],
   ]
 
 for seasonal_period in periods:
   # load data
   m4 = M4Dataset(seasonal_period, category)
   backcast_length = m4.forecast_length * forecast_multiplier  
-  train_data = m4.train_df
-  test_data = m4.test_df
+  train_data = m4.train_data
+  test_data = m4.test_data
   print(f"Train Data Shape: {train_data.shape}")
   print(f"Test Data Shape: {test_data.shape}")
   
@@ -97,7 +98,9 @@ for seasonal_period in periods:
       loss = 'SMAPELoss',
       active_g = True,
       latent_dim = 4,
-      basis_dim = basis
+      basis_dim = basis,
+      learning_rate = 1e-3,
+      no_val=no_val,
     ) 
     
     model_id="".join(s)
@@ -106,27 +109,8 @@ for seasonal_period in periods:
     
     
     trainer = get_trainer(name, max_epochs, subdirectory=dataset_id, no_val=no_val)
-    dm = TimeSeriesImputedCollectionDataModule(
-      data=train_data, 
-      backcast_length=backcast_length, 
-      forecast_length=m4.forecast_length, 
-      batch_size=batch_size, 
-      split_ratio=split_ratio
-      )
-    dm.setup()
-    print(f"Train Data Shape: {dm.train_data.shape}")
-    print(f"Val Data Shape: {dm.val_data.shape}")
-    
-    
-    test_dm = TimeSeriesImputedCollectionTestModule(
-      test_data=test_data, 
-      train_data=train_data,
-      backcast_length=backcast_length, 
-      forecast_length=m4.forecast_length, 
-      batch_size=batch_size
-    )
-    test_dm.setup()
-    print(f"Test Data Shape: {test_dm.test_data.shape}")
+    dm = ColumnarCollectionTimeSeriesDataModule(train_data, backcast_length=backcast_length, forecast_length=m4.forecast_length, batch_size=batch_size,no_val=no_val)
+    test_dm = ColumnarCollectionTimeSeriesTestDataModule(train_data, test_data, backcast_length=backcast_length, forecast_length=m4.forecast_length, batch_size=batch_size)
     
     trainer.fit(model, datamodule=dm)
     trainer.test(model, datamodule=test_dm)
