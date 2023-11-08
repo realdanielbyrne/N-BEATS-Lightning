@@ -1,0 +1,10 @@
+lightning==2.0.9.post0
+matplotlib==3.8.0
+numpy==1.26.1
+pandas==2.1.2
+pytorch_lightning==2.0.9.post0
+PyWavelets==1.4.1
+scipy==1.11.3
+tensorboard==2.14.1
+torch==2.0.1+cu117
+tqdm==4.66.1
