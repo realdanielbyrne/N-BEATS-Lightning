@@ -1,35 +1,22 @@
 #%%
-import pandas as pd
-import numpy as np
 from nbeats_lightning.models import *                   
 from nbeats_lightning.loaders import *
 from nbeats_lightning.losses import *
-from nbeats_lightning.constants import BLOCKS
-import lightning.pytorch as pl
-from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning.pytorch import loggers as pl_loggers
+from nbeats_lightning.data import M4Dataset
 from tqdm.notebook import tqdm
-import matplotlib.pyplot as plt
-from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 tqdm.pandas()
 import tensorboard
 import warnings
 warnings.filterwarnings('ignore')
 torch.set_float32_matmul_precision('medium')
-import pywt
-from scipy.signal import resample
-from scipy.interpolate import interp1d
-import seaborn as sns
-from utils.utils import *
+from utils import *
 
 
 #%%
 # Training parameters
 batch_size = 2048
-max_epochs = 160
-fast_dev_run = False
+max_epochs = 100
 no_val=False
-debug = False
 dataset_id = 'Tourism'
 
 # Define stacks, by creating a list.  
@@ -37,33 +24,32 @@ dataset_id = 'Tourism'
 stacks_to_test = [
     ["Generic"],
     ["Trend","Seasonality"], 
+    ["TrendAE","SeasonalityAE"], 
     ["GenericAE"],
     ["GenericAEBackcast"],
     ["GenericAEBackcastAE"],
-    ["Trend"],
-    ["TrendAE"],
-    ["Seasonality"],
-    ["SeasonalityAE"],
     ["AutoEncoder"],
     ["AutoEncoderAE"],
     ["HaarWavelet"],
     ["DB2Wavelet"],
+    ["DB2AltWavelet"],
     ["DB3Wavelet"],
     ["DB4Wavelet"],
     ["DB10Wavelet"],
-    ["DB20Wavelet"],
     ["Coif1Wavelet"],
     ["Coif2Wavelet"],
+    ["Coif2AltWavelet"],
     ["Coif3Wavelet"],
     ["Coif10Wavelet"], 
     ["Symlet2Wavelet"],
-    ["Symlet3Wavelet"],    
-    ["AltWavelet"]
+    ["Symlet2AltWavelet"],
+    ["Symlet3Wavelet"],
+    ["Symlet10Wavelet"],
+    ["Symlet20Wavelet"],
   ]
 
 
 periods = {"Yearly":[8,4], "Monthly":[72,24], "Quarterly":[24,8]}
-#periods = {"Monthly":[72,24], "Quarterly":[24,8]}
 for seasonal_period, lengths in periods.items():
   
   backcast_length = lengths[0] 
@@ -71,12 +57,10 @@ for seasonal_period, lengths in periods.items():
   
   # load data
   df = get_tourism_data(seasonal_period)  
-  df_valid, df_holdout = fill_columnar_ts_gaps(df, backcast_length, forecast_length)
-  
+  train_data, test_data = fill_columnar_ts_gaps(df, backcast_length, forecast_length)
   
   for s in stacks_to_test:
-    
-    n_stacks = 12
+    n_stacks = 10
     n_stacks = n_stacks//len(s)  
     stack_types = s * n_stacks
     basis = 128
@@ -90,25 +74,24 @@ for seasonal_period, lengths in periods.items():
       thetas_dim = 5,      
       loss = 'SMAPELoss',
       active_g = True,
-      latent_dim = 12,
-      basis_dim = basis
+      latent_dim = 4,
+      basis_dim = basis,
+      learning_rate = 1e-3,
+      no_val=no_val,
     ) 
     
     
     model_id="".join(s)
-    model_name = f"{model_id}-{seasonal_period}[{backcast_length},{forecast_length}]{basis=}-Allblocks" 
-    print(f'{model_name=}\n\n')
+    name = f"{model_id}-{seasonal_period}[{backcast_length},{forecast_length}]{basis=}-Allblocks" 
+    print(f"Model Name : {name}\n")
 
-
-    trainer = get_trainer(model_name, max_epochs, subdirectory=dataset_id, no_val=no_val, fast_dev_run = fast_dev_run)
-    dm, test_dm = get_columnar_dms(df_valid, df_holdout, backcast_length, forecast_length, batch_size, no_val)
+    trainer = get_trainer(name, max_epochs, subdirectory=dataset_id, no_val=no_val)
+    dm = ColumnarCollectionTimeSeriesDataModule(train_data, backcast_length=backcast_length, forecast_length=forecast_length, batch_size=batch_size,no_val=no_val)
+    test_dm = ColumnarCollectionTimeSeriesTestDataModule(train_data, test_data, backcast_length=backcast_length, forecast_length=forecast_length, batch_size=batch_size)
     
     trainer.fit(model, datamodule=dm)
-    trainer.validate(model, datamodule=dm)
     trainer.test(model, datamodule=test_dm)
-    print('### TEST END ###\n\n\n')
+    model = NBeatsNet.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
+    trainer.test(model, datamodule=test_dm)
 
 
-
-
-# %%

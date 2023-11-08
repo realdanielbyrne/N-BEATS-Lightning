@@ -1,25 +1,14 @@
 #%%
-import pandas as pd
-import numpy as np
-from nbeats_lightning.models import NBeatsNet
+from nbeats_lightning.models import *                   
 from nbeats_lightning.loaders import *
 from nbeats_lightning.losses import *
-
 from nbeats_lightning.data import M4Dataset
-import lightning.pytorch as pl
-from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning.pytorch import loggers as pl_loggers
 from tqdm.notebook import tqdm
-import matplotlib.pyplot as plt
 tqdm.pandas()
 import tensorboard
 import warnings
 warnings.filterwarnings('ignore')
 torch.set_float32_matmul_precision('medium')
-import pywt
-from scipy.signal import resample
-from scipy.interpolate import interp1d
-import seaborn as sns
 from utils import *
 
 
@@ -47,29 +36,28 @@ periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
 stacks_to_test = [
     ["Generic"],
     ["Trend","Seasonality"], 
-    ["Trend","DB2AltWavelet"],
-#    ["TrendAE","SeasonalityAE"], 
-#    ["GenericAE"],
-#    ["GenericAEBackcast"],
-#    ["GenericAEBackcastAE"],
-#    ["AutoEncoder"],
-#    ["AutoEncoderAE"],
-#    ["HaarWavelet"],
-#    ["DB2Wavelet"],
-#    ["DB2AltWavelet"],
-#    ["DB3Wavelet"],
-#    ["DB4Wavelet"],
-#    ["DB10Wavelet"],
-#    ["Coif1Wavelet"],
-#    ["Coif2Wavelet"],
-#    ["Coif2AltWavelet"],
-#    ["Coif3Wavelet"],
-#    ["Coif10Wavelet"], 
-#    ["Symlet2Wavelet"],
-#    ["Symlet2AltWavelet"],
-#    ["Symlet3Wavelet"],
-#    ["Symlet10Wavelet"],
-#    ["Symlet20Wavelet"],
+    ["TrendAE","SeasonalityAE"], 
+    ["GenericAE"],
+    ["GenericAEBackcast"],
+    ["GenericAEBackcastAE"],
+    ["AutoEncoder"],
+    ["AutoEncoderAE"],
+    ["HaarWavelet"],
+    ["DB2Wavelet"],
+    ["DB2AltWavelet"],
+    ["DB3Wavelet"],
+    ["DB4Wavelet"],
+    ["DB10Wavelet"],
+    ["Coif1Wavelet"],
+    ["Coif2Wavelet"],
+    ["Coif2AltWavelet"],
+    ["Coif3Wavelet"],
+    ["Coif10Wavelet"], 
+    ["Symlet2Wavelet"],
+    ["Symlet2AltWavelet"],
+    ["Symlet3Wavelet"],
+    ["Symlet10Wavelet"],
+    ["Symlet20Wavelet"],
   ]
 
 for seasonal_period in periods:

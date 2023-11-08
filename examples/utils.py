@@ -8,8 +8,8 @@ from lightning.pytorch import loggers as pl_loggers
 import matplotlib.pyplot as plt
 
 
-yearly_tourism_data_path = "data/tourism1/tourism_data.csv"
-mth_qtr_tourism_data_path = 'data/tourism2/tourism2_revision2.csv'
+yearly_tourism_data_path = "../src/nbeats_lightning/data/tourism1/tourism_data.csv"
+mth_qtr_tourism_data_path = '../src/nbeats_lightning/data/tourism2/tourism2_revision2.csv'
 
 def get_trainer(name, max_epochs:int=100, subdirectory :str="", no_val:bool=False, **kwargs):
   """Returns a Pytorch Lightning Trainer object
