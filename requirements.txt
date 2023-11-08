@@ -8,3 +8,6 @@ scipy==1.11.3
 tensorboard==2.14.1
 torch==2.0.1+cu117
 tqdm==4.66.1
+ipykernel
+ipython
+

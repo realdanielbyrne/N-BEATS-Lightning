@@ -1,12 +1,13 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+
 [project]
-name="nbeats_lightning"
+name="nbeatslightning"
 version="0.1.0"
 authors =[{name="Daniel Byrne",email="realdanielbyrne@icloud.com"}]
-description = "A Pytorch Lightning implementation of the N-BEATS algorithm"
+description = "A Pytorch Lightning implementation of the N-BEATS algorithm with some extended functionality."
 requires-python=">=3.9.0"
 classifiers=[
     "Intended Audience :: Science/Research",
@@ -31,7 +32,7 @@ dependencies = [
   "tqdm",
   "ipykernel",
   "ipython",
-  "statsmodels",
+  "statsmodels"
 ]
 dynamic = ["readme"]
 
@@ -40,4 +41,4 @@ dynamic = ["readme"]
 "Homepage"="https://github.com/realdanielbyrne/N-BEATS-Lightning"
 
 [tool.setuptools.dynamic]
-readme = {file = ["readme.md"]}
+readme = {file = ["README.md"]}
