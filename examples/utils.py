@@ -8,8 +8,6 @@ from lightning.pytorch import loggers as pl_loggers
 import matplotlib.pyplot as plt
 
 
-# M4 info file
-m4_info_path  = "data/M4/M4-info.csv"
 yearly_tourism_data_path = "data/tourism1/tourism_data.csv"
 mth_qtr_tourism_data_path = 'data/tourism2/tourism2_revision2.csv'
 

@@ -4,7 +4,6 @@ import numpy as np
 from nbeats_lightning.models import NBeatsNet
 from nbeats_lightning.loaders import *
 from nbeats_lightning.losses import *
-from nbeats_lightning.constants import BLOCKS
 
 from nbeats_lightning.data import M4Dataset
 import lightning.pytorch as pl
@@ -36,11 +35,12 @@ no_val = True
 forecast_multiplier = 5
 debug = False
 dataset_id = 'M4'
+
 #categories = "Micro","Macro","Industry","Finance","Demographic","Other", "All"
 category = 'All'
 
 #periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
-periods = ["Yearly"]
+periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
 
 # Define stacks, by creating a list.  
 # Stacks will be created in the order they appear in the list.

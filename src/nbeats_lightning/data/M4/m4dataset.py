@@ -27,9 +27,8 @@ class M4Dataset:
     self.frequency = data_id_info.Frequency
     self.indicies = self._get_category_indicies()
     
-    
-    self.train_data = self._load_train_data()
-    self.test_data = self._load_test_data()
+    self._load_train_data()
+    self._load_test_data()
     
   def _get_category_indicies(self):
       
@@ -42,22 +41,22 @@ class M4Dataset:
     return indicies
 
   def _load_train_data(self):
-    train_df = pd.read_csv(self.m4_train_filepath, index_col=0)
+    self.train_df = pd.read_csv(self.m4_train_filepath, index_col=0)
           
     if self.category != 'All':
       if self.indicies is not None:
-        train_df = train_df[self.indicies]
-    self.train_data = self.transform_array(train_df.values)
-    return self.train_data
+        self.train_df = self.train_df[self.indicies]
+    self.train_data = self.transform_array(self.train_df.values)
+
   
   def _load_test_data(self):    
-    test_df = pd.read_csv(self.m4_test_filepath, index_col=0)
+    self.test_df = pd.read_csv(self.m4_test_filepath, index_col=0)
       
     if self.category != 'All':
       if self.indicies is not None:
-        test_df = test_df[self.indicies]
-    self.test_data = self.transform_array(test_df.values)
-    return self.test_data
+        self.test_df = self.test_df[self.indicies]
+    self.test_data = self.transform_array(self.test_df.values)
+
 
   def transform_array(self, arr):
       # Calculate the maximum valid length of the time series
