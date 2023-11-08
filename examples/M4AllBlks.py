@@ -7,6 +7,8 @@ from tqdm.notebook import tqdm
 tqdm.pandas()
 import tensorboard
 import warnings
+import torch
+print("CUDA Available: ",torch.cuda.is_available())
 warnings.filterwarnings('ignore')
 torch.set_float32_matmul_precision('medium')
 from utils import *
@@ -16,20 +18,20 @@ from utils import *
 # Training parameters
 
 batch_size = 2048
-max_epochs = 25
+max_epochs = 40
 loss = 'SMAPELoss'
 fast_dev_run = False
 
-no_val = True
+no_val = False
 forecast_multiplier = 5
 debug = False
 dataset_id = 'M4'
 
-#categories = "Micro","Macro","Industry","Finance","Demographic","Other", "All"
+# Select a category or All = "Micro","Macro","Industry","Finance","Demographic","Ot
 category = 'All'
 
 #periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
-periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
+periods = ["Yearly"]
 
 # Define stacks, by creating a list.  
 # Stacks will be created in the order they appear in the list.
@@ -71,7 +73,7 @@ for seasonal_period in periods:
   
   
   for s in stacks_to_test:
-    n_stacks = 10
+    n_stacks = 8
     n_stacks = n_stacks//len(s)  
     stack_types = s * n_stacks
     basis = 128
@@ -81,13 +83,13 @@ for seasonal_period in periods:
       forecast_length = m4.forecast_length, 
       stack_types = stack_types,
       n_blocks_per_stack = 1,
-      share_weights = True, 
+      share_weights = False, 
       thetas_dim = 5,      
       loss = 'SMAPELoss',
       active_g = True,
       latent_dim = 4,
       basis_dim = basis,
-      learning_rate = 1e-3,
+      learning_rate = 1e-4,
       no_val=no_val,
     ) 
     

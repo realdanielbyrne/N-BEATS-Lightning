@@ -15,7 +15,7 @@ from utils import *
 #%%
 # Training parameters
 batch_size = 2048
-max_epochs = 100
+max_epochs = 50
 no_val=False
 dataset_id = 'Tourism'
 
@@ -60,7 +60,7 @@ for seasonal_period, lengths in periods.items():
   train_data, test_data = fill_columnar_ts_gaps(df, backcast_length, forecast_length)
   
   for s in stacks_to_test:
-    n_stacks = 10
+    n_stacks = 6
     n_stacks = n_stacks//len(s)  
     stack_types = s * n_stacks
     basis = 128
@@ -95,3 +95,5 @@ for seasonal_period, lengths in periods.items():
     trainer.test(model, datamodule=test_dm)
 
 
+
+# %%

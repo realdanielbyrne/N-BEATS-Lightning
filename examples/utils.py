@@ -1,15 +1,15 @@
 import pandas as pd
 import numpy as np
                  
-from nbeats_lightning.loaders import *
+from nbeatslightning.loaders import *
 
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch import loggers as pl_loggers
 import matplotlib.pyplot as plt
 
 
-yearly_tourism_data_path = "../src/nbeats_lightning/data/tourism1/tourism_data.csv"
-mth_qtr_tourism_data_path = '../src/nbeats_lightning/data/tourism2/tourism2_revision2.csv'
+yearly_tourism_data_path = "../src/nbeatslightning/data/tourism1/tourism_data.csv"
+mth_qtr_tourism_data_path = '../src/nbeatslightning/data/tourism2/tourism2_revision2.csv'
 
 def get_trainer(name, max_epochs:int=100, subdirectory :str="", no_val:bool=False, **kwargs):
   """Returns a Pytorch Lightning Trainer object
