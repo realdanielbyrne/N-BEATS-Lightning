@@ -118,6 +118,12 @@ of Linear fully conencted nodes, the first to find the parameters of an expansio
 
 This repository constains a number of experimental Wavelet Basis Expansion Blocks. Wavelet basis expansion is a mathematical technique used to represent signals or functions in terms of simpler, fixed building blocks called wavelets. Unlike Fourier transforms, which use sine and cosine functions as basis elements, wavelets can be localized in both time and frequency. This means they can represent both the frequency content of a signal and when these frequencies occur. This method is particularly useful for analyzing functions or signals that contain features at multiple scales.  Wavelet basis expansion can be extremely useful in analyzing time series data for the very reason that time series often contain information at multiple scales. The multi-resolution analysis capability of wavelets is particularly suited to capturing the essence of time series data, which can have complex, hierarchical structures due to the presence of trends, seasonal effects, cycles, and irregular fluctuations. 
 
+Wavelet blocks can be used in isolation or in combination with other blocks freely. For instance
+
+```python
+stack_types = ['Trend','DB3Wavelet']
+```
+
 The Wavelet blocks avaiavlable in this repository are as follows:
 
 - HaarWavelet
@@ -142,4 +148,5 @@ The Wavelet blocks avaiavlable in this repository are as follows:
 - Symlet3Wavelet  
 - Symlet10Wavelet
 - Symlet20Wavelet 
+
 
