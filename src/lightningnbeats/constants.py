@@ -76,6 +76,5 @@ BLOCKS = [
   "Symlet2AltWavelet",
   "Symlet3Wavelet",  
   "Symlet10Wavelet",
-  "Symlet20Wavelet", 
-  "AltWavelet"
+  "Symlet20Wavelet",   
 ]

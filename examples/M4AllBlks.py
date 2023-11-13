@@ -1,8 +1,8 @@
 #%%
-from nbeatslightning.models import *                   
-from nbeatslightning.loaders import *
-from nbeatslightning.losses import *
-from nbeatslightning.data import M4Dataset
+from lightningnbeats.models import *                   
+from lightningnbeats.loaders import *
+from lightningnbeats.losses import *
+from lightningnbeats.data import M4Dataset
 from tqdm.notebook import tqdm
 tqdm.pandas()
 import tensorboard
@@ -16,7 +16,6 @@ from utils import *
 
 #%%
 # Training parameters
-
 batch_size = 2048
 max_epochs = 40
 loss = 'SMAPELoss'
@@ -27,7 +26,7 @@ forecast_multiplier = 5
 debug = False
 dataset_id = 'M4'
 
-# Select a category or All = "Micro","Macro","Industry","Finance","Demographic","Ot
+# Select a category or All = "Micro","Macro","Industry","Finance","Demographic","Other"
 category = 'All'
 
 #periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
@@ -38,6 +37,7 @@ periods = ["Yearly"]
 stacks_to_test = [
     ["Generic"],
     ["Trend","Seasonality"], 
+    ["Trend","Generic"], 
     ["TrendAE","SeasonalityAE"], 
     ["GenericAE"],
     ["GenericAEBackcast"],

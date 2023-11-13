@@ -1,8 +1,7 @@
 #%%
-from nbeatslightning.models import *                   
-from nbeatslightning.loaders import *
-from nbeatslightning.losses import *
-from nbeatslightning.data import M4Dataset
+from lightningnbeats import NBeatsNet
+from lightningnbeats.loaders import *
+from lightningnbeats.losses import *
 from tqdm.notebook import tqdm
 tqdm.pandas()
 import tensorboard
@@ -22,30 +21,32 @@ dataset_id = 'Tourism'
 # Define stacks, by creating a list.  
 # Stacks will be created in the order they appear in the list.
 stacks_to_test = [
-    ["Generic"],
-    ["Trend","Seasonality"], 
-    ["TrendAE","SeasonalityAE"], 
-    ["GenericAE"],
-    ["GenericAEBackcast"],
-    ["GenericAEBackcastAE"],
-    ["AutoEncoder"],
-    ["AutoEncoderAE"],
-    ["HaarWavelet"],
-    ["DB2Wavelet"],
-    ["DB2AltWavelet"],
-    ["DB3Wavelet"],
-    ["DB4Wavelet"],
-    ["DB10Wavelet"],
-    ["Coif1Wavelet"],
-    ["Coif2Wavelet"],
-    ["Coif2AltWavelet"],
-    ["Coif3Wavelet"],
-    ["Coif10Wavelet"], 
-    ["Symlet2Wavelet"],
-    ["Symlet2AltWavelet"],
-    ["Symlet3Wavelet"],
-    ["Symlet10Wavelet"],
-    ["Symlet20Wavelet"],
+    #["Generic"],
+    #["Trend","Seasonality"], 
+    ["Trend","Generic"], 
+    #["TrendAE","SeasonalityAE"], 
+    #["GenericAE"],
+    #["GenericAEBackcast"],
+    #["GenericAEBackcastAE"],
+    #["AutoEncoder"],
+    #["AutoEncoderAE"],
+    #["HaarWavelet"],
+    #["DB2Wavelet"],
+    #["DB2AltWavelet"],
+    ["Generic","DB2AltWavelet"],
+    #["DB3Wavelet"],
+    #["DB4Wavelet"],
+    #["DB10Wavelet"],
+    #["Coif1Wavelet"],
+    #["Coif2Wavelet"],
+    #["Coif2AltWavelet"],
+    #["Coif3Wavelet"],
+    #["Coif10Wavelet"], 
+    #["Symlet2Wavelet"],
+    #["Symlet2AltWavelet"],
+    #["Symlet3Wavelet"],
+    #["Symlet10Wavelet"],
+    #["Symlet20Wavelet"],
   ]
 
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name="nbeatslightning"
+name="lightningnbeats"
 version="0.1.0"
 authors =[{name="Daniel Byrne",email="realdanielbyrne@icloud.com"}]
 description = "A Pytorch Lightning implementation of the N-BEATS algorithm with some extended functionality."
@@ -36,7 +36,6 @@ dependencies = [
 ]
 dynamic = ["readme"]
 
-
 [project.urls]
 "Homepage"="https://github.com/realdanielbyrne/N-BEATS-Lightning"
 
@@ -44,5 +43,5 @@ dynamic = ["readme"]
 include-package-data = true
 
 [tool.setuptools.dynamic]
-readme = {file = ["README.md"]}
+readme = {file = ["README.md"], content-type = "text/markdown"}
 

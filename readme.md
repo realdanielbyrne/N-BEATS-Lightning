@@ -33,24 +33,24 @@ The N-BEATS algorithm is a powerful tool for time series forecasting, providing 
 
 **Installation**
 ```bash
-  pip install nbeats_lightning
+  pip install lightningnbeats
 ```
 
 First load the required libraries and your data.
 
 ```python
 # Import necessary libraries
-from nbeats_lightning.nbeats import *
+from lightningnbeats import NBeatsNet
 from nbeats_lightning.loaders import *
 import pandas as pd
 
 # Load the milk.csv dataset
-milk = pd.read_csv('data/milk.csv', index_col=0)
+milk = pd.read_csv('src/data/milk.csv', index_col=0)
 milkval = milk.values.flatten() # flat numpy array
 milk.head()
 ```
 
-Define the model and its hyperparameters. This model will forecast 6 steps into the future. The common practice is to use a multiple of teh forecast horizon for the backcast length.  In this case, we will use 4 times the forecast horizon. Larger batch sizes will result in faster training, but may require more memory.  The number of blocks per stack is a hyperparameter that can be tuned.  The share_weights parameter is set to True to share weights across the blocks.
+Define the model and its hyperparameters. This model will forecast 6 steps into the future. The common practice is to use a multiple of the forecast horizon for the backcast length.  In this case, we will use 4 times the forecast horizon. Larger batch sizes will result in faster training, but may require more memory.  The number of blocks per stack is a hyperparameter that can be tuned.  The share_weights parameter is set to True to share weights across the blocks.
 
 ```python
 # Define hyperparameters
@@ -67,7 +67,7 @@ n_blocks_per_stack = 3
 interpretable_milkmodel = NBeatsNet(
   backcast = backcast_length,
   forecast = forecast_length, 
-  generic_architecture = False,
+  stack_types = [NBeatsNet.TREND_BLOCK, NBeatsNet.SEASONALITY_BLOCK],
   n_blocks_per_stack = n_blocks_per_stack,
   share_weights = True  
 )
@@ -88,7 +88,7 @@ interpretable_trainer.validate(interpretable_milkmodel, datamodule=dm)
 
 ## Using CUDA
 
-If you have a CUDA capable GPU, you will want to install the [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) and the [PyTorch](https://pytorch.org/get-started/locally/) version that works with the toolkit.  Currently PyTorch only supports CUDA versions 11.7 and 11.8.  Installing these pacakged will allow you to train your model on the GPU.  You can check if you have a CUDA capable GPU by running the following command in your terminal:
+If you have a CUDA capable GPU, you will want to install the [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) and the [PyTorch](https://pytorch.org/get-started/locally/) version that works with the toolkit. Installing these pacakged will allow you to train your model on the GPU.  You can check if you have a CUDA capable GPU by running the following command in your terminal:
 
 ```bash
   $ nvidia-smi
@@ -113,3 +113,33 @@ You can enable this feature by setting `active_g` to `True`.  Enabling this acti
 
 The intuition behind the inclusion of this parameter is that the generic model as originally designed connects two layers 
 of Linear fully conencted nodes, the first to find the parameters of an expansion polynomial function and the second to find the functions that best fit the forecast and backcast outputs of the block. However, linear layers without activations are not able to learn non-linear functions.  This parameter allows the model to learn non-linear functions by applying the activation function to the linear functions found by the model in the last layer of each block.  This is concsistent with the interpretable arcitecture since the basis functions are also non-linear, and so this feature allows the interpretable and generic models to be more similar.
+
+### Wavelet Basis Expansion Blocks
+
+This repository constains a number of experimental Wavelet Basis Expansion Blocks. Wavelet basis expansion is a mathematical technique used to represent signals or functions in terms of simpler, fixed building blocks called wavelets. Unlike Fourier transforms, which use sine and cosine functions as basis elements, wavelets can be localized in both time and frequency. This means they can represent both the frequency content of a signal and when these frequencies occur. This method is particularly useful for analyzing functions or signals that contain features at multiple scales.  Wavelet basis expansion can be extremely useful in analyzing time series data for the very reason that time series often contain information at multiple scales. The multi-resolution analysis capability of wavelets is particularly suited to capturing the essence of time series data, which can have complex, hierarchical structures due to the presence of trends, seasonal effects, cycles, and irregular fluctuations. 
+
+The Wavelet blocks avaiavlable in this repository are as follows:
+
+- HaarWavelet
+- DB2Wavelet
+- DB2AltWavelet
+- DB3Wavelet
+- DB3AltWavelet
+- DB4Wavelet
+- DB4AltWavelet
+- DB10Wavelet
+- DB10AltWavelet
+- DB20Wavelet
+- DB20AltWavelet
+- Coif1Wavelet
+- Coif1AltWavelet
+- Coif2Wavelet
+- Coif2AltWavelet
+- Coif3Wavelet
+- Coif10Wavelet 
+- Symlet2Wavelet
+- Symlet2AltWavelet
+- Symlet3Wavelet  
+- Symlet10Wavelet
+- Symlet20Wavelet 
+
