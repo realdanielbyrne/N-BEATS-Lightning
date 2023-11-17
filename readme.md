@@ -214,8 +214,8 @@ Wavelet blocks can be used in isolation or in combination with other blocks free
 ```python
 n_stacks = 5
 stack_types = ['DB3Wavelet'] * n_stacks # 5 stacks of DB3Wavelet blocks
-stack_types = ['Trend','DB3Wavelet'] * n_stacks # 5 stacks of 1 Trend and 1 DB3Wavelet block
-stack_types = ['DB3Wavelet','Generic'] # 1 DB3Wavelet block followed by 1 Generic block
+stack_types = ['Trend','DB3Wavelet'] * n_stacks # 5 stacks of 1 Trend and 1 DB3Wavelet
+stack_types = ['DB3Wavelet','Generic'] # 5 stacks of 1 DB3Wavelet followed by 1 Generic
 ```
 
 The Wavelet blocks avaiavlable in this repository are as follows:
@@ -288,7 +288,7 @@ stack_types = ['TrendAE','GenericAE'] * n_stacks # 5 stacks of 1 TrendAE and 1 G
 
 ### Sum Losses
 
-The sum_losses experimental feature is an experimental feature which takes in consideration the sum of the losses of the forecast branch and reconstruction loss in the backcast branch of the model.  The original implementation only considers the loss in the forecast branch.  If enabled, the total loss is defined as the sum of the forecast loss and a 1/4 of the backcast loss.
+The sum_losses experimental feature is an experimental feature which takes in consideration the sum of the losses of the forecast branch and reconstruction loss in the backcast branch of the model. The original implementation only considers the loss in the forecast branch.  If enabled, the total loss is defined as the sum of the forecast loss and a 1/4 of the backcast loss.
 
 This feature is not included in the original N-Beats paper.  However, it is included in this implementation as an experimental feature.  It is not clear if this feature improves the performance of the model since more experimentation is needed.  To enable this feature set `sum_losses` to `True` in the model definition.  
 
