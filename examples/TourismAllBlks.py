@@ -14,7 +14,7 @@ from utils import *
 #%%
 # Training parameters
 batch_size = 2048
-max_epochs = 50
+max_epochs = 75
 no_val=False
 dataset_id = 'Tourism'
 
@@ -23,17 +23,17 @@ dataset_id = 'Tourism'
 stacks_to_test = [
     #["Generic"],
     #["Trend","Seasonality"], 
-    ["Trend","Generic"], 
+    #["Trend","Generic"], 
     #["TrendAE","SeasonalityAE"], 
     #["GenericAE"],
     #["GenericAEBackcast"],
     #["GenericAEBackcastAE"],
-    #["AutoEncoder"],
+    ["AutoEncoder","Generic"],
     #["AutoEncoderAE"],
     #["HaarWavelet"],
     #["DB2Wavelet"],
     #["DB2AltWavelet"],
-    ["Generic","DB2AltWavelet"],
+    #["Generic","DB2AltWavelet"],
     #["DB3Wavelet"],
     #["DB4Wavelet"],
     #["DB10Wavelet"],
@@ -73,7 +73,7 @@ for seasonal_period, lengths in periods.items():
       n_blocks_per_stack = 1,
       share_weights = True, 
       thetas_dim = 5,      
-      loss = 'SMAPELoss',
+      loss = 'MAPELoss',
       active_g = True,
       latent_dim = 4,
       basis_dim = basis,

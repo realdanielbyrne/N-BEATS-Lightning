@@ -283,7 +283,6 @@ class Seasonality(RootBlock):
     
     return backcast, forecast
 
-
 class _TrendGenerator(nn.Module):
   def __init__(self, thetas_dim, target_length):
     """ Trend model. A typical characteristic of trend is that most of the time it is a
@@ -589,7 +588,6 @@ class Coif1AltWavelet(AltWavelet):
                                     share_weights, activation, active_g, wavelet_type='coif1')
   def forward(self, x):
     return super(Coif1AltWavelet, self).forward(x)  
-
   
 class Coif2Wavelet(Wavelet):
   def __init__(self, units, backcast_length, forecast_length, basis_dim=32, 
@@ -817,7 +815,8 @@ class GenericAEBackcastAE(AERootBlock):
     theta_f = self.forecast_linear(x)
     f = self.forecast_g(theta_f)
     
-    # N-BEATS paper does not apply activation here, but Generic models will not converge sometimes without it
+    # N-BEATS paper does not apply activation here;
+    # however Generic models will not always converge without it
     if self.active_g:
       b = self.activation(b)
       f = self.activation(f)
@@ -833,6 +832,18 @@ class AutoEncoderAE(AERootBlock):
                 activation:str = 'ReLU',
                 active_g:bool = False,
                 latent_dim:int = 5):
+    """_summary_
+
+    Args:
+        units (int): The number of inoput and output units
+        backcast_length (int): The length of the historical data.
+        forecast_length (int): The length of the forecast_length horizon.
+        thetas_dim (int): The dimensionality of the compressed latent space in the middle of the autoencoder
+        share_weights (bool): The weights of the encoder are shared if True.
+        activation (str, optional): _description_. Defaults to 'ReLU'.
+        active_g (bool, optional): _description_. Defaults to False.
+        latent_dim (int, optional): _description_. Defaults to 5.
+    """
     
     super(AutoEncoderAE, self).__init__(backcast_length, units, activation, latent_dim=latent_dim)
     
@@ -848,26 +859,26 @@ class AutoEncoderAE(AERootBlock):
     if share_weights:
       self.b_encoder = self.f_encoder = nn.Sequential(
         nn.Linear(units, thetas_dim),
-        nn.ReLU(),
+        self.activation(),
       )
     else:
       self.b_encoder = nn.Sequential(
           nn.Linear(units, thetas_dim),
-          nn.ReLU(),
+          self.activation(),
       )      
       self.f_encoder = nn.Sequential(
           nn.Linear(units, thetas_dim),
-          nn.ReLU(),
+          self.activation(),
       )      
 
     self.b_decoder = nn.Sequential(
         nn.Linear(thetas_dim, units),
-        nn.ReLU(),
+        self.activation(),
         nn.Linear(units, backcast_length),
     )
     self.f_decoder = nn.Sequential(
         nn.Linear(thetas_dim, units),
-        nn.ReLU(),
+        self.activation(),
         nn.Linear(units, forecast_length),
     )
 

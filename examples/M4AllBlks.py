@@ -29,8 +29,7 @@ dataset_id = 'M4'
 # Select a category or All = "Micro","Macro","Industry","Finance","Demographic","Other"
 category = 'All'
 
-#periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
-periods = ["Yearly"]
+periods = ["Yearly","Quarterly","Monthly","Weekly","Daily","Hourly"]
 
 # Define stacks, by creating a list.  
 # Stacks will be created in the order they appear in the list.

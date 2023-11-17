@@ -58,58 +58,6 @@ class RowCollectionTimeSeriesDataset(Dataset):
     
     return torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
 
-class TimeSeriesCollectionDataModule(pl.LightningDataModule):
-  def __init__(self, 
-               train_data, 
-               backcast_length, 
-               forecast_length, 
-               batch_size=1024, 
-               split_ratio=0.9):
-    """The TimeSeriesCollectionDataModule class is a PyTorch Lightning DataModule
-    used for training a time series model with a dataset that is a collection of time series
-    organized into rows where each row represents a time series and each column represents
-    subsequent observations.
-    
-
-    Parameters
-    ----------
-        train_data (numpy.ndarray): 
-          The univariate time series data. The data organization is assumed to be a 
-          numpy.ndarray with rows representingtime series and columns representing time steps. 
-        backcast (int, optional): 
-          The length of the historical data.
-        forecast (int, optional): 
-          The length of the future data to predict.
-        batch_size (int, optional): 
-          The batch size. Defaults to 1024.
-        split_ratio (float, optional): 
-          The ratio of the data to use for training/validation.
-    """
-          
-    super(TimeSeriesCollectionDataModule, self).__init__()
-    self.train_data_raw = train_data
-    self.backcast_length = backcast_length
-    self.forecast_length = forecast_length
-    self.batch_size = batch_size
-    self.split_ratio = split_ratio
-
-  def setup(self, stage:str=None):      
-        
-    shuffled = self.train_data_raw.sample(frac=1, axis = 0).reset_index(drop=True)
-    train_rows = int(self.split_ratio * len(shuffled))
-    
-    self.train_data = shuffled.iloc[:train_rows].values      
-    self.val_data = shuffled.iloc[train_rows:].values
-          
-    self.train_dataset = RowCollectionTimeSeriesDataset(self.train_data, self.backcast_length, self.forecast_length)
-    self.val_dataset = RowCollectionTimeSeriesDataset(self.val_data, self.backcast_length, self.forecast_length)    
-    
-  def train_dataloader(self):
-    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle = True)
-
-  def val_dataloader(self):
-    return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle = False)
-
 class RowCollectionTimeSeriesDataModule(pl.LightningDataModule):
   def __init__(self, 
                 data, 
@@ -119,9 +67,9 @@ class RowCollectionTimeSeriesDataModule(pl.LightningDataModule):
                 split_ratio=0.8,
                 fill_short_ts=True):
     """The RowCollectionTimeSeriesDataModule class is a PyTorch Lightning DataModule
-    used for training a time series model from a collection of time series organized
-    such that rows represent individual time series and columns give the subsequent 
-    observations.    
+    is used for training a time series model with a dataset that is a collection of time series
+    organized into rows where each row represents a time series, and each column represents
+    subsequent observations.    
 
     Parameters
     ----------
@@ -277,9 +225,9 @@ class TimeSeriesDataset(Dataset):
 
 class TimeSeriesDataModule(pl.LightningDataModule):
   def __init__(self, data, batch_size, backcast_length, forecast_length):
-    """The TimeSeriesDataModule class is a PyTorch Lightning DataModule that takes a time series
-    as input and returns batches of samples of the time series. Used for training a time series
-    model.
+    """
+    The TimeSeriesDataModule class is a PyTorch Lightning DataModule that takes a univariate
+    time series as input and returns batches of samples of the time series. 
 
     Parameters
     ----------
@@ -366,11 +314,12 @@ class ColumnarCollectionTimeSeriesDataModule(pl.LightningDataModule):
                forecast_length, 
                batch_size=1024, 
                no_val = False):
-    """The ColumnarCollectionTimeSeriesDataModule class is a PyTorch Dataset that takes a 
+    """
+    The ColumnarCollectionTimeSeriesDataModule class is a PyTorch Datamodule that takes a 
     collection of time series as input and returns a single sample of the time 
-    series. Used for training a time series model whose input is a collection 
-    of time series organized such that columns represent individual time series and
-    rows give the subsequent observations.
+    series. The input dataset is a collection of time series organized such that columns 
+    represent individual time series and rows represent subsequent observations. This is how
+    the Tourism dataset is organized.
 
     Args:
         dataframe (Pandas): Pandas dataframe with columns representing time series and rows representing time steps.
