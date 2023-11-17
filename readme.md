@@ -1,9 +1,6 @@
 # N-BEATS Lightning
 
-
-N-BEATS, Neural Basis Expansion Analysis for Time Series, is a neural network based model for univariate time series forecasting. The N-BEATS implementation in this repository is based on the original [paper](https://arxiv.org/pdf/1905.10437.pdf.).  This model is designed to be easy to use and extend, and so you can apply N-BEATS to your own time series data and explore its capabilities.
-
-The code in this repository provides an implementation of N-BEATS in [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/). PyTorch Lightning is a lightweight PyTorch wrapper for high-performance AI research. It provides a high-level interface for PyTorch that makes it easier to train models, while still giving you the flexibility to customize your training loop. 
+[N-BEATS](https://arxiv.org/pdf/1905.10437.pdf), Neural Basis Expansion Analysis for Time Series, is a neural network based model for time series forecasting. The code in this repository provides an implementation of N-BEATS in [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/). PyTorch Lightning is a lightweight PyTorch wrapper for high-performance AI research. It provides a high-level interface for PyTorch that makes it easier to train models, while still giving you the flexibility to customize your training loop. 
 
 
 ## N-BEATS Algorithm
