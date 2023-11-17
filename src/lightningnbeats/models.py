@@ -112,7 +112,7 @@ class NBeatsNet(pl.LightningModule):
         to the waveform parameters generated in he preceeding layer, applying an activation function here mirrors that structure.  I've found that this
         approch improved convergence of GENERIC models.  Default : False.
     sum_losses : bool, optional
-        If True, the total loss is defined as forecast_loss + 1/2 Backcast_loss.  This is an experimental feature. Default False.
+        If True, the total loss is defined as forecast_loss + 1/4 Backcast_loss.  This is an experimental feature. Default False.
     latent_dim : int, optional
         The dimensionality of the latent space in the AutoEncoder blocks. Default 5.
     basis_dim : int, optional
