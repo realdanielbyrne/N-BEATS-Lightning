@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name="lightningnbeats"
-version="0.1.0"
+version="0.1.1"
 authors =[{name="Daniel Byrne",email="realdanielbyrne@icloud.com"}]
 description = "A Pytorch Lightning implementation of the N-BEATS algorithm with some extended functionality."
 requires-python=">=3.9.0"
