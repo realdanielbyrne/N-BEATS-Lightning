@@ -1,6 +1,6 @@
 # N-BEATS Lightning
 
-[N-BEATS](https://arxiv.org/pdf/1905.10437.pdf), Lightning is an implementation of [N-BEATS](https://arxiv.org/pdf/1905.10437.pdf) time series forecasting architecture in [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) with some experimental features such as Wavelet Basis Expansion blocks and completely customizable stacks.  
+N-BEATS Lightning is an implementation of [N-BEATS](https://arxiv.org/pdf/1905.10437.pdf) time series forecasting architecture in [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) with some additional experimental features such as Wavelet Basis Expansion blocks and completely customizable stacks.  
 
 
 ## N-BEATS Algorithm
