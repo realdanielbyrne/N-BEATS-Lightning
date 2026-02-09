@@ -847,12 +847,12 @@ class AutoEncoderAE(AERootBlock):
     self.units = units
     self.thetas_dim = thetas_dim
     self.share_weights = share_weights
-    self.activation_name = activation
+    self.activation = getattr(nn, activation)()
     self.backcast_length = backcast_length
     self.forecast_length = forecast_length      
     self.active_g = active_g  
     
-    # Encoders
+    # Encoders - create new activation instances for each Sequential
     if share_weights:
       self.b_encoder = self.f_encoder = nn.Sequential(
         nn.Linear(units, thetas_dim),
