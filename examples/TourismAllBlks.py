@@ -22,7 +22,8 @@ dataset_id = 'Tourism'
 # Stacks will be created in the order they appear in the list.
 stacks_to_test = [
     #["Generic"],
-    #["Trend","Seasonality"], 
+    #["BottleneckGeneric"],
+    #["Trend","Seasonality"],
     #["Trend","Generic"], 
     #["TrendAE","SeasonalityAE"], 
     #["GenericAE"],
