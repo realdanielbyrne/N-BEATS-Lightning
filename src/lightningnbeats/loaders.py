@@ -3,12 +3,6 @@ import numpy as np
 import pandas as pd
 import torch
 import lightning.pytorch as pl
-from torch.utils.data import random_split
-
-
-import numpy as np
-import torch
-from torch.utils.data import Dataset
 
 class RowCollectionTimeSeriesDataset(Dataset):
   def __init__(self, 
@@ -101,8 +95,8 @@ class RowCollectionTimeSeriesDataModule(pl.LightningDataModule):
     total_len = self.backcast_length + self.forecast_length
     
     # Split the original data into training and validation sets
-    self.train_data = shuffled[:, :-self.forecast_length]
-    self.val_data = self.val_data[:, -self.backcast_length-self.forecast_length:]
+    self.train_data = shuffled.iloc[:, :-self.forecast_length].values
+    self.val_data = shuffled.iloc[:, -self.backcast_length-self.forecast_length:].values
 
         
     if self.fill_short_ts:
@@ -375,7 +369,10 @@ class ColumnarCollectionTimeSeriesTestDataModule(pl.LightningDataModule):
     super(ColumnarCollectionTimeSeriesTestDataModule, self).__init__()
     
 
-    self.test_data = pd.concat([train_data[-backcast_length:], test_data]).reset_index(drop=True)
+    if backcast_length > len(train_data):
+      raise ValueError(f"backcast_length ({backcast_length}) cannot exceed training data length ({len(train_data)})")
+
+    self.test_data = pd.concat([train_data.iloc[-backcast_length:], test_data]).reset_index(drop=True)
     self.backcast_length = backcast_length
     self.forecast_length = forecast_length
     self.batch_size = batch_size

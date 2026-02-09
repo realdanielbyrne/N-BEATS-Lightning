@@ -28,13 +28,13 @@ class NBeatsNet(pl.LightningModule):
       ae_width:int = 512,
       share_weights:bool = False, 
       thetas_dim:int = 5, 
-      learning_rate: float = 1e-4,  
+      learning_rate: float = 1e-3,
       loss: str = 'SMAPELoss', 
       no_val:bool = False,  
       optimizer_name:str = 'Adam', # 'Adam', 'SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'AdamW'
       activation:str = 'ReLU', # 'ReLU', 'RReLU', 'PReLU', 'ELU', 'Softplus', 'Tanh', 'SELU', 'LeakyReLU', 'Sigmoid', 'GELU'
       frequency:int = 1, 
-      active_g:bool = True, 
+      active_g:bool = False,
       latent_dim:int = 5,
       sum_losses:bool = False,
       basis_dim:int = 32
@@ -179,20 +179,21 @@ class NBeatsNet(pl.LightningModule):
           # share weights across blocks
           block = blocks[-1]  
         else:           
-          if (stack_type == "Generic" or "GenericAE" or "GenericAEBackcast"):
+          if stack_type in ["Generic", "BottleneckGeneric", "GenericAE", "BottleneckGenericAE", "GenericAEBackcast", "GenericAEBackcastAE"]:
             units = self.g_width
-          elif (stack_type == "Seasonality" or "SeasonalityAE"):
+          elif stack_type in ["Seasonality", "SeasonalityAE"]:
             units = self.s_width
-          elif (stack_type == "Trend" or "TrendAE"):
+          elif stack_type in ["Trend", "TrendAE"]:
             units = self.t_width
-          elif (stack_type == "AutoEncoder" or "AutoEncoderAE"):
+          elif stack_type in ["AutoEncoder", "AutoEncoderAE"]:
             units = self.ae_width
-          else: 
+          else:
             units = self.g_width
 
-          if (stack_type == "GenericAE" or 
-              stack_type == "SeasonalityAE" or 
-              stack_type == "AutoEncoderAE" or 
+          if (stack_type == "GenericAE" or
+              stack_type == "BottleneckGenericAE" or
+              stack_type == "SeasonalityAE" or
+              stack_type == "AutoEncoderAE" or
               stack_type == "TrendAE"):
             block = getattr(b,stack_type)(
                 units, self.backcast_length, self.forecast_length, self.thetas_dim, 
@@ -246,9 +247,9 @@ class NBeatsNet(pl.LightningModule):
     loss = self.loss_fn(forecast, y)
     
     if self.sum_losses:
-      backcast_loss = self.loss_fn(backcast, x) 
+      backcast_loss = self.loss_fn(backcast, torch.zeros_like(backcast))
       loss = loss + backcast_loss * 0.25
-    
+
     self.log('train_loss', loss, prog_bar=True)
     return loss
 
@@ -261,9 +262,9 @@ class NBeatsNet(pl.LightningModule):
     loss = self.loss_fn(forecast, y)
     
     if self.sum_losses:
-      backcast_loss = self.loss_fn(backcast, x)
-      loss = loss + backcast_loss * 0.25    
-    
+      backcast_loss = self.loss_fn(backcast, torch.zeros_like(backcast))
+      loss = loss + backcast_loss * 0.25
+
     self.log('val_loss', loss, prog_bar=True)
     return loss
   
@@ -273,9 +274,9 @@ class NBeatsNet(pl.LightningModule):
     loss = self.loss_fn(forecast, y)
     
     if self.sum_losses:
-      backcast_loss = self.loss_fn(backcast, x)
-      loss = loss + backcast_loss * 0.25    
-              
+      backcast_loss = self.loss_fn(backcast, torch.zeros_like(backcast))
+      loss = loss + backcast_loss * 0.25
+
     self.log('test_loss', loss)
     return loss
 
@@ -293,6 +294,8 @@ class NBeatsNet(pl.LightningModule):
         return MAPELoss()
     if self.loss == 'SMAPELoss':
         return SMAPELoss()
+    if self.loss == 'NormalizedDeviationLoss':
+        return NormalizedDeviationLoss()
     else:
         return getattr(nn, self.loss)()
     
@@ -300,8 +303,7 @@ class NBeatsNet(pl.LightningModule):
     if self.optimizer_name not in OPTIMIZERS:
         raise ValueError(f"Unknown optimizer name: {self.optimizer_name}. Please select one of {OPTIMIZERS}")
     
-    #optimizer = getattr(optim, self.optimizer_name)(self.parameters(), lr=self.learning_rate)
-    optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+    optimizer = getattr(optim, self.optimizer_name)(self.parameters(), lr=self.learning_rate)
     return optimizer
     # scheduler = {
     #   'scheduler': StepLR(optimizer, step_size=10, gamma=0.1),
