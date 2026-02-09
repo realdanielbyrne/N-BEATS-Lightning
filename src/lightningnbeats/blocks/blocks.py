@@ -7,7 +7,6 @@ import numpy as np
 import pywt
 from scipy.signal import resample
 from scipy.interpolate import interp1d
-import numpy as np
 
 def squeeze_last_dim(tensor):
   if len(tensor.shape) == 3 and tensor.shape[-1] == 1:  # (128, 10, 1) => (128, 10).
@@ -37,11 +36,11 @@ class RootBlock(nn.Module):
     self.units = units
     self.backcast_length = backcast_length
     
-    if not activation in ACTIVATIONS:
+    if activation not in ACTIVATIONS:
       raise ValueError(f"'{activation}' is not in {ACTIVATIONS}")
-    
-    self.activation = getattr(nn, activation)()    
-    
+
+    self.activation = getattr(nn, activation)()
+
     self.fc1 = nn.Linear(backcast_length, units)
     self.fc2 = nn.Linear(units, units)
     self.fc3 = nn.Linear(units, units)
@@ -395,14 +394,14 @@ class AltWavelet(RootBlock):
 
     self.activation = getattr(nn, activation)()  
     self.wavelet_type = wavelet_type
-    self.sharre_weights = share_weights
+    self.share_weights = share_weights
 
     if share_weights:
       self.backcast_linear = self.forecast_linear = nn.Linear(units, basis_dim)
     else:
       self.backcast_linear = nn.Linear(units, basis_dim)
       self.forecast_linear = nn.Linear(units, basis_dim)
-      
+
     self.backcast_g = _AltWaveletGenerator(basis_dim, backcast_length, wavelet_type=wavelet_type)
     self.forecast_g = _AltWaveletGenerator(basis_dim, forecast_length, wavelet_type=wavelet_type)
         
@@ -459,14 +458,14 @@ class Wavelet(RootBlock):
 
     self.activation = getattr(nn, activation)()  
     self.wavelet_type = wavelet_type
-    self.sharre_weights = share_weights
+    self.share_weights = share_weights
 
     if share_weights:
       self.backcast_linear = self.forecast_linear = nn.Linear(units, basis_dim)
     else:
       self.backcast_linear = nn.Linear(units, basis_dim)
       self.forecast_linear = nn.Linear(units, basis_dim)
-      
+
     self.backcast_g = _WaveletGenerator(basis_dim, wavelet_type=wavelet_type)
     self.forecast_g = _WaveletGenerator(basis_dim, wavelet_type=wavelet_type)
     self.backcast_down_sample = nn.Linear(basis_dim, backcast_length, bias=False)
@@ -766,8 +765,6 @@ class SeasonalityAE(AERootBlock):
     forecast = self.forecast_g(forecast_thetas)
     
     return backcast, forecast
-    
-    return backcast_length, forecast_length
 
      
 class GenericAEBackcastAE(AERootBlock):  
@@ -859,26 +856,26 @@ class AutoEncoderAE(AERootBlock):
     if share_weights:
       self.b_encoder = self.f_encoder = nn.Sequential(
         nn.Linear(units, thetas_dim),
-        self.activation(),
+        getattr(nn, activation)(),
       )
     else:
       self.b_encoder = nn.Sequential(
           nn.Linear(units, thetas_dim),
-          self.activation(),
-      )      
+          getattr(nn, activation)(),
+      )
       self.f_encoder = nn.Sequential(
           nn.Linear(units, thetas_dim),
-          self.activation(),
-      )      
+          getattr(nn, activation)(),
+      )
 
     self.b_decoder = nn.Sequential(
         nn.Linear(thetas_dim, units),
-        self.activation(),
+        getattr(nn, activation)(),
         nn.Linear(units, backcast_length),
     )
     self.f_decoder = nn.Sequential(
         nn.Linear(thetas_dim, units),
-        self.activation(),
+        getattr(nn, activation)(),
         nn.Linear(units, forecast_length),
     )
 
