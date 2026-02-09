@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name="lightningnbeats"
-version="0.1.2"
+version="0.1.3"
 authors =[{name="Daniel Byrne",email="realdanielbyrne@icloud.com"}]
 description = "PyTorch Lightning implementation of N-BEATS time series forecasting, extended with wavelet basis expansion, autoencoder blocks, and bottleneck architectures beyond the original paper."
 requires-python=">=3.12,<3.15"

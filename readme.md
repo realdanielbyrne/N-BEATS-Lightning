@@ -1,6 +1,6 @@
 # N-BEATS Lightning
 
-N-BEATS Lightning is an implementation of [N-BEATS](https://arxiv.org/pdf/1905.10437.pdf) time series forecasting architecture in [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) with some additional experimental features such as Wavelet Basis Expansion blocks and completely customizable stacks.  
+N-BEATS Lightning is an implementation of [N-BEATS](https://arxiv.org/pdf/1905.10437.pdf) time series forecasting architecture in [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) with some additional experimental features such as Wavelet Basis Expansion blocks and completely customizable stacks.
 
 ## N-BEATS Algorithm
 
@@ -67,7 +67,7 @@ import pandas as pd
 
 # Load the milk.csv dataset
 milk = pd.read_csv('src/data/milk.csv', index_col=0)
-milkvals = milk.values.flatten() 
+milkvals = milk.values.flatten()
 ```
 
 #### Define the model and its hyperparameters
@@ -75,7 +75,9 @@ milkvals = milk.values.flatten()
 Define the model by defining the architecture in the `stack_types` parameter.  The `stack_types` parameter is simply a list of strings that specify the type of block to use in each stack.  The following block types are available:
 
 - Generic
+- BottleneckGeneric
 - GenericAE
+- BottleneckGenericAE
 - GenericAEBackcast
 - GenericAEBackcastAE
 - Trend
@@ -85,6 +87,7 @@ Define the model by defining the architecture in the `stack_types` parameter.  T
 - AutoEncoder
 - AutoEncoderAE
 - HaarWavelet
+- HaarAltWavelet
 - DB2Wavelet
 - DB2AltWavelet
 - DB3Wavelet
@@ -93,21 +96,22 @@ Define the model by defining the architecture in the `stack_types` parameter.  T
 - DB4AltWavelet
 - DB10Wavelet
 - DB10AltWavelet
-- DB20Wavelet
 - DB20AltWavelet
 - Coif1Wavelet
 - Coif1AltWavelet
 - Coif2Wavelet
 - Coif2AltWavelet
 - Coif3Wavelet
+- Coif3AltWavelet
 - Coif10Wavelet
+- Coif10AltWavelet
 - Symlet2Wavelet
 - Symlet2AltWavelet
-- Symlet3Wavelet  
+- Symlet3Wavelet
 - Symlet10Wavelet
 - Symlet20Wavelet
 
-This implementation extends the design original paper with several additional block types and by allowing any combination blocks in any order simply by specifying the block types in the stack_types parameter.  
+This implementation extends the design original paper with several additional block types and by allowing any combination blocks in any order simply by specifying the block types in the stack_types parameter.
 
 ```python
 forecast_length = 6
@@ -118,10 +122,10 @@ n_stacks = 6
 interpretable_milkmodel = NBeatsNet(
   stack_types=['Trend', 'Seasonality'],
   backcast_length = backcast_length,
-  forecast_length = forecast_length, 
+  forecast_length = forecast_length,
   n_blocks_per_stack = 3,
-  thetas_dim = 5,    
-  t_width=256,  
+  thetas_dim = 5,
+  t_width=256,
   s_width=2048,
   share_weights = True
 )
@@ -153,12 +157,12 @@ dm = TimeSeriesDataModule(
 
 #### Define a Pytorch Lightning ModelCheckpoint (optional)
 
-Define a Pytorch Ligntning ModelCheckpoint callback to save the best model during training.  The model checkpoints will be saved to the default  `lightning/logs` directory unless otherwise specified.  
+Define a Pytorch Ligntning ModelCheckpoint callback to save the best model during training.  The model checkpoints will be saved to the default  `lightning/logs` directory unless otherwise specified.
 
 ```python
 i_chk_callback = ModelCheckpoint(
   save_top_k = 2, # save top 2 models
-  monitor = "val_loss", # monitor validation loss as evaluation 
+  monitor = "val_loss", # monitor validation loss as evaluation
   mode = "min",
   filename = "{name}-{epoch:02d}-{val_loss:.2f}",
 )
@@ -176,12 +180,12 @@ Use a standard Pytorch Lightning Trainer to train the model.  Be careful not to 
 interpretable_trainer =  pl.Trainer(
   accelerator='auto' # use GPU if available
   ,max_epochs=100
-  ,callbacks=[i_chk_callback]  
+  ,callbacks=[i_chk_callback]
   ,logger=[i_tb_logger]
 )
 
 interpretable_trainer.fit(interpretable_milkmodel, datamodule=dm)
-interpretable_trainer.validate(interpretable_milkmodel, datamodule=dm) 
+interpretable_trainer.validate(interpretable_milkmodel, datamodule=dm)
 ```
 
 #### Hardware Acceleration (GPU Support)
@@ -247,17 +251,29 @@ This repository provides an implementation of N-BEATS that has been extended to 
 
 This parameter when enabled applies the model's activation function to the linear funtions (gb and gf) which are found by the network in the last layer of each block using the functions' parameters found in the preceding layer. The parameter `active_g` is not a feature found in the original N-Beats paper.
 
-You can enable this feature by setting `active_g` to `True`.  Enabling this activation function helps the Generic model converge.  Generally this results in a comparably accurate model in fewer training cycles.  
+You can enable this feature by setting `active_g` to `True`.  Enabling this activation function helps the Generic model converge.  Generally this results in a comparably accurate model in fewer training cycles.
 
 Also, Generic models as defined in the original paper have a tendency to not converge.  This is likely due to the sucessive linear layers without activation functions in the final two layers of a standard Generic block. The fix or this would typically be to retrain, or add or remove a stack or a layer. However, enabling this parameter usualy fixes the problem without the need to modify any parameters or to adjust the chosen architecture.
 
-The intuition behind the inclusion of this parameter is that the Generic model as originally designed connects two layers of Linear fully conected layers, the first is ostensibly designed to find the parameters of an expansion polynomial function and the second to find the functions that best fit the forecast and backcast outputs of the block using the parameters found in the prior layer. However, linear layers without activations are not able to learn non-linear functions.  This parameter allows the model to learn non-linear functions by applying the activation function to the linear functions found by the model in the last layer of each block.  
+The intuition behind the inclusion of this parameter is that the Generic model as originally designed connects two layers of Linear fully conected layers, the first is ostensibly designed to find the parameters of an expansion polynomial function and the second to find the functions that best fit the forecast and backcast outputs of the block using the parameters found in the prior layer. However, linear layers without activations are not able to learn non-linear functions.  This parameter allows the model to learn non-linear functions by applying the activation function to the linear functions found by the model in the last layer of each block.
 
 This modification to the original specification is however consistent with the original design.  Take for instance the Interpretable arcitecture as defined in the original paper.  The basis functions used in the Trend, Seasonality, and (in this version) the Wavlet blocks are by their nature non-linear functions. In the original design then, leaving activation funcitons off of the final two layers as depicted in the paper, is actually inconsistent with the Interpretible architecture. Therefore, this feature modifies the Generic model to be more similar in structure to the other basis function blocks.
 
+### BottleneckGeneric Block
+
+The `BottleneckGeneric` block is a variant of the paper's Generic block that uses a two-stage projection through an intermediate `thetas_dim` bottleneck instead of a single linear projection. This is equivalent to a rank-d factorization of the basis expansion matrix, where `d = thetas_dim`. The bottleneck regularizes the learned basis by limiting its rank, providing a tunable knob to control basis complexity — analogous to how Trend and Seasonality blocks use low-dimensional parameterizations (polynomial degree, number of Fourier harmonics) to constrain the function space.
+
+A corresponding `BottleneckGenericAE` variant uses the AERootBlock backbone instead of the standard RootBlock.
+
+```python
+n_stacks = 5
+stack_types = ['BottleneckGeneric'] * n_stacks
+stack_types = ['Trend', 'BottleneckGeneric'] * n_stacks
+```
+
 ### Wavelet Basis Expansion Blocks
 
-This repository constains a number of experimental Wavelet Basis Expansion Blocks. Wavelet basis expansion is a mathematical technique used to represent signals or functions in terms of simpler, fixed building blocks called wavelets. Unlike Fourier transforms, which use sine and cosine functions as basis elements, wavelets can be localized in both time and frequency. This means they can represent both the frequency content of a signal and when these frequencies occur.
+This repository contains a number of experimental Wavelet Basis Expansion Blocks. Wavelet basis expansion is a mathematical technique used to represent signals or functions in terms of simpler, fixed building blocks called wavelets. Unlike Fourier transforms, which use sine and cosine functions as basis elements, wavelets can be localized in both time and frequency. This means they can represent both the frequency content of a signal and when these frequencies occur.
 
 This method is particularly useful for analyzing functions or signals that contain features at multiple scales.  The multi-resolution analysis capability of wavelets is particularly suited to capturing the essence of time series data then, which can have complex, hierarchical structures due to the presence of trends, seasonal effects, cycles, and irregular fluctuations.
 
@@ -270,9 +286,10 @@ stack_types = ['Trend','DB3Wavelet'] * n_stacks # 5 stacks of 1 Trend and 1 DB3W
 stack_types = ['DB3Wavelet','Generic'] # 5 stacks of 1 DB3Wavelet followed by 1 Generic
 ```
 
-The Wavelet blocks avaiavlable in this repository are as follows:
+The Wavelet blocks available in this repository are as follows:
 
 - HaarWavelet
+- HaarAltWavelet
 - DB2Wavelet
 - DB2AltWavelet
 - DB3Wavelet
@@ -281,39 +298,40 @@ The Wavelet blocks avaiavlable in this repository are as follows:
 - DB4AltWavelet
 - DB10Wavelet
 - DB10AltWavelet
-- DB20Wavelet
 - DB20AltWavelet
 - Coif1Wavelet
 - Coif1AltWavelet
 - Coif2Wavelet
 - Coif2AltWavelet
 - Coif3Wavelet
+- Coif3AltWavelet
 - Coif10Wavelet
+- Coif10AltWavelet
 - Symlet2Wavelet
 - Symlet2AltWavelet
-- Symlet3Wavelet  
+- Symlet3Wavelet
 - Symlet10Wavelet
 - Symlet20Wavelet
 
 ### AutoEncoder Block
 
-The AutoEncoder Block utilizes an AutoEncoider structure in both the forecast and backcast branches in the N-BEATS architecture.  The AutoEncoder block is useful for noisey time series data like Electric generation or in highly varied datasets like the M4.   It struggles with simpler more predictable datasets like the Milk Production Dataset taht rely on mostly trend.  However, combining this block with a Trend block often eliminates this problem.  
+The AutoEncoder Block utilizes an AutoEncoider structure in both the forecast and backcast branches in the N-BEATS architecture.  The AutoEncoder block is useful for noisey time series data like Electric generation or in highly varied datasets like the M4.   It struggles with simpler more predictable datasets like the Milk Production Dataset taht rely on mostly trend.  However, combining this block with a Trend block often eliminates this problem.
 
 Like any other blocks in this implementation, the AutoEncoder block can be used in isolation or in combination with other blocks freely. For instance
 
 ```python
 n_stacks = 5
-stack_types = ['AutoEncoder'] * n_stacks # 5 stacks of AutoEncoder blocks 
+stack_types = ['AutoEncoder'] * n_stacks # 5 stacks of AutoEncoder blocks
 stack_types = ['Trend','AutoEncoder'] * n_stacks # 5 stacks of 1 Trend block followed by 1 AutoEncoder block
 ```
 
 ### GenericAEBackcast
 
-The GenericAEBackcast block is a Generic block that uses an AutoEncoder structure in only the backcast branch of the N-BEATS architecture.  This block is useful for noisey time series data like Electric generation or in highly varied datasets like the M4.   It doesn't struggle like the AutoEncoder block does with simpler more predictable datasets like the Milk Production Dataset.  It is genreally more accurate than the AutoEncoder block, and it settles on a solution faster.  
+The GenericAEBackcast block is a Generic block that uses an AutoEncoder structure in only the backcast branch of the N-BEATS architecture.  This block is useful for noisey time series data like Electric generation or in highly varied datasets like the M4.   It doesn't struggle like the AutoEncoder block does with simpler more predictable datasets like the Milk Production Dataset.  It is genreally more accurate than the AutoEncoder block, and it settles on a solution faster.
 
 ```python
 n_stacks = 5
-stack_types = ['GenericAEBackcast'] * n_stacks # 5 stacks of GenericAEBackcast blocks 
+stack_types = ['GenericAEBackcast'] * n_stacks # 5 stacks of GenericAEBackcast blocks
 stack_types = ['Trend','GenericAEBackcast'] * n_stacks # 5 stacks of 1 Trend and 1 GenericAEBackcast block
 ```
 
@@ -342,16 +360,36 @@ stack_types = ['TrendAE','GenericAE'] * n_stacks # 5 stacks of 1 TrendAE and 1 G
 
 The sum_losses experimental feature is an experimental feature which takes in consideration the sum of the losses of the forecast branch and reconstruction loss in the backcast branch of the model. The original implementation only considers the loss in the forecast branch.  If enabled, the total loss is defined as the sum of the forecast loss and a 1/4 of the backcast loss.
 
-This feature is not included in the original N-Beats paper.  However, it is included in this implementation as an experimental feature.  It is not clear if this feature improves the performance of the model since more experimentation is needed.  To enable this feature set `sum_losses` to `True` in the model definition.  
+This feature is not included in the original N-Beats paper.  However, it is included in this implementation as an experimental feature.  It is not clear if this feature improves the performance of the model since more experimentation is needed.  To enable this feature set `sum_losses` to `True` in the model definition.
 
 ```python
 n_stacks = 5
 TrendAutoEncoder_milkmodel = NBeatsNet(
   stack_types=['Trend', 'AutoEncoder']*n_stacks,
   backcast_length = backcast_length,
-  forecast_length = forecast_length, 
+  forecast_length = forecast_length,
   n_blocks_per_stack = 1,
-  share_weights = True, 
+  share_weights = True,
   sum_losses = True
+)
+```
+
+### Custom Loss Functions
+
+In addition to standard PyTorch loss functions (MSELoss, L1Loss, SmoothL1Loss, etc.), this implementation provides several custom loss functions commonly used in time series forecasting:
+
+- **`SMAPELoss`** — Symmetric Mean Absolute Percentage Error. Scale-independent metric that treats over- and under-predictions symmetrically.
+- **`MAPELoss`** — Mean Absolute Percentage Error. Measures forecast accuracy as a percentage of the true values.
+- **`MASELoss`** — Mean Absolute Scaled Error. Compares forecast errors against a naive seasonal baseline. Accepts a `seasonal_period` parameter.
+- **`NormalizedDeviationLoss`** — Normalized Deviation (ND). Ratio of total absolute error to total absolute true values.
+
+Specify the loss function by name when creating the model:
+
+```python
+model = NBeatsNet(
+  stack_types=['Trend', 'Seasonality'],
+  backcast_length=24,
+  forecast_length=6,
+  loss='SMAPELoss'  # or 'MAPELoss', 'MASELoss', 'NormalizedDeviationLoss', 'MSELoss', etc.
 )
 ```
