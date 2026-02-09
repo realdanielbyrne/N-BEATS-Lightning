@@ -6,6 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 PyTorch Lightning implementation of the N-BEATS (Neural Basis Expansion Analysis for Time Series) forecasting algorithm, published as the `lightningnbeats` PyPI package. Extends the original paper with wavelet basis expansion blocks, autoencoder variants, bottleneck generic blocks, and fully customizable stack compositions.
 
+### Requirements
+
+- **Python** >= 3.12
+- **PyTorch** >= 2.1.0
+- **Lightning** >= 2.1.0
+
+Supports multiple accelerators: **CUDA** (NVIDIA GPUs), **MPS** (Apple Silicon via Metal Performance Shaders), and **CPU**. The `get_best_accelerator()` utility in `__init__.py` detects the best available accelerator (CUDA > MPS > CPU).
+
 ## Build & Install
 
 ```bash
@@ -19,6 +27,7 @@ Dependencies are defined in `pyproject.toml`. Uses setuptools as build backend.
 ## Running Examples
 
 Examples are in `examples/` and are designed to run as scripts or Jupyter cell-by-cell (`#%%` markers):
+
 ```bash
 cd examples
 python M4AllBlks.py       # M4 dataset benchmark across all block types
@@ -28,6 +37,7 @@ python TourismAllBlks.py  # Tourism dataset benchmark
 ## Testing
 
 Tests are in `tests/` and use pytest:
+
 ```bash
 pytest tests/                        # run all tests
 pytest tests/ -v                     # verbose output

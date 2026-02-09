@@ -2,10 +2,9 @@
 
 N-BEATS Lightning is an implementation of [N-BEATS](https://arxiv.org/pdf/1905.10437.pdf) time series forecasting architecture in [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) with some additional experimental features such as Wavelet Basis Expansion blocks and completely customizable stacks.  
 
-
 ## N-BEATS Algorithm
 
-N-BEATS, Neural Basis Expansion Analysis for Time Series, is a neural network based model for univariate time series forecasting. It was proposed by Boris N. Oreshkin and his co-authors at ElementAI in 2019. N-BEATS consists of a deep stack of fully connected layers with backward and forward residual connections. The model can learn a set of basis functions that can decompose any time series into interpretable components, such as trend and seasonality. N-BEATS can also handle a wide range of forecasting problems without requiring any domain-specific modifications, scaling, or feature engineering. N-BEATS has achieved state-of-the-art performance on several benchmark datasets, such as M3, M4, and TOURISM. This repository provides an implementation of N-BEATS in PyTorch Lightning, along with the code to reproduce the experimental results using the M4 and Tourism datasets which are included as a reference in this repository. 
+N-BEATS, Neural Basis Expansion Analysis for Time Series, is a neural network based model for univariate time series forecasting. It was proposed by Boris N. Oreshkin and his co-authors at ElementAI in 2019. N-BEATS consists of a deep stack of fully connected layers with backward and forward residual connections. The model can learn a set of basis functions that can decompose any time series into interpretable components, such as trend and seasonality. N-BEATS can also handle a wide range of forecasting problems without requiring any domain-specific modifications, scaling, or feature engineering. N-BEATS has achieved state-of-the-art performance on several benchmark datasets, such as M3, M4, and TOURISM. This repository provides an implementation of N-BEATS in PyTorch Lightning, along with the code to reproduce the experimental results using the M4 and Tourism datasets which are included as a reference in this repository.
 
 Here are some key points about the N-BEATS algorithm:
 
@@ -24,24 +23,40 @@ Here are some key points about the N-BEATS algorithm:
 - **Fast Learning**:
   N-BEATS is a fast learner, and it can be trained in a few epochs on a single GPU. This makes it easy to experiment with different hyperparameters and architectures. It generally settles quickly into a relative minimum. Since many models can be trained quickly, it is easy to build an ensemble of differnt models to improve performance and generalization.
 
-
 The N-BEATS algorithm is a powerful tool for time series forecasting, providing a blend of automatic learning, interpretability, and robust performance across different domains.
 
+## Requirements
+
+- **Python** >= 3.12
+- **PyTorch** >= 2.1.0
+- **Lightning** >= 2.1.0
 
 ## Getting Started
 
 ### Installation
 
-Down the source from the [github  repository](https://github.com/realdanielbyrne/N-BEATS-Lightning) or install it as a pip package to use in your project using the following command:
+Download the source from the [github repository](https://github.com/realdanielbyrne/N-BEATS-Lightning) or install it as a pip package to use in your project using the following command:
 
 ```bash
-  pip install lightningnbeats
+pip install lightningnbeats
+```
+
+To install from source for development:
+
+```bash
+git clone https://github.com/realdanielbyrne/N-BEATS-Lightning.git
+cd N-BEATS-Lightning
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -e .
 ```
 
 ### Simple Example
-The following is a simple example of how to use this model. 
+
+The following is a simple example of how to use this model.
 
 #### Load Data
+
 First load the required libraries and your data.
 
 ```python
@@ -85,15 +100,14 @@ Define the model by defining the architecture in the `stack_types` parameter.  T
 - Coif2Wavelet
 - Coif2AltWavelet
 - Coif3Wavelet
-- Coif10Wavelet 
+- Coif10Wavelet
 - Symlet2Wavelet
 - Symlet2AltWavelet
 - Symlet3Wavelet  
 - Symlet10Wavelet
-- Symlet20Wavelet   
+- Symlet20Wavelet
 
 This implementation extends the design original paper with several additional block types and by allowing any combination blocks in any order simply by specifying the block types in the stack_types parameter.  
-
 
 ```python
 forecast_length = 6
@@ -113,10 +127,9 @@ interpretable_milkmodel = NBeatsNet(
 )
 ```
 
-This model will forecast 6 steps into the future. The common practice is to use a multiple of the forecast horizon for the backcast length.  In this case, we will use 4 times the forecast horizon. 
+This model will forecast 6 steps into the future. The common practice is to use a multiple of the forecast horizon for the backcast length.  In this case, we will use 4 times the forecast horizon.
 
-Larger batch sizes will result in faster training, but may require more memory.  The number of blocks per stack is a hyperparameter that can be tuned.  The share_weights parameter is set to True to share weights across the blocks. Gerneally deeper stacks do not result in more accurate predictions as the model saturates pretty quickly.  To improve accuracy it is best to build moultiple models from differnt architectures and combine them in an ensemble by taking the forecast from each and using something like the mean or median of the combined results. 
-
+Larger batch sizes will result in faster training, but may require more memory.  The number of blocks per stack is a hyperparameter that can be tuned.  The share_weights parameter is set to True to share weights across the blocks. Gerneally deeper stacks do not result in more accurate predictions as the model saturates pretty quickly.  To improve accuracy it is best to build moultiple models from differnt architectures and combine them in an ensemble by taking the forecast from each and using something like the mean or median of the combined results.
 
 #### Define a Pytorch Lightning DataModule
 
@@ -171,19 +184,59 @@ interpretable_trainer.fit(interpretable_milkmodel, datamodule=dm)
 interpretable_trainer.validate(interpretable_milkmodel, datamodule=dm) 
 ```
 
-#### Using CUDA GPU for Training
+#### Hardware Acceleration (GPU Support)
 
-If you have a CUDA capable GPU, you will want to install the [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) and the [PyTorch](https://pytorch.org/get-started/locally/) version that works with the toolkit. Installing these pacakged will allow you to train your model on the GPU.  You can check if you have a CUDA capable GPU by running the following command in your terminal:
+This package supports multiple hardware accelerators. The PyTorch Lightning Trainer with `accelerator='auto'` will automatically select the best available device in this priority order: **CUDA GPU** > **Apple MPS** > **CPU**.
 
-```bash
-  $ nvidia-smi
-```
+| Accelerator | Platform | Notes |
+| --- | --- | --- |
+| **CUDA** | NVIDIA GPUs (Linux/Windows) | Install the [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) and the matching [PyTorch CUDA build](https://pytorch.org/get-started/locally/) |
+| **MPS** | Apple Silicon (macOS) | Metal Performance Shaders — available out of the box on M1/M2/M3/M4 Macs with PyTorch >= 2.1.0 |
+| **CPU** | Any | Fallback when no GPU is available |
 
-or in python environment
+You can check which accelerator is available on your system:
 
 ```python
-  import torch
-  torch.cuda.is_available()
+from lightningnbeats import get_best_accelerator
+print(get_best_accelerator())  # Returns 'cuda', 'mps', or 'cpu'
+```
+
+Or check individually:
+
+```python
+import torch
+print(f"CUDA available: {torch.cuda.is_available()}")
+print(f"MPS available:  {torch.backends.mps.is_available()}")
+```
+
+The `get_best_accelerator()` utility function returns a string compatible with Lightning's `accelerator` parameter:
+
+```python
+from lightningnbeats import NBeatsNet, get_best_accelerator
+import lightning.pytorch as pl
+
+accelerator = get_best_accelerator()
+trainer = pl.Trainer(accelerator=accelerator, max_epochs=100)
+```
+
+### Running Examples
+
+Example scripts are in the `examples/` directory and can be run as standalone scripts or cell-by-cell in Jupyter (using `#%%` markers):
+
+```bash
+cd examples
+python M4AllBlks.py       # M4 dataset benchmark across all block types
+python TourismAllBlks.py  # Tourism dataset benchmark
+```
+
+### Running Tests
+
+Tests use pytest:
+
+```bash
+pytest tests/              # run all tests
+pytest tests/ -v           # verbose output
+pytest tests/test_blocks.py  # run a specific test file
 ```
 
 ## N-BEATS Extensions and Variations
@@ -202,12 +255,11 @@ The intuition behind the inclusion of this parameter is that the Generic model a
 
 This modification to the original specification is however consistent with the original design.  Take for instance the Interpretable arcitecture as defined in the original paper.  The basis functions used in the Trend, Seasonality, and (in this version) the Wavlet blocks are by their nature non-linear functions. In the original design then, leaving activation funcitons off of the final two layers as depicted in the paper, is actually inconsistent with the Interpretible architecture. Therefore, this feature modifies the Generic model to be more similar in structure to the other basis function blocks.
 
-
 ### Wavelet Basis Expansion Blocks
 
-This repository constains a number of experimental Wavelet Basis Expansion Blocks. Wavelet basis expansion is a mathematical technique used to represent signals or functions in terms of simpler, fixed building blocks called wavelets. Unlike Fourier transforms, which use sine and cosine functions as basis elements, wavelets can be localized in both time and frequency. This means they can represent both the frequency content of a signal and when these frequencies occur. 
+This repository constains a number of experimental Wavelet Basis Expansion Blocks. Wavelet basis expansion is a mathematical technique used to represent signals or functions in terms of simpler, fixed building blocks called wavelets. Unlike Fourier transforms, which use sine and cosine functions as basis elements, wavelets can be localized in both time and frequency. This means they can represent both the frequency content of a signal and when these frequencies occur.
 
-This method is particularly useful for analyzing functions or signals that contain features at multiple scales.  The multi-resolution analysis capability of wavelets is particularly suited to capturing the essence of time series data then, which can have complex, hierarchical structures due to the presence of trends, seasonal effects, cycles, and irregular fluctuations. 
+This method is particularly useful for analyzing functions or signals that contain features at multiple scales.  The multi-resolution analysis capability of wavelets is particularly suited to capturing the essence of time series data then, which can have complex, hierarchical structures due to the presence of trends, seasonal effects, cycles, and irregular fluctuations.
 
 Wavelet blocks can be used in isolation or in combination with other blocks freely. For instance
 
@@ -236,12 +288,12 @@ The Wavelet blocks avaiavlable in this repository are as follows:
 - Coif2Wavelet
 - Coif2AltWavelet
 - Coif3Wavelet
-- Coif10Wavelet 
+- Coif10Wavelet
 - Symlet2Wavelet
 - Symlet2AltWavelet
 - Symlet3Wavelet  
 - Symlet10Wavelet
-- Symlet20Wavelet 
+- Symlet20Wavelet
 
 ### AutoEncoder Block
 
@@ -249,7 +301,7 @@ The AutoEncoder Block utilizes an AutoEncoider structure in both the forecast an
 
 Like any other blocks in this implementation, the AutoEncoder block can be used in isolation or in combination with other blocks freely. For instance
 
-```python 
+```python
 n_stacks = 5
 stack_types = ['AutoEncoder'] * n_stacks # 5 stacks of AutoEncoder blocks 
 stack_types = ['Trend','AutoEncoder'] * n_stacks # 5 stacks of 1 Trend block followed by 1 AutoEncoder block
@@ -259,7 +311,7 @@ stack_types = ['Trend','AutoEncoder'] * n_stacks # 5 stacks of 1 Trend block fol
 
 The GenericAEBackcast block is a Generic block that uses an AutoEncoder structure in only the backcast branch of the N-BEATS architecture.  This block is useful for noisey time series data like Electric generation or in highly varied datasets like the M4.   It doesn't struggle like the AutoEncoder block does with simpler more predictable datasets like the Milk Production Dataset.  It is genreally more accurate than the AutoEncoder block, and it settles on a solution faster.  
 
-```python 
+```python
 n_stacks = 5
 stack_types = ['GenericAEBackcast'] * n_stacks # 5 stacks of GenericAEBackcast blocks 
 stack_types = ['Trend','GenericAEBackcast'] * n_stacks # 5 stacks of 1 Trend and 1 GenericAEBackcast block
@@ -267,7 +319,7 @@ stack_types = ['Trend','GenericAEBackcast'] * n_stacks # 5 stacks of 1 Trend and
 
 ### AERootBlock and its Variations
 
-The base N-Beats model consists of a stack of fully connected layers at the head of every block before the signal is spilt into backcast and forecast branches.The AERootBlock is a variation of the root block that uses an AutoEncoder structure as opposed to a uniform stack of fully connected layers.  The AERootBlock is useful for noisey time series data like Electric generation or in highly varied datasets like the M4. 
+The base N-Beats model consists of a stack of fully connected layers at the head of every block before the signal is spilt into backcast and forecast branches.The AERootBlock is a variation of the root block that uses an AutoEncoder structure as opposed to a uniform stack of fully connected layers.  The AERootBlock is useful for noisey time series data like Electric generation or in highly varied datasets like the M4.
 
 The AERootblock is the parent class of the following blocks:
 
@@ -292,7 +344,7 @@ The sum_losses experimental feature is an experimental feature which takes in co
 
 This feature is not included in the original N-Beats paper.  However, it is included in this implementation as an experimental feature.  It is not clear if this feature improves the performance of the model since more experimentation is needed.  To enable this feature set `sum_losses` to `True` in the model definition.  
 
-```python 
+```python
 n_stacks = 5
 TrendAutoEncoder_milkmodel = NBeatsNet(
   stack_types=['Trend', 'AutoEncoder']*n_stacks,

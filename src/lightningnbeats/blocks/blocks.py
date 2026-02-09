@@ -1,11 +1,8 @@
 import torch
-import pytorch_lightning as pl
 from torch import nn
-from torch.autograd import Variable
 from ..constants import ACTIVATIONS
 import numpy as np
 import pywt
-from scipy.signal import resample
 from scipy.interpolate import interp1d
 
 def squeeze_last_dim(tensor):
