@@ -100,9 +100,10 @@ class RowCollectionTimeSeriesDataModule(pl.LightningDataModule):
     shuffled = self.data.sample(frac=1, axis = 0).reset_index(drop=True)        
     total_len = self.backcast_length + self.forecast_length
     
-    # Split the original data into training and validation sets
-    self.train_data = shuffled[:, :-self.forecast_length]
-    self.val_data = self.val_data[:, -self.backcast_length-self.forecast_length:]
+    # Split the original data into training and validation sets (split by rows, not columns)
+    split_idx = int(len(shuffled) * self.split_ratio)
+    self.train_data = shuffled.iloc[:split_idx].values
+    self.val_data = shuffled.iloc[split_idx:].values
 
         
     if self.fill_short_ts:
@@ -374,8 +375,10 @@ class ColumnarCollectionTimeSeriesTestDataModule(pl.LightningDataModule):
     """
     super(ColumnarCollectionTimeSeriesTestDataModule, self).__init__()
     
-
-    self.test_data = pd.concat([train_data[-backcast_length:], test_data]).reset_index(drop=True)
+    if backcast_length > len(train_data):
+      raise ValueError(f"backcast_length ({backcast_length}) cannot exceed training data length ({len(train_data)})")
+    
+    self.test_data = pd.concat([train_data.iloc[-backcast_length:], test_data]).reset_index(drop=True)
     self.backcast_length = backcast_length
     self.forecast_length = forecast_length
     self.batch_size = batch_size

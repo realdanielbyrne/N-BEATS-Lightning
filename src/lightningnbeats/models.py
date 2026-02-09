@@ -179,13 +179,13 @@ class NBeatsNet(pl.LightningModule):
           # share weights across blocks
           block = blocks[-1]  
         else:           
-          if (stack_type == "Generic" or "GenericAE" or "GenericAEBackcast"):
+          if stack_type in ["Generic", "GenericAE", "GenericAEBackcast", "GenericAEBackcastAE"]:
             units = self.g_width
-          elif (stack_type == "Seasonality" or "SeasonalityAE"):
+          elif stack_type in ["Seasonality", "SeasonalityAE"]:
             units = self.s_width
-          elif (stack_type == "Trend" or "TrendAE"):
+          elif stack_type in ["Trend", "TrendAE"]:
             units = self.t_width
-          elif (stack_type == "AutoEncoder" or "AutoEncoderAE"):
+          elif stack_type in ["AutoEncoder", "AutoEncoderAE"]:
             units = self.ae_width
           else: 
             units = self.g_width
@@ -300,8 +300,7 @@ class NBeatsNet(pl.LightningModule):
     if self.optimizer_name not in OPTIMIZERS:
         raise ValueError(f"Unknown optimizer name: {self.optimizer_name}. Please select one of {OPTIMIZERS}")
     
-    #optimizer = getattr(optim, self.optimizer_name)(self.parameters(), lr=self.learning_rate)
-    optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+    optimizer = getattr(optim, self.optimizer_name)(self.parameters(), lr=self.learning_rate)
     return optimizer
     # scheduler = {
     #   'scheduler': StepLR(optimizer, step_size=10, gamma=0.1),
