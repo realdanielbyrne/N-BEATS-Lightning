@@ -53,6 +53,17 @@ M4_PERIODS = {
     "Hourly":    {"frequency": 24, "horizon": 48},
 }
 
+# Naïve2 baseline values from the M4 competition (Makridakis et al., 2020).
+# Used to compute OWA = 0.5 * (sMAPE/sMAPE_Naive2 + MASE/MASE_Naive2).
+NAIVE2_SMAPE = {
+    "Yearly": 16.342, "Quarterly": 11.012, "Monthly": 14.427,
+    "Weekly": 9.161,  "Daily": 3.045,      "Hourly": 18.383,
+}
+NAIVE2_MASE = {
+    "Yearly": 3.974, "Quarterly": 1.371, "Monthly": 1.063,
+    "Weekly": 2.777, "Daily": 3.278,     "Hourly": 2.395,
+}
+
 # Fixed training hyperparameters — matches original paper where applicable
 BATCH_SIZE = 1024                # Paper: 1024
 FORECAST_MULTIPLIER = 5          # Paper uses 2-7 for ensemble; 5H is a reasonable single point
@@ -186,7 +197,7 @@ CSV_COLUMNS = [
     "experiment", "config_name", "stack_types", "period", "frequency",
     "forecast_length", "backcast_length", "n_stacks", "n_blocks_per_stack",
     "share_weights", "run", "seed",
-    "smape", "mase", "n_params",
+    "smape", "mase", "owa", "n_params",
     "training_time_seconds", "epochs_trained",
     "active_g", "sum_losses", "activation",
 ]
@@ -247,6 +258,16 @@ def compute_m4_mase(y_pred, y_true, train_series_list, frequency):
     if len(mase_values) == 0:
         return float("nan")
     return float(np.mean(mase_values))
+
+
+def compute_owa(smape, mase, period):
+    """OWA (Overall Weighted Average) as defined in the M4 competition.
+
+    OWA = 0.5 * (sMAPE / sMAPE_Naive2 + MASE / MASE_Naive2)
+
+    A seasonally-adjusted naïve forecast obtains OWA = 1.0. Lower is better.
+    """
+    return 0.5 * (smape / NAIVE2_SMAPE[period] + mase / NAIVE2_MASE[period])
 
 
 def get_training_series(m4_dataset):
@@ -461,8 +482,9 @@ def run_single_experiment(
     # Metrics
     smape = compute_smape(preds, targets)
     mase = compute_m4_mase(preds, targets, train_series_list, frequency)
+    owa = compute_owa(smape, mase, period)
 
-    print(f"         sMAPE={smape:.4f}  MASE={mase:.4f}  "
+    print(f"         sMAPE={smape:.4f}  MASE={mase:.4f}  OWA={owa:.4f}  "
           f"time={training_time:.1f}s  epochs={epochs_trained}")
 
     # Save result — record unique block types for readability
@@ -482,6 +504,7 @@ def run_single_experiment(
         "seed": seed,
         "smape": f"{smape:.6f}",
         "mase": f"{mase:.6f}",
+        "owa": f"{owa:.6f}",
         "n_params": n_params,
         "training_time_seconds": f"{training_time:.2f}",
         "epochs_trained": epochs_trained,
