@@ -8,7 +8,7 @@ PyTorch Lightning implementation of the N-BEATS (Neural Basis Expansion Analysis
 
 ### Requirements
 
-- **Python** >= 3.12
+- **Python** >= 3.12, < 3.15
 - **PyTorch** >= 2.1.0
 - **Lightning** >= 2.1.0
 
@@ -29,9 +29,14 @@ Dependencies are defined in `pyproject.toml`. Uses setuptools as build backend.
 Examples are in `examples/` and are designed to run as scripts or Jupyter cell-by-cell (`#%%` markers):
 
 ```bash
-cd examples
-python M4AllBlks.py       # M4 dataset benchmark across all block types
-python TourismAllBlks.py  # Tourism dataset benchmark
+python examples/M4AllBlks.py       # M4 dataset benchmark across all block types
+python examples/TourismAllBlks.py  # Tourism dataset benchmark
+```
+
+The `experiments/run_experiments.py` script runs systematic M4 benchmarks with multiple seeds:
+
+```bash
+python experiments/run_experiments.py --part 1 --periods Yearly --max-epochs 50
 ```
 
 ## Testing
@@ -42,39 +47,58 @@ Tests are in `tests/` and use pytest:
 pytest tests/                        # run all tests
 pytest tests/ -v                     # verbose output
 pytest tests/test_blocks.py          # run specific test file
+pytest tests/test_blocks.py -k "TestGenericArchitecture"  # run single test class
+pytest tests/test_blocks.py -k "test_output_shapes"       # run single test method
 ```
+
+Test files: `test_blocks.py` (block shapes, attributes, registries), `test_loaders.py` (DataModule setup, splits), `test_models.py` (width selection, optimizer dispatch, forward pass, sum_losses). Note: CI does not run tests before publishing.
 
 ## Architecture
 
 ### Package Structure (`src/lightningnbeats/`)
 
-- **`models.py`** - `NBeatsNet(pl.LightningModule)`: the main model class. Accepts a `stack_types` list of strings to define architecture. Handles forward pass with backward/forward residual connections, training/validation/test steps, loss configuration, and optimizer setup.
-- **`blocks/blocks.py`** - All block implementations. This is the largest file. Block hierarchy:
-  - `RootBlock(nn.Module)` - base: 4 FC layers with activation. Parent of `Generic`, `BottleneckGeneric`, `Seasonality`, `Trend`, `AutoEncoder`, `GenericAEBackcast`, `Wavelet`, `AltWavelet`.
-  - `AERootBlock(nn.Module)` - autoencoder base: FC layers organized as encoder-decoder. Parent of `GenericAE`, `BottleneckGenericAE`, `TrendAE`, `SeasonalityAE`, `AutoEncoderAE`, `GenericAEBackcastAE`.
-  - Wavelet blocks (`HaarWavelet`, `DB2Wavelet`, etc.) are thin subclasses of `Wavelet` or `AltWavelet` that only set the wavelet type.
-- **`loaders.py`** - PyTorch Lightning DataModules and Datasets:
-  - `TimeSeriesDataModule` / `TimeSeriesDataset` - single univariate series
-  - `RowCollectionTimeSeriesDataModule` / `RowCollectionTimeSeriesDataset` - collection where rows=series, cols=observations (M4 format)
-  - `ColumnarCollectionTimeSeriesDataModule` / `ColumnarTimeSeriesDataset` - collection where cols=series, rows=observations (Tourism format)
-  - Test variants: `RowCollectionTimeSeriesTestModule`, `ColumnarCollectionTimeSeriesTestDataModule`
-- **`losses.py`** - Custom loss functions: `SMAPELoss`, `MAPELoss`, `MASELoss`, `NormalizedDeviationLoss`
-- **`constants.py`** - Valid string values for `ACTIVATIONS`, `LOSSES`, `OPTIMIZERS`, `BLOCKS`. Block types and losses are resolved by string lookup.
-- **`data/M4/`** - M4Dataset loader with bundled CSV data files
+- **`models.py`** — `NBeatsNet(pl.LightningModule)`: the main model class. Accepts a `stack_types` list of strings to define architecture. Handles forward pass with backward/forward residual connections, training/validation/test steps, loss configuration, and optimizer setup.
+- **`blocks/blocks.py`** — All block implementations (~1086 lines, the largest file). Two parallel inheritance hierarchies:
+  - `RootBlock(nn.Module)` — Standard backbone: 4 FC layers with activation. Parent of `Generic`, `BottleneckGeneric`, `Seasonality`, `Trend`, `AutoEncoder`, `GenericAEBackcast`, `Wavelet`, `AltWavelet`, and all concrete wavelet subclasses.
+  - `AERootBlock(nn.Module)` — Autoencoder backbone: encoder (units → units/2 → latent_dim) then decoder (latent_dim → units/2 → units). Parent of `GenericAE`, `BottleneckGenericAE`, `TrendAE`, `SeasonalityAE`, `AutoEncoderAE`, `GenericAEBackcastAE`.
+  - Wavelet blocks (`HaarWavelet`, `DB2Wavelet`, etc.) are thin subclasses that only set the wavelet type string. `Wavelet` uses a square basis with learned downsampling; `AltWavelet` uses a rectangular basis with direct output.
+  - Basis generators (`_SeasonalityGenerator`, `_TrendGenerator`, `_WaveletGenerator`, `_AltWaveletGenerator`) produce non-trainable basis matrices registered as buffers.
+- **`loaders.py`** — PyTorch Lightning DataModules and Datasets. Two data layout conventions:
+  - **Row-oriented** (M4 format): rows = series, cols = time observations. `RowCollectionTimeSeriesDataModule` splits by time dimension; validation = last `backcast + forecast` columns.
+  - **Columnar** (Tourism format): cols = series, rows = time observations. `ColumnarCollectionTimeSeriesDataModule` supports `no_val` mode. Short series are padded with zeros.
+  - `TimeSeriesDataModule` / `TimeSeriesDataset` — single univariate series with 80/20 random split.
+  - Test variants (`RowCollectionTimeSeriesTestModule`, `ColumnarCollectionTimeSeriesTestDataModule`) concatenate train tail + test head for evaluation.
+- **`losses.py`** — Custom loss functions: `SMAPELoss`, `MAPELoss`, `MASELoss`, `NormalizedDeviationLoss`
+- **`constants.py`** — String registries: `ACTIVATIONS`, `LOSSES`, `OPTIMIZERS`, `BLOCKS`. All configuration is resolved by string lookup against these lists.
+- **`data/M4/`** — `M4Dataset` loader with bundled CSV data files for all 6 M4 periods.
 
 ### Key Design Patterns
 
-- **String-based block dispatch**: `NBeatsNet.create_stack()` uses `getattr(b, stack_type)(...)` to instantiate blocks by name. Valid names are in `constants.BLOCKS`.
+- **String-based block dispatch**: `NBeatsNet.create_stack()` uses `getattr(b, stack_type)(...)` to instantiate blocks by name. Valid names must appear in `constants.BLOCKS`.
 - **All blocks return `(backcast, forecast)` tuples**. The forward pass subtracts backcast from input (residual) and adds forecast to output.
-- **`active_g` parameter**: Non-standard extension that applies activation to the final linear layers of Generic-type blocks. Helps convergence. Default `False` (paper-faithful).
+- **`active_g` parameter**: Non-standard extension that applies activation to the final linear layers of Generic-type blocks. Default `False` (paper-faithful).
 - **Weight sharing**: When `share_weights=True`, blocks within a stack reuse the first block's parameters.
-- **`sum_losses`**: Feature adding weighted backcast reconstruction loss (1/4 weight) to forecast loss. Penalizes non-zero residuals, pushing backcasts to fully reconstruct the input.
-- **Generic vs BottleneckGeneric**: `Generic` matches the paper (single linear projection to target length). `BottleneckGeneric` uses a two-stage projection through `thetas_dim` bottleneck (rank-d factorized basis expansion).
+- **`sum_losses`**: Adds weighted backcast reconstruction loss (0.25 × loss vs zeros) to forecast loss, pushing backcasts to fully reconstruct the input.
+- **Generic vs BottleneckGeneric**: `Generic` matches the paper (single linear projection to target length). `BottleneckGeneric` projects through `thetas_dim` bottleneck first (rank-d factorized basis expansion).
 
-### Width Parameters
+### Width Parameter Mapping
 
-Different block types use different width parameters: `g_width` (Generic/BottleneckGeneric, default 512), `s_width` (Seasonality, default 2048), `t_width` (Trend, default 256), `ae_width` (AutoEncoder, default 512). The `create_stack` method uses `stack_type in [...]` checks to select the appropriate width.
+The `create_stack` method selects hidden layer width by block type:
+
+| Width param | Default | Block types |
+|---|---|---|
+| `g_width` | 512 | `Generic`, `BottleneckGeneric`, `GenericAE`, `BottleneckGenericAE`, `GenericAEBackcast`, `GenericAEBackcastAE`, all wavelet blocks |
+| `s_width` | 2048 | `Seasonality`, `SeasonalityAE` |
+| `t_width` | 256 | `Trend`, `TrendAE` |
+| `ae_width` | 512 | `AutoEncoder`, `AutoEncoderAE` |
+
+### Adding a New Block Type
+
+1. Create the block class in `blocks/blocks.py`, inheriting from `RootBlock` or `AERootBlock`. Must implement `forward()` returning `(backcast, forecast)`.
+2. Add the class name string to the `BLOCKS` list in `constants.py`.
+3. If the block needs a new width parameter, add the mapping in `NBeatsNet.create_stack()` in `models.py`.
+4. Add a shape test in `tests/test_blocks.py` — the parametrized `TestAllBlocksOutputShapes` will automatically cover it if it's in `BLOCKS`.
 
 ## CI/CD
 
-GitHub Actions workflow (`.github/workflows/python-publish.yml`) publishes to PyPI on GitHub release using `pypa/gh-action-pypi-publish`.
+GitHub Actions workflow (`.github/workflows/python-publish.yml`) publishes to PyPI on GitHub release using `pypa/gh-action-pypi-publish`. No tests or linting run in CI.

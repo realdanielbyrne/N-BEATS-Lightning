@@ -1,14 +1,16 @@
 """
 M4 Benchmark Experiment Script for N-BEATS Lightning
 
-Runs systematic benchmarks of all block-type extensions against paper baselines
-on the M4 dataset. Produces CSV results suitable for generating tables and charts.
+1:1 comparison with the original N-BEATS paper (Oreshkin et al., 2019) using
+paper-faithful hyperparameters (30 stacks, batch=1024, lr=1e-3, early stopping),
+alongside novel extensions from this codebase.
 
-Part 1: Block-type benchmark (14 configurations)
-Part 2: Ablation studies on Generic (7 configurations)
+Part 1: Block-type benchmark — Paper baselines (N-BEATS-G, N-BEATS-I) plus
+        novel block types at the same 30-stack scale for fair comparison.
+Part 2: Ablation studies on 30-stack Generic — active_g, sum_losses, activations.
 
 Usage:
-    python experiments/run_experiments.py --part 1 --periods Yearly --max-epochs 50
+    python experiments/run_experiments.py --part 1 --periods Yearly --max-epochs 100
     python experiments/run_experiments.py --part all
     python experiments/run_experiments.py --part 2 --periods Yearly Monthly --max-epochs 100
 """
@@ -23,7 +25,7 @@ import time
 import numpy as np
 import torch
 import lightning.pytorch as pl
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch import loggers as pl_loggers
 
 # Allow running from project root or experiments/
@@ -51,15 +53,16 @@ M4_PERIODS = {
     "Hourly":    {"frequency": 24, "horizon": 48},
 }
 
-# Fixed training hyperparameters
-BATCH_SIZE = 2048
-FORECAST_MULTIPLIER = 5
-TOTAL_STACKS = 8
-THETAS_DIM = 5
-LATENT_DIM = 4
-BASIS_DIM = 128
-LOSS = "SMAPELoss"
-LEARNING_RATE = 1e-4
+# Fixed training hyperparameters — matches original paper where applicable
+BATCH_SIZE = 1024                # Paper: 1024
+FORECAST_MULTIPLIER = 5          # Paper uses 2-7 for ensemble; 5H is a reasonable single point
+TOTAL_STACKS = 30                # Paper: 30 for Generic architecture
+THETAS_DIM = 5                   # Polynomial degree for Trend; bottleneck dim for BottleneckGeneric
+LATENT_DIM = 4                   # For AE backbone blocks
+BASIS_DIM = 128                  # For Wavelet blocks
+LOSS = "SMAPELoss"               # Paper primary metric and training loss
+LEARNING_RATE = 1e-3             # Paper: 1e-3
+EARLY_STOPPING_PATIENCE = 10    # Paper uses early stopping on validation loss
 
 N_RUNS = 3
 BASE_SEED = 42
@@ -71,38 +74,108 @@ RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 # ---------------------------------------------------------------------------
 
 BLOCK_CONFIGS = {
-    # Paper baselines
-    "Generic":              ["Generic"],
-    "Trend+Seasonality":    ["Trend", "Seasonality"],
-    # Novel block types
-    "BottleneckGeneric":    ["BottleneckGeneric"],
-    "AutoEncoder":          ["AutoEncoder"],
-    "GenericAE":            ["GenericAE"],
-    "BottleneckGenericAE":  ["BottleneckGenericAE"],
-    "GenericAEBackcast":    ["GenericAEBackcast"],
-    # Wavelets (representative subset)
-    "HaarWavelet":          ["HaarWavelet"],
-    "DB3Wavelet":           ["DB3Wavelet"],
-    "DB3AltWavelet":        ["DB3AltWavelet"],
-    "Coif2Wavelet":         ["Coif2Wavelet"],
-    "Symlet3Wavelet":       ["Symlet3Wavelet"],
-    # Mixed stacks
-    "Trend+HaarWavelet":    ["Trend", "HaarWavelet"],
-    "Generic+DB3Wavelet":   ["Generic", "DB3Wavelet"],
+    # ===== Paper Baselines (1:1 reproduction) =====
+    # N-BEATS-G: 30 stacks x 1 Generic block, shared weights (paper Section 3)
+    "NBEATS-G": {
+        "stack_types": ["Generic"] * 30,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    # N-BEATS-I: Trend + Seasonality, 3 blocks/stack, shared weights (paper Section 3)
+    "NBEATS-I": {
+        "stack_types": ["Trend", "Seasonality"],
+        "n_blocks_per_stack": 3,
+        "share_weights": True,
+    },
+    # ===== Novel Single-Type Blocks (30 stacks — fair comparison with G) =====
+    "BottleneckGeneric": {
+        "stack_types": ["BottleneckGeneric"] * 30,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "AutoEncoder": {
+        "stack_types": ["AutoEncoder"] * 30,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "GenericAE": {
+        "stack_types": ["GenericAE"] * 30,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "BottleneckGenericAE": {
+        "stack_types": ["BottleneckGenericAE"] * 30,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "GenericAEBackcast": {
+        "stack_types": ["GenericAEBackcast"] * 30,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    # Wavelets (representative from each family)
+    "HaarWavelet": {
+        "stack_types": ["HaarWavelet"] * 30,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "DB3Wavelet": {
+        "stack_types": ["DB3Wavelet"] * 30,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "DB3AltWavelet": {
+        "stack_types": ["DB3AltWavelet"] * 30,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "Coif2Wavelet": {
+        "stack_types": ["Coif2Wavelet"] * 30,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "Symlet3Wavelet": {
+        "stack_types": ["Symlet3Wavelet"] * 30,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    # ===== Novel Interpretable (fair comparison with I) =====
+    "NBEATS-I-AE": {
+        "stack_types": ["TrendAE", "SeasonalityAE"],
+        "n_blocks_per_stack": 3,
+        "share_weights": True,
+    },
+    # ===== Mixed Stacks (30 total — novel compositions) =====
+    "Trend+HaarWavelet": {
+        "stack_types": ["Trend", "HaarWavelet"] * 15,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "Trend+DB3Wavelet": {
+        "stack_types": ["Trend", "DB3Wavelet"] * 15,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "Generic+DB3Wavelet": {
+        "stack_types": ["Generic", "DB3Wavelet"] * 15,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
 }
 
 # ---------------------------------------------------------------------------
-# Ablation Configs (Part 2) — all on Generic
+# Ablation Configs (Part 2) — all on 30-stack Generic
 # ---------------------------------------------------------------------------
 
 ABLATION_CONFIGS = {
-    "Generic_baseline":  {"active_g": False, "sum_losses": False, "activation": "ReLU"},
-    "Generic_activeG":   {"active_g": True,  "sum_losses": False, "activation": "ReLU"},
-    "Generic_sumLosses": {"active_g": False, "sum_losses": True,  "activation": "ReLU"},
-    "Generic_GELU":      {"active_g": False, "sum_losses": False, "activation": "GELU"},
-    "Generic_ELU":       {"active_g": False, "sum_losses": False, "activation": "ELU"},
-    "Generic_LeakyReLU": {"active_g": False, "sum_losses": False, "activation": "LeakyReLU"},
-    "Generic_SELU":      {"active_g": False, "sum_losses": False, "activation": "SELU"},
+    "Generic_baseline":      {"active_g": False, "sum_losses": False, "activation": "ReLU"},
+    "Generic_activeG":       {"active_g": True,  "sum_losses": False, "activation": "ReLU"},
+    "Generic_sumLosses":     {"active_g": False, "sum_losses": True,  "activation": "ReLU"},
+    "Generic_activeG+sumL":  {"active_g": True,  "sum_losses": True,  "activation": "ReLU"},
+    "Generic_GELU":          {"active_g": False, "sum_losses": False, "activation": "GELU"},
+    "Generic_ELU":           {"active_g": False, "sum_losses": False, "activation": "ELU"},
+    "Generic_LeakyReLU":     {"active_g": False, "sum_losses": False, "activation": "LeakyReLU"},
+    "Generic_SELU":          {"active_g": False, "sum_losses": False, "activation": "SELU"},
 }
 
 # ---------------------------------------------------------------------------
@@ -111,7 +184,8 @@ ABLATION_CONFIGS = {
 
 CSV_COLUMNS = [
     "experiment", "config_name", "stack_types", "period", "frequency",
-    "forecast_length", "backcast_length", "run", "seed",
+    "forecast_length", "backcast_length", "n_stacks", "n_blocks_per_stack",
+    "share_weights", "run", "seed",
     "smape", "mase", "n_params",
     "training_time_seconds", "epochs_trained",
     "active_g", "sum_losses", "activation",
@@ -255,16 +329,18 @@ def result_exists(path, experiment, config_name, period, run):
 def run_single_experiment(
     experiment_name,
     config_name,
-    stack_types_base,
+    stack_types,
     period,
     run_idx,
     m4,
     train_series_list,
     csv_path,
+    n_blocks_per_stack=1,
+    share_weights=True,
     active_g=False,
     sum_losses=False,
     activation="ReLU",
-    max_epochs=50,
+    max_epochs=100,
 ):
     """Run a single training + evaluation experiment and save results to CSV."""
 
@@ -280,9 +356,7 @@ def run_single_experiment(
     frequency = m4.frequency
     backcast_length = forecast_length * FORECAST_MULTIPLIER
 
-    # Expand stack types to fill TOTAL_STACKS
-    n_repeats = TOTAL_STACKS // len(stack_types_base)
-    stack_types = stack_types_base * n_repeats
+    n_stacks = len(stack_types)
 
     # Detect accelerator
     if torch.cuda.is_available():
@@ -300,8 +374,8 @@ def run_single_experiment(
         backcast_length=backcast_length,
         forecast_length=forecast_length,
         stack_types=stack_types,
-        n_blocks_per_stack=1,
-        share_weights=False,
+        n_blocks_per_stack=n_blocks_per_stack,
+        share_weights=share_weights,
         thetas_dim=THETAS_DIM,
         loss=LOSS,
         active_g=active_g,
@@ -335,7 +409,7 @@ def run_single_experiment(
         batch_size=BATCH_SIZE,
     )
 
-    # Trainer
+    # Trainer — paper uses early stopping on validation loss
     log_dir = os.path.join(RESULTS_DIR, "lightning_logs")
     log_name = f"{experiment_name}/{config_name}/{period}/run{run_idx}"
 
@@ -346,20 +420,31 @@ def run_single_experiment(
         mode="min",
     )
 
+    early_stop_callback = EarlyStopping(
+        monitor="val_loss",
+        patience=EARLY_STOPPING_PATIENCE,
+        mode="min",
+        verbose=False,
+    )
+
     tb_logger = pl_loggers.TensorBoardLogger(save_dir=log_dir, name=log_name)
 
     trainer = pl.Trainer(
         accelerator=accelerator,
+        devices=1,
         max_epochs=max_epochs,
-        callbacks=[chk_callback],
+        callbacks=[chk_callback, early_stop_callback],
         logger=[tb_logger],
         enable_progress_bar=True,
         deterministic=False,
     )
 
     # Train
+    stack_summary = (f"{n_stacks}x{stack_types[0]}" if len(set(stack_types)) == 1
+                     else f"{n_stacks} mixed")
     print(f"  [RUN]  {config_name} / {period} / run {run_idx} "
-          f"(seed={seed}, stacks={stack_types}, params={n_params:,})")
+          f"(seed={seed}, {stack_summary}, blocks/stack={n_blocks_per_stack}, "
+          f"share_w={share_weights}, params={n_params:,})")
     t0 = time.time()
     trainer.fit(model, datamodule=dm)
     training_time = time.time() - t0
@@ -380,15 +465,19 @@ def run_single_experiment(
     print(f"         sMAPE={smape:.4f}  MASE={mase:.4f}  "
           f"time={training_time:.1f}s  epochs={epochs_trained}")
 
-    # Save result
+    # Save result — record unique block types for readability
+    unique_types = list(dict.fromkeys(stack_types))  # preserves order, deduplicates
     row = {
         "experiment": experiment_name,
         "config_name": config_name,
-        "stack_types": str(stack_types_base),
+        "stack_types": str(unique_types),
         "period": period,
         "frequency": frequency,
         "forecast_length": forecast_length,
         "backcast_length": backcast_length,
+        "n_stacks": n_stacks,
+        "n_blocks_per_stack": n_blocks_per_stack,
+        "share_weights": share_weights,
         "run": run_idx,
         "seed": seed,
         "smape": f"{smape:.6f}",
@@ -426,17 +515,19 @@ def run_block_benchmark(periods, max_epochs):
         m4 = M4Dataset(period, "All")
         train_series_list = get_training_series(m4)
 
-        for config_name, stack_types_base in BLOCK_CONFIGS.items():
+        for config_name, cfg in BLOCK_CONFIGS.items():
             for run_idx in range(N_RUNS):
                 run_single_experiment(
                     experiment_name="block_benchmark",
                     config_name=config_name,
-                    stack_types_base=stack_types_base,
+                    stack_types=cfg["stack_types"],
                     period=period,
                     run_idx=run_idx,
                     m4=m4,
                     train_series_list=train_series_list,
                     csv_path=csv_path,
+                    n_blocks_per_stack=cfg["n_blocks_per_stack"],
+                    share_weights=cfg["share_weights"],
                     active_g=False,
                     sum_losses=False,
                     activation="ReLU",
@@ -445,9 +536,12 @@ def run_block_benchmark(periods, max_epochs):
 
 
 def run_ablation_studies(periods, max_epochs):
-    """Part 2: Ablation studies on Generic block across M4 periods."""
+    """Part 2: Ablation studies on 30-stack Generic across M4 periods."""
     csv_path = os.path.join(RESULTS_DIR, "ablation_results.csv")
     init_csv(csv_path)
+
+    # Ablation baseline: 30-stack Generic with shared weights (paper config)
+    ablation_stack_types = ["Generic"] * TOTAL_STACKS
 
     for period in periods:
         print(f"\n{'='*60}")
@@ -462,12 +556,14 @@ def run_ablation_studies(periods, max_epochs):
                 run_single_experiment(
                     experiment_name="ablation",
                     config_name=config_name,
-                    stack_types_base=["Generic"],
+                    stack_types=ablation_stack_types,
                     period=period,
                     run_idx=run_idx,
                     m4=m4,
                     train_series_list=train_series_list,
                     csv_path=csv_path,
+                    n_blocks_per_stack=1,
+                    share_weights=True,
                     active_g=ablation["active_g"],
                     sum_losses=ablation["sum_losses"],
                     activation=ablation["activation"],
@@ -481,7 +577,7 @@ def run_ablation_studies(periods, max_epochs):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="M4 Benchmark Experiments for N-BEATS Lightning"
+        description="M4 Benchmark — 1:1 N-BEATS paper comparison + novel extensions"
     )
     parser.add_argument(
         "--part", choices=["1", "2", "all"], default="all",
@@ -493,8 +589,8 @@ def main():
         help="M4 periods to benchmark (default: all 6)",
     )
     parser.add_argument(
-        "--max-epochs", type=int, default=50,
-        help="Maximum training epochs per run (default: 50)",
+        "--max-epochs", type=int, default=100,
+        help="Maximum training epochs per run (default: 100, early stopping may end sooner)",
     )
 
     args = parser.parse_args()
