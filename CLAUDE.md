@@ -37,7 +37,11 @@ The `experiments/run_experiments.py` script runs systematic M4 benchmarks with m
 
 ```bash
 python experiments/run_experiments.py --part 1 --periods Yearly --max-epochs 50
+python experiments/run_experiments.py --part 2 --periods Yearly Monthly --max-epochs 100
+python experiments/run_experiments.py --part all
 ```
+
+`--part 1`: Block-type benchmark (paper baselines + novel blocks at 30-stack scale). `--part 2`: Ablation studies (active_g, sum_losses, activations). `--periods`: one or more of `Yearly`, `Quarterly`, `Monthly`, `Weekly`, `Daily`, `Hourly`.
 
 ## Testing
 
@@ -51,7 +55,7 @@ pytest tests/test_blocks.py -k "TestGenericArchitecture"  # run single test clas
 pytest tests/test_blocks.py -k "test_output_shapes"       # run single test method
 ```
 
-Test files: `test_blocks.py` (block shapes, attributes, registries), `test_loaders.py` (DataModule setup, splits), `test_models.py` (width selection, optimizer dispatch, forward pass, sum_losses). Note: CI does not run tests before publishing.
+Test files: `test_blocks.py` (block shapes, attributes, registries), `test_loaders.py` (DataModule setup, splits), `test_models.py` (width selection, optimizer dispatch, forward pass, sum_losses). Note: CI does not run tests before publishing. No linter or formatter is configured.
 
 ## Architecture
 
@@ -74,6 +78,7 @@ Test files: `test_blocks.py` (block shapes, attributes, registries), `test_loade
 
 ### Key Design Patterns
 
+- **`stack_types` is required**: `NBeatsNet` raises `ValueError` if `stack_types` is not provided. There is no default architecture.
 - **String-based block dispatch**: `NBeatsNet.create_stack()` uses `getattr(b, stack_type)(...)` to instantiate blocks by name. Valid names must appear in `constants.BLOCKS`.
 - **All blocks return `(backcast, forecast)` tuples**. The forward pass subtracts backcast from input (residual) and adds forecast to output.
 - **`active_g` parameter**: Non-standard extension that applies activation to the final linear layers of Generic-type blocks. Default `False` (paper-faithful).
