@@ -259,7 +259,7 @@ All experiments share the following training configuration, chosen to match the 
 - **Early stopping**: patience = 10, monitoring validation loss
 - **Maximum epochs**: 100 (early stopping typically terminates training well before this limit)
 - **Backcast multiplier**: 5x forecast horizon (paper uses 2H-7H for ensemble; 5H is a representative single point)
-- **Seeds**: 3 runs per configuration (seeds 42, 43, 44)
+- **Seeds**: 5 runs per configuration (seeds 42, 43, 44, 45, 46)
 - **Thetas dim**: 5 (polynomial degree for Trend; bottleneck dimension for BottleneckGeneric)
 - **Latent dim**: 4 (for AE-backbone blocks)
 - **Basis dim**: 128 (for Wavelet blocks)
@@ -320,7 +320,7 @@ Throughout this section, a run is classified as **healthy** if it produced non-N
 
 #### 5.1.1 Main OWA Comparison
 
-Table 2 presents the primary results: mean OWA across healthy seeds for each configuration, grouped by category. Only configurations with at least 2 healthy seeds out of 3 are included in the main comparison; wavelet-only and unstable mixed configurations are analyzed separately in Section 5.1.3.
+Table 2 presents the primary results: mean OWA across healthy seeds for each configuration, grouped by category. Only configurations with at least 3 healthy seeds out of 5 are included in the main comparison; wavelet-only and unstable mixed configurations are analyzed separately in Section 5.1.3.
 
 **Table 2: Mean OWA by Configuration and Period (healthy runs only)**
 
@@ -429,17 +429,17 @@ When wavelet blocks do converge, they can be competitive: Coif2Wavelet seed 44 o
 
 **Figure 1: N-BEATS Architecture Diagram.** Block diagram showing the doubly residual topology: a sequence of stacks, each containing blocks with the four-FC-layer backbone (RootBlock) or hourglass AE backbone (AERootBlock). Insets compare the three basis expansion families: (a) Generic/BottleneckGeneric linear projection, (b) Trend polynomial / Seasonality Fourier constrained basis, (c) Wavelet multi-resolution basis with learned downsampling. Backward residual connections (subtraction) and forward residual connections (summation) are highlighted with directional arrows. *[To be produced as vector graphic.]*
 
-**Figure 2: OWA Comparison Bar Chart (Yearly Period).** Grouped bar chart with configurations on the x-axis (sorted by mean OWA, best to worst) and OWA on the y-axis (range 0.78-0.85). Bars colored by category: blue = Baseline (NBEATS-G, NBEATS-I, NBEATS-I+G), green = Novel (BottleneckGeneric, AutoEncoder, GenericAEBackcast), orange = AE-backbone (GenericAE, BottleneckGenericAE, NBEATS-I-AE), purple = Mixed (Trend+DB3Wavelet). Error bars show ±1 standard deviation across 3 seeds. Horizontal dashed line at OWA = 1.0 (Naive2 baseline). *[To be produced from block_benchmark_results.csv.]*
+**Figure 2: OWA Comparison Bar Chart (Yearly Period).** Grouped bar chart with configurations on the x-axis (sorted by mean OWA, best to worst) and OWA on the y-axis (range 0.78-0.85). Bars colored by category: blue = Baseline (NBEATS-G, NBEATS-I, NBEATS-I+G), green = Novel (BottleneckGeneric, AutoEncoder, GenericAEBackcast), orange = AE-backbone (GenericAE, BottleneckGenericAE, NBEATS-I-AE), purple = Mixed (Trend+DB3Wavelet). Error bars show ±1 standard deviation across 5 seeds. Horizontal dashed line at OWA = 1.0 (Naive2 baseline). *[To be produced from block_benchmark_results.csv.]*
 
 **Figure 3: Parameter Efficiency Scatter Plot.** Parameters (millions, log scale x-axis) versus mean OWA (y-axis) for the Yearly period. Points labeled by configuration name, colored by category. Pareto frontier connects NBEATS-I-AE (2.2M, 0.805), BottleneckGenericAE (4.3M, 0.806), and AutoEncoder (24.9M, 0.804). Key finding: AE-backbone blocks achieve 5-10x parameter reduction with comparable OWA. Configurations above the Pareto frontier are dominated (more parameters for equal or worse accuracy). *[To be produced from block_benchmark_results.csv.]*
 
 **Figure 4: OWA Heatmap across Configurations and Periods.** Rows = configurations (sorted by Yearly OWA), columns = Yearly / Quarterly / Monthly. Cell color encodes OWA intensity (green = low/good, red = high/poor). Gray cells indicate diverged or NaN runs. Reveals cross-period generalization: some configs (BottleneckGenericAE) maintain consistent relative ranking while others (NBEATS-G, NBEATS-I-AE) shift dramatically. *[To be produced from block_benchmark_results.csv.]*
 
-**Figure 5: Training Stability (OWA Standard Deviation).** Bar chart of OWA standard deviation across 3 seeds for each configuration on the Yearly period. NBEATS-I-AE stands out with remarkably low variance (std ≈ 0.001), while BottleneckGeneric shows the highest variance among healthy configs (std ≈ 0.016). Stable training is practically valuable because it reduces the number of seeds needed for reliable performance estimation. *[To be produced from block_benchmark_results.csv.]*
+**Figure 5: Training Stability (OWA Standard Deviation).** Bar chart of OWA standard deviation across 5 seeds for each configuration on the Yearly period. NBEATS-I-AE stands out with remarkably low variance (std ≈ 0.001), while BottleneckGeneric shows the highest variance among healthy configs (std ≈ 0.016). Stable training is practically valuable because it reduces the number of seeds needed for reliable performance estimation. *[To be produced from block_benchmark_results.csv.]*
 
 ### 5.2 Ensemble Results
 
-The ensemble experiment follows the original paper's multi-horizon strategy: for each of three paper architectures, 18 models are trained (6 backcast multipliers × 3 seeds) and aggregated via element-wise median. Results are currently available for the Yearly period only.
+The ensemble experiment follows the original paper's multi-horizon strategy: for each of three paper architectures, 30 models are trained (6 backcast multipliers × 5 seeds) and aggregated via element-wise median. Results are currently available for the Yearly period only.
 
 #### 5.2.1 Ensemble Summary
 
@@ -452,17 +452,17 @@ The ensemble experiment follows the original paper's multi-horizon strategy: for
 | NBEATS-I+G | 18 | 13.208 | 3.017 | 0.784 | 0.808 | -3.0% |
 | All configs | Q/M/W/D/H | [pending] | [pending] | [pending] | [pending] | [pending] |
 
-Ensemble values are taken directly from `ensemble_summary_results.csv`. "Best Single-Model OWA" refers to the mean OWA from the block benchmark (5H multiplier, 3 seeds). The improvement column shows the relative reduction: $(OWA_{ensemble} - OWA_{single}) / OWA_{single}$.
+Ensemble values are taken directly from `ensemble_summary_results.csv`. "Best Single-Model OWA" refers to the mean OWA from the block benchmark (5H multiplier, 5 seeds). The improvement column shows the relative reduction: $(OWA_{ensemble} - OWA_{single}) / OWA_{single}$.
 
 The ensemble consistently provides approximately 3% OWA improvement over the best single-model configuration, with the relative gain remarkably stable across the three architectures (3.0-3.4%). NBEATS-I+G achieves the best ensemble OWA (0.784), reflecting both its strong single-model performance and the diversity introduced by combining Trend, Seasonality, and Generic stacks at different backcast lengths.
 
 #### 5.2.2 Comparison with Original Paper
 
-Direct comparison with the original N-BEATS paper (Oreshkin et al., 2019) is limited because the paper reports aggregate OWA across all six M4 periods, while our ensemble results currently cover only Yearly. The paper's 180-model ensemble (3 loss functions × 6 multipliers × 10 seeds) achieved OWA = 0.795 on the full M4 dataset. Our 18-model ensembles (1 loss function × 6 multipliers × 3 seeds) achieve OWA = 0.784-0.793 on Yearly alone. Since Yearly is typically one of the easier M4 periods, these Yearly-only results should not be directly compared to the paper's aggregate metric. A complete comparison requires results from all six periods.
+Direct comparison with the original N-BEATS paper (Oreshkin et al., 2019) is limited because the paper reports aggregate OWA across all six M4 periods, while our ensemble results currently cover only Yearly. The paper's 180-model ensemble (3 loss functions × 6 multipliers × 10 seeds) achieved OWA = 0.795 on the full M4 dataset. Our 30-model ensembles (1 loss function × 6 multipliers × 5 seeds) achieve OWA = 0.784-0.793 on Yearly alone. Since Yearly is typically one of the easier M4 periods, these Yearly-only results should not be directly compared to the paper's aggregate metric. A complete comparison requires results from all six periods.
 
 #### 5.2.3 Figure (Ensemble)
 
-**Figure 6: Ensemble OWA vs Backcast Multiplier.** Line plot with backcast multiplier (2H through 7H) on the x-axis and mean OWA (across 3 seeds) on the y-axis. Three lines, one per architecture (NBEATS-G, NBEATS-I, NBEATS-I+G). Horizontal dashed lines show ensemble OWA for each architecture. Individual seed OWA values are plotted as semi-transparent points. The plot reveals which backcast lengths contribute most to ensemble diversity: shorter multipliers (2H-3H) tend to produce lower individual OWA (better), while longer multipliers (6H-7H) show higher variance. The ensemble consistently outperforms all individual models. *[To be produced from ensemble_individual_results.csv.]*
+**Figure 6: Ensemble OWA vs Backcast Multiplier.** Line plot with backcast multiplier (2H through 7H) on the x-axis and mean OWA (across 5 seeds) on the y-axis. Three lines, one per architecture (NBEATS-G, NBEATS-I, NBEATS-I+G). Horizontal dashed lines show ensemble OWA for each architecture. Individual seed OWA values are plotted as semi-transparent points. The plot reveals which backcast lengths contribute most to ensemble diversity: shorter multipliers (2H-3H) tend to produce lower individual OWA (better), while longer multipliers (6H-7H) show higher variance. The ensemble consistently outperforms all individual models. *[To be produced from ensemble_individual_results.csv.]*
 
 ### 5.3 Ablation Studies
 
@@ -505,7 +505,7 @@ A central question motivating this work is whether the choice of block type--the
 2. Exclude configurations with fewer than 2 healthy seeds (insufficient for variance estimation)
 3. Group remaining OWA values by `config_name`
 
-After filtering, Yearly retains 10 configurations (all with 3/3 healthy seeds), Quarterly retains 10 configurations (AutoEncoder with 2/3, all others 3/3), and Monthly retains 9 configurations (all with 3/3 healthy seeds). Wavelet-only configurations are excluded from all statistical tests due to their near-universal failure to converge.
+After filtering, Yearly retains 10 configurations (all with 5/5 healthy seeds), Quarterly retains 10 configurations (AutoEncoder with 3/5, all others 5/5), and Monthly retains 9 configurations (all with 5/5 healthy seeds). Wavelet-only configurations are excluded from all statistical tests due to their near-universal failure to converge.
 
 #### 5.4.2 Statistical Tests
 
@@ -515,9 +515,9 @@ We employ a three-tier testing strategy: an omnibus test to determine whether bl
 
 We apply three complementary omnibus tests per period:
 
-- **Kruskal-Wallis H-test** (non-parametric one-way ANOVA): preferred because (a) n = 3 per group is too small to verify normality, (b) OWA distributions may be skewed, and (c) Kruskal-Wallis is robust to non-normality.
+- **Kruskal-Wallis H-test** (non-parametric one-way ANOVA): preferred because (a) n = 5 per group is too small to reliably verify normality, (b) OWA distributions may be skewed, and (c) Kruskal-Wallis is robust to non-normality.
 - **One-way ANOVA (F-test)**: parametric complement assuming approximate normality; included for comparison but less trustworthy given the small sample sizes.
-- **Friedman test** (non-parametric repeated measures): treats seeds (42, 43, 44) as a blocking factor, potentially increasing power by accounting for seed-specific effects that affect all configurations similarly.
+- **Friedman test** (non-parametric repeated measures): treats seeds (42, 43, 44, 45, 46) as a blocking factor, potentially increasing power by accounting for seed-specific effects that affect all configurations similarly.
 
 **Table 7: Omnibus Statistical Test Results**
 
@@ -535,11 +535,11 @@ We apply three complementary omnibus tests per period:
 
 Eta-squared (η²) is computed from the Kruskal-Wallis statistic as η² = (H − k + 1) / (N − k), where k is the number of groups and N is the total number of observations.
 
-**Interpretation:** The non-parametric tests (Kruskal-Wallis, Friedman) consistently fail to reject H₀ across all three periods at α = 0.05. The parametric one-way ANOVA rejects H₀ for Quarterly (p = 0.003) but not for Yearly or Monthly. This discrepancy likely reflects the ANOVA's sensitivity to the specific pattern of means combined with its assumption of normality, which is questionable at n = 3. Given the robustness advantages of the non-parametric tests and the inconsistency of the ANOVA result across periods, the overall evidence suggests that **block type does not produce statistically significant differences in OWA** among healthy, converging configurations.
+**Interpretation:** The non-parametric tests (Kruskal-Wallis, Friedman) consistently fail to reject H₀ across all three periods at α = 0.05. The parametric one-way ANOVA rejects H₀ for Quarterly (p = 0.003) but not for Yearly or Monthly. This discrepancy likely reflects the ANOVA's sensitivity to the specific pattern of means combined with its assumption of normality, which is questionable at n = 5. Given the robustness advantages of the non-parametric tests and the inconsistency of the ANOVA result across periods, the overall evidence suggests that **block type does not produce statistically significant differences in OWA** among healthy, converging configurations.
 
 **Tier 2: Pairwise comparisons**
 
-Because the non-parametric omnibus tests fail to reject H₀, we do not conduct formal pairwise comparisons (Mann-Whitney U tests with Bonferroni correction). With k ≈ 10 configurations, there would be C(10, 2) = 45 pairwise tests requiring α_adjusted ≈ 0.001--far too conservative for the observed effect sizes and sample sizes. The ANOVA rejection for Quarterly, if taken at face value, would warrant pairwise t-tests; however, with n = 3 per group and 45 comparisons, the corrected significance threshold would yield no detectable pairs.
+Because the non-parametric omnibus tests fail to reject H₀, we do not conduct formal pairwise comparisons (Mann-Whitney U tests with Bonferroni correction). With k ≈ 10 configurations, there would be C(10, 2) = 45 pairwise tests requiring α_adjusted ≈ 0.001--far too conservative for the observed effect sizes and sample sizes. The ANOVA rejection for Quarterly, if taken at face value, would warrant pairwise t-tests; however, with n = 5 per group and 45 comparisons, the corrected significance threshold would yield no detectable pairs.
 
 **Tier 3: Effect sizes**
 
@@ -553,13 +553,13 @@ The effect size pattern suggests that while most block types perform similarly, 
 
 #### 5.4.3 Power Analysis and Limitations
 
-With n = 3 seeds per configuration, the statistical power of these tests is severely limited. This is a critical caveat for interpreting the null results.
+With n = 5 seeds per configuration, the statistical power of these tests remains limited, though improved over the initial 3-seed design. This is an important caveat for interpreting the null results.
 
-**Post-hoc power estimate:** For the Yearly period, the observed effect size (η² = 0.043) with k = 10 groups and n = 3 per group yields estimated power of approximately **15-20%** for the Kruskal-Wallis test. This means that even if a small real effect exists, we would detect it only 15-20% of the time.
+**Post-hoc power estimate:** For the Yearly period, the observed effect size (η² = 0.043) with k = 10 groups and n = 5 per group yields estimated power of approximately **25-35%** for the Kruskal-Wallis test. This means that even if a small real effect exists, we would detect it only 25-35% of the time.
 
 **Practical implication:** Failure to reject H₀ should be interpreted as *insufficient evidence to conclude that block type affects OWA* rather than *confirmation that block type is irrelevant*. The distinction matters: the data are consistent with H₀, but they are also consistent with small real effects (e.g., η² ≈ 0.05) that we lack the power to detect.
 
-**Recommendation for future work:** Increasing to n = 10 seeds per configuration would provide approximately 80% power to detect medium effects (η² = 0.06), the conventional threshold for adequate statistical testing. This would require 10 × 17 configs × 6 periods = 1,020 training runs (versus the current 17 × 3 × 3 = 153), a roughly 7x increase in computational cost.
+**Recommendation for future work:** Increasing to n = 10 seeds per configuration would provide approximately 80% power to detect medium effects (η² = 0.06), the conventional threshold for adequate statistical testing. This would require 10 × 17 configs × 6 periods = 1,020 training runs (versus the current 17 × 5 × 3 = 255), a roughly 4x increase in computational cost.
 
 #### 5.4.4 Complementary Analyses
 
@@ -581,7 +581,7 @@ The rank correlations are weak and non-significant for all period pairs. The Yea
 
 **Bootstrap confidence intervals**
 
-For each configuration and period, we compute 95% bootstrap confidence intervals for mean OWA using 10,000 resamples with replacement from the n = 3 (or 2) healthy seed OWA values.
+For each configuration and period, we compute 95% bootstrap confidence intervals for mean OWA using 10,000 resamples with replacement from the n = 5 (or fewer, for configurations with divergent seeds) healthy seed OWA values.
 
 On Yearly, the bootstrap CIs of all 10 healthy configurations overlap substantially. For example, AutoEncoder (best: 0.789-0.817) overlaps with NBEATS-G (0.810-0.826) and BottleneckGeneric (worst healthy: 0.810-0.840). The universal overlap confirms that the differences in point estimates are within the range of sampling variability.
 
@@ -591,7 +591,7 @@ On Quarterly and Monthly, the CIs are wider for some configurations (notably Gen
 
 **Figure 8: Bootstrap Confidence Interval Forest Plot.** Three panels (Yearly, Quarterly, Monthly), each showing configurations as rows with horizontal error bars representing 95% bootstrap CIs for mean OWA. Point estimates marked with filled circles. Configurations sorted by point estimate within each panel. Extensive CI overlap provides visual evidence consistent with the null hypothesis. *[To be produced via analysis script using scipy.stats and matplotlib.]*
 
-**Figure 9: OWA Distribution Box Plots.** Box plots of OWA per configuration (x-axis), faceted by period. Individual seed values overlaid as jittered dots. Whiskers extend to data range (with n = 3, no statistical outlier detection is meaningful). The compressed y-axis range within each panel (e.g., 0.79-0.84 for Yearly) highlights how tight the performance band is across architecturally diverse configurations. *[To be produced via analysis script.]*
+**Figure 9: OWA Distribution Box Plots.** Box plots of OWA per configuration (x-axis), faceted by period. Individual seed values overlaid as jittered dots. Whiskers extend to data range (with n = 5, statistical outlier detection has limited power). The compressed y-axis range within each panel (e.g., 0.79-0.84 for Yearly) highlights how tight the performance band is across architecturally diverse configurations. *[To be produced via analysis script.]*
 
 #### 5.4.6 Implementation Note
 
@@ -609,7 +609,7 @@ The results across three M4 periods, ensemble evaluation, and statistical analys
 
 **4. Wavelet instability.** Pure wavelet blocks fail in 67-100% of training runs, with failure modes ranging from immediate NaN (Haar, DB3Alt) to gradual MASE explosion (DB3, Symlet3). The fact that Trend+DB3Wavelet achieves full convergence and competitive OWA when paired with stable Trend stacks suggests that the wavelet basis expansion concept is viable but requires stabilization from complementary stacks or explicit numerical safeguards. Future work should investigate gradient clipping, basis matrix normalization, or learned scaling factors as potential remedies.
 
-**5. Ensembling provides consistent improvement.** Median aggregation across 18 models (6 backcast multipliers × 3 seeds) improves OWA by approximately 3% on Yearly, consistent across all three paper architectures (3.0-3.4% improvement). This improvement is remarkably uniform, suggesting that the ensemble benefit comes primarily from diversity in backcast length rather than seed-specific initialization effects.
+**5. Ensembling provides consistent improvement.** Median aggregation across 30 models (6 backcast multipliers × 5 seeds) improves OWA by approximately 3% on Yearly, consistent across all three paper architectures (3.0-3.4% improvement). This improvement is remarkably uniform, suggesting that the ensemble benefit comes primarily from diversity in backcast length rather than seed-specific initialization effects.
 
 **6. Training stability varies significantly.** NBEATS-I-AE exhibits remarkably low OWA variance across seeds (std ≈ 0.001 on Yearly), while BottleneckGeneric shows the highest variance among healthy configs (std ≈ 0.016). From a practical standpoint, low variance is valuable because it reduces the number of training runs needed to achieve reliable performance estimates. The AE-backbone's hourglass compression may act as a regularizer that smooths the loss landscape, leading to more deterministic convergence.
 

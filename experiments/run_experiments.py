@@ -14,6 +14,8 @@ Part 4: Wavelet V2 benchmark — Numerically stabilized wavelet blocks with spec
         normalization, LayerNorm, Xavier init, and output clamping.
 Part 5: Wavelet V3 benchmark — Orthonormal DWT basis via impulse-response synthesis
         + SVD orthogonalization (condition number = 1.0).
+Part 6: Convergence study — 10-stack Generic with 2x2 factorial (active_g x sum_losses),
+        10 runs per config on Yearly/Quarterly to test convergence reliability/speed.
 
 Usage:
     python experiments/run_experiments.py --part 1 --periods Yearly --max-epochs 100
@@ -22,6 +24,7 @@ Usage:
     python experiments/run_experiments.py --part 3 --periods Yearly --max-epochs 100
     python experiments/run_experiments.py --part 4 --periods Yearly --max-epochs 100
     python experiments/run_experiments.py --part 5 --periods Yearly --max-epochs 100
+    python experiments/run_experiments.py --part 6 --periods Yearly Quarterly --max-epochs 100
 """
 
 import argparse
@@ -85,7 +88,7 @@ LOSS = "SMAPELoss"               # Paper primary metric and training loss
 LEARNING_RATE = 1e-3             # Paper: 1e-3
 EARLY_STOPPING_PATIENCE = 10    # Paper uses early stopping on validation loss
 
-N_RUNS = 3
+N_RUNS = 5
 BASE_SEED = 42
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
@@ -330,6 +333,21 @@ ABLATION_CONFIGS = {
     "Generic_LeakyReLU":     {"active_g": False, "sum_losses": False, "activation": "LeakyReLU"},
     "Generic_SELU":          {"active_g": False, "sum_losses": False, "activation": "SELU"},
 }
+
+# ---------------------------------------------------------------------------
+# Convergence Study Configs (Part 6) — active_g effect on 10-stack Generic
+# ---------------------------------------------------------------------------
+
+CONVERGENCE_STUDY_CONFIGS = {
+    "Generic10_baseline":      {"active_g": False, "sum_losses": False, "activation": "ReLU"},
+    "Generic10_activeG":       {"active_g": True,  "sum_losses": False, "activation": "ReLU"},
+    "Generic10_sumLosses":     {"active_g": False, "sum_losses": True,  "activation": "ReLU"},
+    "Generic10_activeG+sumL":  {"active_g": True,  "sum_losses": True,  "activation": "ReLU"},
+}
+
+CONVERGENCE_STUDY_STACKS = 10
+CONVERGENCE_STUDY_N_RUNS = 10
+CONVERGENCE_STUDY_PERIODS = ["Yearly", "Quarterly"]
 
 # ---------------------------------------------------------------------------
 # Ensemble Configs (Part 3) — paper's key architectures at multiple horizons
@@ -828,6 +846,51 @@ def run_wavelet_v3_benchmark(periods, max_epochs):
                 )
 
 
+def run_convergence_study(periods, max_epochs):
+    """Part 6: Convergence study — active_g/sum_losses on 10-stack Generic.
+
+    Tests the stabilizing effect of active_g and sum_losses on convergence
+    reliability, speed, and final metric quality. Uses 10 runs per config
+    (seeds 42-51) on Yearly and Quarterly periods only.
+    """
+    csv_path = os.path.join(RESULTS_DIR, "convergence_study_results.csv")
+    init_csv(csv_path)
+
+    stack_types = ["Generic"] * CONVERGENCE_STUDY_STACKS
+
+    for period in periods:
+        if period not in CONVERGENCE_STUDY_PERIODS:
+            print(f"  [SKIP] {period} — convergence study only runs on "
+                  f"{CONVERGENCE_STUDY_PERIODS}")
+            continue
+
+        print(f"\n{'='*60}")
+        print(f"Convergence Study — {period}")
+        print(f"{'='*60}")
+
+        m4 = M4Dataset(period, "All")
+        train_series_list = get_training_series(m4)
+
+        for config_name, cfg in CONVERGENCE_STUDY_CONFIGS.items():
+            for run_idx in range(CONVERGENCE_STUDY_N_RUNS):
+                run_single_experiment(
+                    experiment_name="convergence_study",
+                    config_name=config_name,
+                    stack_types=stack_types,
+                    period=period,
+                    run_idx=run_idx,
+                    m4=m4,
+                    train_series_list=train_series_list,
+                    csv_path=csv_path,
+                    n_blocks_per_stack=1,
+                    share_weights=True,
+                    active_g=cfg["active_g"],
+                    sum_losses=cfg["sum_losses"],
+                    activation=cfg["activation"],
+                    max_epochs=max_epochs,
+                )
+
+
 def run_ablation_studies(periods, max_epochs):
     """Part 2: Ablation studies on 30-stack Generic across M4 periods."""
     csv_path = os.path.join(RESULTS_DIR, "ablation_results.csv")
@@ -1110,10 +1173,11 @@ def main():
         description="M4 Benchmark — 1:1 N-BEATS paper comparison + novel extensions"
     )
     parser.add_argument(
-        "--part", choices=["1", "2", "3", "4", "5", "all"], default="all",
+        "--part", choices=["1", "2", "3", "4", "5", "6", "all"], default="all",
         help=("Which experiments to run: 1=block benchmark, 2=ablation, "
               "3=multi-horizon ensemble, 4=wavelet V2 benchmark, "
-              "5=wavelet V3 benchmark, all=1-3 (use 4/5 explicitly)"),
+              "5=wavelet V3 benchmark, 6=convergence study, "
+              "all=1-3 (use 4/5/6 explicitly)"),
     )
     parser.add_argument(
         "--periods", nargs="+",
@@ -1141,6 +1205,8 @@ def main():
                        * len(args.periods) * N_RUNS)
     n_wavelet_v2_runs = len(WAVELET_V2_CONFIGS) * len(args.periods) * N_RUNS
     n_wavelet_v3_runs = (len(WAVELET_V3_CONFIGS) + len(V3_ABLATION_CONFIGS)) * len(args.periods) * N_RUNS
+    n_convergence_periods = sum(1 for p in args.periods if p in CONVERGENCE_STUDY_PERIODS)
+    n_convergence_runs = len(CONVERGENCE_STUDY_CONFIGS) * n_convergence_periods * CONVERGENCE_STUDY_N_RUNS
 
     device_name = "CUDA" if torch.cuda.is_available() else (
         "MPS" if torch.backends.mps.is_available() else "CPU"
@@ -1166,6 +1232,9 @@ def main():
     if args.part == "5":
         print(f"Part 5 — Wavelet V3 benchmark: {n_wavelet_v3_runs} runs "
               f"({len(WAVELET_V3_CONFIGS)}+{len(V3_ABLATION_CONFIGS)} configs x {len(args.periods)} periods x {N_RUNS} runs)")
+    if args.part == "6":
+        print(f"Part 6 — Convergence study: {n_convergence_runs} runs "
+              f"({len(CONVERGENCE_STUDY_CONFIGS)} configs x {n_convergence_periods} periods x {CONVERGENCE_STUDY_N_RUNS} runs)")
 
     if args.part in ("1", "all"):
         run_block_benchmark(args.periods, args.max_epochs)
@@ -1182,6 +1251,9 @@ def main():
     if args.part == "5":
         run_wavelet_v3_benchmark(args.periods, args.max_epochs)
 
+    if args.part == "6":
+        run_convergence_study(args.periods, args.max_epochs)
+
     print("\nDone. Results saved to:")
     if args.part in ("1", "all"):
         print(f"  {os.path.join(RESULTS_DIR, 'block_benchmark_results.csv')}")
@@ -1194,6 +1266,8 @@ def main():
         print(f"  {os.path.join(RESULTS_DIR, 'wavelet_v2_benchmark_results.csv')}")
     if args.part == "5":
         print(f"  {os.path.join(RESULTS_DIR, 'wavelet_v3_benchmark_results.csv')}")
+    if args.part == "6":
+        print(f"  {os.path.join(RESULTS_DIR, 'convergence_study_results.csv')}")
 
 
 if __name__ == "__main__":
