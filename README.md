@@ -1,29 +1,35 @@
-# N-BEATS Lightning
+# N-BEATS Architecture Explorations and the Impact of Block Type on Performance
 
-N-BEATS Lightning is an implementation of [N-BEATS](https://arxiv.org/pdf/1905.10437.pdf) time series forecasting architecture in [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) with some additional experimental features such as Wavelet Basis Expansion blocks and completely customizable stacks.
+A [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) implementation of the [N-BEATS](https://arxiv.org/pdf/1905.10437.pdf) (Neural Basis Expansion Analysis for Time Series) forecasting architecture, extended with novel block types and published as the [`lightningnbeats`](https://pypi.org/project/lightningnbeats/) PyPI package.
+
+## Introduction
+
+Time series forecasting is one of the oldest and most consequential problems in quantitative science. For decades, the field was dominated by classical statistical methods -- exponential smoothing, ARIMA, and their many variants -- that offered strong theoretical grounding, interpretability, and reliable performance. The M4 competition (Makridakis et al., 2018; 2020) marked a turning point: while pure machine learning entries ranked poorly, the hybrid ES-RNN winner (Smyl, 2020) demonstrated that deep learning could contribute meaningfully to forecasting accuracy, leaving open the question of whether a *pure* deep learning architecture could achieve competitive results.
+
+Oreshkin et al. (2019) answered this question with N-BEATS, a fully deep learning architecture that surpassed both the M4 winner and all prior statistical methods. N-BEATS introduced a distinctive design built on **doubly residual stacking** of basic blocks, each consisting of a multi-layer fully connected network that forks into backcast and forecast paths via learned or constrained basis expansion coefficients. The architecture offered two configurations: a **Generic** model using fully learnable basis functions, and an **Interpretable** model constraining basis functions to polynomial (Trend) and Fourier (Seasonality) forms.
+
+This observation motivates the present work: if polynomial and Fourier bases can achieve state-of-the-art results when embedded within the N-BEATS doubly residual framework, what happens when we substitute alternative basis expansions? This repository provides a systematic exploration of alternative block types including:
+
+- **Wavelet basis blocks** (Haar, Daubechies, Coiflets, Symlets) offering multi-resolution time-frequency localization
+- **Autoencoder blocks** with separated encoder-decoder paths for data-driven compressed representations
+- **Bottleneck generic blocks** with rank-d factorized projections for parameter-efficient basis expansion
+- **AE-backbone variants** of all original block types, replacing the uniform FC-layer backbone with a hourglass encoder-decoder structure that achieves 5-10x parameter reduction
+
+Preliminary results across three M4 periods suggest that among healthy, converging configurations, **block type does not produce statistically significant differences in OWA forecasting accuracy** (Kruskal-Wallis p > 0.09 across all periods tested). Configuration rankings are inconsistent across periods (Spearman rho near zero). This suggests that the doubly residual stacking framework itself -- rather than the specific basis expansion within each block -- is the primary driver of forecasting accuracy. However, block type *does* significantly affect parameter count (5-10x variation), training stability (0-100% convergence rate for wavelets), and convergence speed. The practical recommendation is to choose blocks based on deployment constraints rather than chasing marginal OWA differences. See [NBEATS-Explorations/paper.md](NBEATS-Explorations/paper.md) for the full research paper.
 
 ## N-BEATS Algorithm
 
-N-BEATS, Neural Basis Expansion Analysis for Time Series, is a neural network based model for univariate time series forecasting. It was proposed by Boris N. Oreshkin and his co-authors at ElementAI in 2019. N-BEATS consists of a deep stack of fully connected layers with backward and forward residual connections. The model can learn a set of basis functions that can decompose any time series into interpretable components, such as trend and seasonality. N-BEATS can also handle a wide range of forecasting problems without requiring any domain-specific modifications, scaling, or feature engineering. N-BEATS has achieved state-of-the-art performance on several benchmark datasets, such as M3, M4, and TOURISM. This repository provides an implementation of N-BEATS in PyTorch Lightning, along with the code to reproduce the experimental results using the M4 and Tourism datasets which are included as a reference in this repository.
+N-BEATS (Oreshkin et al., 2019) is composed of blocks organized into stacks. Each basic block accepts an input lookback window and outputs a **backcast** (reconstruction of the input) and a **forecast** (prediction of future values). The core computation begins with four fully connected layers with ReLU activations, producing a hidden representation that is then projected to expansion coefficients via linear layers. These coefficients are passed through basis functions to produce the outputs.
 
-Here are some key points about the N-BEATS algorithm:
+The key innovation is the **doubly residual topology** inspired by deep residual learning (He et al., 2016): each block's backcast is subtracted from its input before passing to the next block (backward residual connection, enabling iterative signal decomposition), while each block's forecast is summed into the global forecast (forward residual connection, enabling hierarchical forecast aggregation). The final forecast is the sum of all blocks' partial forecasts.
 
-- **Block Architecture**:
-  N-BEATS consists of a stack of fully connected neural networks called "blocks." Each block processes the input time series data and outputs a set of forecasts along with a backcast, which is the reconstructed version of the input.
+- **Block Architecture**: Each block consists of a multi-layer FC backbone followed by a fork into backcast and forecast paths via basis expansion. The choice of basis function determines the block type.
 
-- **Generic and Interpretable Blocks**:
-  There are two types of blocks within N-BEATS: Generic and Interpretable. Generic blocks are designed to learn the underlying patterns in the data automatically, while Interpretable blocks incorporate prior knowledge about the data and are structured to provide insights into the learned patterns.
+- **Generic and Interpretable Configurations**: The Generic configuration uses fully learnable linear projections as basis functions. The Interpretable configuration constrains bases to polynomial (Trend) and Fourier (Seasonality) forms, producing decomposable forecasts.
 
-- **Stacked Ensemble**:
-  The blocks are stacked together in an ensemble, and their forecasts are combined to produce the final prediction. This ensemble approach allows N-BEATS to handle a wide range of time series forecasting problems effectively.
+- **Weight Sharing**: When enabled within a stack, all blocks share parameters, improving validation performance particularly for the Interpretable architecture.
 
-- **Parameter Sharing and Scalability**:
-  N-BEATS is designed with parameter sharing across the blocks, which promotes scalability and efficiency in training and inference.
-
-- **Fast Learning**:
-  N-BEATS is a fast learner, and it can be trained in a few epochs on a single GPU. This makes it easy to experiment with different hyperparameters and architectures. It generally settles quickly into a relative minimum. Since many models can be trained quickly, it is easy to build an ensemble of differnt models to improve performance and generalization.
-
-The N-BEATS algorithm is a powerful tool for time series forecasting, providing a blend of automatic learning, interpretability, and robust performance across different domains.
+- **Fast Learning**: N-BEATS converges quickly, typically within 10-30 epochs, making it practical to train ensembles of diverse models. The original paper achieved its best results with a 180-model ensemble combining multiple loss functions, backcast lengths, and random seeds.
 
 ## Requirements
 

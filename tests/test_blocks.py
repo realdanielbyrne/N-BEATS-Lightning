@@ -417,7 +417,24 @@ class TestAllBlocksOutputShapes:
         "Coif3Wavelet", "Coif3AltWavelet",
         "Coif10Wavelet", "Coif10AltWavelet",
         "Symlet2Wavelet", "Symlet2AltWavelet",
-        "Symlet3Wavelet", "Symlet10Wavelet", "Symlet20Wavelet"
+        "Symlet3Wavelet", "Symlet10Wavelet", "Symlet20Wavelet",
+        # V2 Wavelet blocks (numerically stabilized)
+        "HaarWaveletV2", "HaarAltWaveletV2",
+        "DB2WaveletV2", "DB2AltWaveletV2",
+        "DB3WaveletV2", "DB3AltWaveletV2",
+        "DB4WaveletV2", "DB4AltWaveletV2",
+        "DB10WaveletV2", "DB10AltWaveletV2", "DB20AltWaveletV2",
+        "Coif1WaveletV2", "Coif1AltWaveletV2",
+        "Coif2WaveletV2", "Coif2AltWaveletV2",
+        "Coif3WaveletV2", "Coif3AltWaveletV2",
+        "Coif10WaveletV2", "Coif10AltWaveletV2",
+        "Symlet2WaveletV2", "Symlet2AltWaveletV2",
+        "Symlet3WaveletV2", "Symlet10WaveletV2", "Symlet20WaveletV2",
+        # V3 Wavelet blocks (orthonormal DWT basis)
+        "HaarWaveletV3", "DB2WaveletV3", "DB3WaveletV3", "DB4WaveletV3",
+        "DB10WaveletV3", "DB20WaveletV3",
+        "Coif1WaveletV3", "Coif2WaveletV3", "Coif3WaveletV3", "Coif10WaveletV3",
+        "Symlet2WaveletV3", "Symlet3WaveletV3", "Symlet10WaveletV3", "Symlet20WaveletV3",
     ])
     def test_block_output_shape(self, block_name):
         block_class = getattr(b, block_name)
@@ -452,3 +469,155 @@ class TestAllBlocksOutputShapes:
         assert backcast.shape == (4, BACKCAST_LENGTH), f"{block_name} backcast shape incorrect"
         assert forecast.shape == (4, FORECAST_LENGTH), f"{block_name} forecast shape incorrect"
 
+
+
+# --- V2 Wavelet numerical stability tests ---
+
+V2_WAVELET_BLOCKS = [
+    "HaarWaveletV2", "HaarAltWaveletV2",
+    "DB2WaveletV2", "DB2AltWaveletV2",
+    "DB3WaveletV2", "DB3AltWaveletV2",
+    "DB4WaveletV2", "DB4AltWaveletV2",
+    "DB10WaveletV2", "DB10AltWaveletV2", "DB20AltWaveletV2",
+    "Coif1WaveletV2", "Coif1AltWaveletV2",
+    "Coif2WaveletV2", "Coif2AltWaveletV2",
+    "Coif3WaveletV2", "Coif3AltWaveletV2",
+    "Coif10WaveletV2", "Coif10AltWaveletV2",
+    "Symlet2WaveletV2", "Symlet2AltWaveletV2",
+    "Symlet3WaveletV2", "Symlet10WaveletV2", "Symlet20WaveletV2",
+]
+
+class TestWaveletV2Stability:
+    """Verify V2 wavelet blocks produce finite outputs and have normalized bases."""
+
+    @pytest.mark.parametrize("block_name", V2_WAVELET_BLOCKS)
+    def test_no_nan_output(self, block_name):
+        block_class = getattr(b, block_name)
+        block = block_class(
+            units=UNITS, backcast_length=BACKCAST_LENGTH,
+            forecast_length=FORECAST_LENGTH, basis_dim=BASIS_DIM,
+        )
+        x = torch.randn(8, BACKCAST_LENGTH)
+        backcast, forecast = block(x)
+        assert not torch.isnan(backcast).any(), f"{block_name} backcast contains NaN"
+        assert not torch.isnan(forecast).any(), f"{block_name} forecast contains NaN"
+        assert not torch.isinf(backcast).any(), f"{block_name} backcast contains Inf"
+        assert not torch.isinf(forecast).any(), f"{block_name} forecast contains Inf"
+
+    @pytest.mark.parametrize("block_name", V2_WAVELET_BLOCKS)
+    def test_basis_spectral_norm(self, block_name):
+        block_class = getattr(b, block_name)
+        block = block_class(
+            units=UNITS, backcast_length=BACKCAST_LENGTH,
+            forecast_length=FORECAST_LENGTH, basis_dim=BASIS_DIM,
+        )
+        for name, param in block.named_parameters():
+            if "basis" in name and not param.requires_grad:
+                sv = torch.linalg.svdvals(param.data)
+                max_sv = sv[0].item()
+                assert max_sv <= 1.01, (
+                    f"{block_name}.{name} spectral norm {max_sv:.4f} > 1.01"
+                )
+
+
+# --- V3 Wavelet property tests ---
+
+V3_WAVELET_BLOCKS = [
+    "HaarWaveletV3", "DB2WaveletV3", "DB3WaveletV3", "DB4WaveletV3",
+    "DB10WaveletV3", "DB20WaveletV3",
+    "Coif1WaveletV3", "Coif2WaveletV3", "Coif3WaveletV3", "Coif10WaveletV3",
+    "Symlet2WaveletV3", "Symlet3WaveletV3", "Symlet10WaveletV3", "Symlet20WaveletV3",
+]
+
+class TestWaveletV3Properties:
+    """Verify V3 wavelet blocks have orthonormal bases and stable outputs."""
+
+    @pytest.mark.parametrize("block_name", V3_WAVELET_BLOCKS)
+    def test_basis_is_orthonormal(self, block_name):
+        block_class = getattr(b, block_name)
+        block = block_class(
+            units=UNITS, backcast_length=BACKCAST_LENGTH,
+            forecast_length=FORECAST_LENGTH, basis_dim=BASIS_DIM,
+        )
+        for name, param in block.named_parameters():
+            if "basis" in name and not param.requires_grad:
+                basis = param.data
+                identity = torch.matmul(basis, basis.T)
+                expected = torch.eye(basis.shape[0])
+                error = torch.max(torch.abs(identity - expected)).item()
+                assert error < 1e-5, (
+                    f"{block_name}.{name} not orthonormal: max error {error:.2e}"
+                )
+
+    @pytest.mark.parametrize("block_name", V3_WAVELET_BLOCKS)
+    def test_basis_condition_number(self, block_name):
+        block_class = getattr(b, block_name)
+        block = block_class(
+            units=UNITS, backcast_length=BACKCAST_LENGTH,
+            forecast_length=FORECAST_LENGTH, basis_dim=BASIS_DIM,
+        )
+        for name, param in block.named_parameters():
+            if "basis" in name and not param.requires_grad:
+                sv = torch.linalg.svdvals(param.data)
+                cond = (sv[0] / sv[-1]).item()
+                assert cond < 1.1, (
+                    f"{block_name}.{name} condition number {cond:.4f} >= 1.1"
+                )
+
+    @pytest.mark.parametrize("block_name", V3_WAVELET_BLOCKS)
+    def test_no_downsampling_layer(self, block_name):
+        block_class = getattr(b, block_name)
+        block = block_class(
+            units=UNITS, backcast_length=BACKCAST_LENGTH,
+            forecast_length=FORECAST_LENGTH, basis_dim=BASIS_DIM,
+        )
+        assert not hasattr(block, "backcast_down_sample"), (
+            f"{block_name} should not have backcast_down_sample"
+        )
+        assert not hasattr(block, "forecast_down_sample"), (
+            f"{block_name} should not have forecast_down_sample"
+        )
+
+    @pytest.mark.parametrize("wavelet_type,wavelet_class", [
+        ("haar", "HaarWaveletV3"),
+        ("db2", "DB2WaveletV3"),
+        ("db3", "DB3WaveletV3"),
+        ("db4", "DB4WaveletV3"),
+        ("db10", "DB10WaveletV3"),
+        ("db20", "DB20WaveletV3"),
+        ("coif1", "Coif1WaveletV3"),
+        ("coif2", "Coif2WaveletV3"),
+        ("coif3", "Coif3WaveletV3"),
+        ("coif10", "Coif10WaveletV3"),
+        ("sym2", "Symlet2WaveletV3"),
+        ("sym3", "Symlet3WaveletV3"),
+        ("sym10", "Symlet10WaveletV3"),
+        ("sym20", "Symlet20WaveletV3"),
+    ])
+    def test_all_families_produce_full_rank(self, wavelet_type, wavelet_class):
+        block_class = getattr(b, wavelet_class)
+        block = block_class(
+            units=UNITS, backcast_length=BACKCAST_LENGTH,
+            forecast_length=FORECAST_LENGTH, basis_dim=BASIS_DIM,
+        )
+        for name, param in block.named_parameters():
+            if "basis" in name and not param.requires_grad:
+                target_length = param.shape[1]
+                rank = param.shape[0]
+                assert rank == target_length, (
+                    f"{wavelet_class}.{name}: rank {rank} != target_length {target_length}"
+                )
+
+    @pytest.mark.parametrize("block_name", V3_WAVELET_BLOCKS)
+    def test_no_nan_output(self, block_name):
+        block_class = getattr(b, block_name)
+        block = block_class(
+            units=UNITS, backcast_length=BACKCAST_LENGTH,
+            forecast_length=FORECAST_LENGTH, basis_dim=BASIS_DIM,
+        )
+        x = torch.randn(8, BACKCAST_LENGTH)
+        backcast, forecast = block(x)
+        assert not torch.isnan(backcast).any(), f"{block_name} backcast contains NaN"
+        assert not torch.isnan(forecast).any(), f"{block_name} forecast contains NaN"
+        assert not torch.isinf(backcast).any(), f"{block_name} backcast contains Inf"
+        assert not torch.isinf(forecast).any(), f"{block_name} forecast contains Inf"

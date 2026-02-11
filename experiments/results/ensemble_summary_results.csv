@@ -1,0 +1,4 @@
+config_name,period,frequency,forecast_length,n_models,multipliers,n_runs_per_multiplier,ensemble_smape,ensemble_mase,ensemble_owa
+NBEATS-G,Yearly,1,6,18,"[2, 3, 4, 5, 6, 7]",3,13.318171,3.065676,0.793200
+NBEATS-I,Yearly,1,6,18,"[2, 3, 4, 5, 6, 7]",3,13.265342,3.033357,0.787517
+NBEATS-I+G,Yearly,1,6,18,"[2, 3, 4, 5, 6, 7]",3,13.208035,3.016657,0.783662
