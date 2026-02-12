@@ -16,6 +16,9 @@ Part 5: Wavelet V3 benchmark — Orthonormal DWT basis via impulse-response synt
         + SVD orthogonalization (condition number = 1.0).
 Part 6: Convergence study — 10-stack Generic with 2x2 factorial (active_g x sum_losses),
         10 runs per config on Yearly/Quarterly to test convergence reliability/speed.
+Part 7: Novel mixed stack benchmark + ensemble — I+G compositional pattern with novel
+        G-position blocks (GenericAE, BottleneckGeneric, AutoEncoder) plus AE
+        interpretable front-end. Benchmark + multi-horizon ensemble for each config.
 
 Usage:
     python experiments/run_experiments.py --part 1 --periods Yearly --max-epochs 100
@@ -25,6 +28,7 @@ Usage:
     python experiments/run_experiments.py --part 4 --periods Yearly --max-epochs 100
     python experiments/run_experiments.py --part 5 --periods Yearly --max-epochs 100
     python experiments/run_experiments.py --part 6 --periods Yearly Quarterly --max-epochs 100
+    python experiments/run_experiments.py --part 7 --periods Yearly --max-epochs 100
 """
 
 import argparse
@@ -143,32 +147,7 @@ BLOCK_CONFIGS = {
         "n_blocks_per_stack": 1,
         "share_weights": True,
     },
-    # Wavelets (representative from each family)
-    "HaarWavelet": {
-        "stack_types": ["HaarWavelet"] * 30,
-        "n_blocks_per_stack": 1,
-        "share_weights": True,
-    },
-    "DB3Wavelet": {
-        "stack_types": ["DB3Wavelet"] * 30,
-        "n_blocks_per_stack": 1,
-        "share_weights": True,
-    },
-    "DB3AltWavelet": {
-        "stack_types": ["DB3AltWavelet"] * 30,
-        "n_blocks_per_stack": 1,
-        "share_weights": True,
-    },
-    "Coif2Wavelet": {
-        "stack_types": ["Coif2Wavelet"] * 30,
-        "n_blocks_per_stack": 1,
-        "share_weights": True,
-    },
-    "Symlet3Wavelet": {
-        "stack_types": ["Symlet3Wavelet"] * 30,
-        "n_blocks_per_stack": 1,
-        "share_weights": True,
-    },
+
     # ===== Novel Interpretable (fair comparison with I) =====
     "NBEATS-I-AE": {
         "stack_types": ["TrendAE", "SeasonalityAE"],
@@ -188,6 +167,33 @@ BLOCK_CONFIGS = {
     },
     "Generic+DB3Wavelet": {
         "stack_types": ["Generic", "DB3Wavelet"] * 15,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Mixed Stack Benchmark Configs (Part 7) — I+G pattern with novel G blocks
+# ---------------------------------------------------------------------------
+
+MIXED_STACK_CONFIGS = {
+    "NBEATS-I+GenericAE": {
+        "stack_types": ["Trend", "Seasonality"] + ["GenericAE"] * 28,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "NBEATS-I-AE+GenericAE": {
+        "stack_types": ["TrendAE", "SeasonalityAE"] + ["GenericAE"] * 28,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "NBEATS-I+BottleneckGeneric": {
+        "stack_types": ["Trend", "Seasonality"] + ["BottleneckGeneric"] * 28,
+        "n_blocks_per_stack": 1,
+        "share_weights": True,
+    },
+    "NBEATS-I+AutoEncoder": {
+        "stack_types": ["Trend", "Seasonality"] + ["AutoEncoder"] * 28,
         "n_blocks_per_stack": 1,
         "share_weights": True,
     },
@@ -357,6 +363,17 @@ ENSEMBLE_CONFIGS = {
     "NBEATS-G":   BLOCK_CONFIGS["NBEATS-G"],
     "NBEATS-I":   BLOCK_CONFIGS["NBEATS-I"],
     "NBEATS-I+G": BLOCK_CONFIGS["NBEATS-I+G"],
+}
+
+# ---------------------------------------------------------------------------
+# Mixed Stack Ensemble Configs (Part 7)
+# ---------------------------------------------------------------------------
+
+MIXED_STACK_ENSEMBLE_CONFIGS = {
+    "NBEATS-I+GenericAE":         MIXED_STACK_CONFIGS["NBEATS-I+GenericAE"],
+    "NBEATS-I-AE+GenericAE":      MIXED_STACK_CONFIGS["NBEATS-I-AE+GenericAE"],
+    "NBEATS-I+BottleneckGeneric": MIXED_STACK_CONFIGS["NBEATS-I+BottleneckGeneric"],
+    "NBEATS-I+AutoEncoder":       MIXED_STACK_CONFIGS["NBEATS-I+AutoEncoder"],
 }
 
 # ---------------------------------------------------------------------------
@@ -1164,6 +1181,274 @@ def run_ensemble_experiment(periods, max_epochs):
             append_result(summary_csv, summary_row, ENSEMBLE_SUMMARY_COLUMNS)
 
 
+def run_mixed_stack_benchmark(periods, max_epochs):
+    """Part 7a: Mixed stack benchmark — I+G pattern with novel G blocks."""
+    csv_path = os.path.join(RESULTS_DIR, "block_benchmark_results.csv")
+    init_csv(csv_path)
+
+    for period in periods:
+        print(f"\n{'='*60}")
+        print(f"Mixed Stack Benchmark — {period}")
+        print(f"{'='*60}")
+
+        m4 = M4Dataset(period, "All")
+        train_series_list = get_training_series(m4)
+
+        for config_name, cfg in MIXED_STACK_CONFIGS.items():
+            for run_idx in range(N_RUNS):
+                run_single_experiment(
+                    experiment_name="mixed_stack_benchmark",
+                    config_name=config_name,
+                    stack_types=cfg["stack_types"],
+                    period=period,
+                    run_idx=run_idx,
+                    m4=m4,
+                    train_series_list=train_series_list,
+                    csv_path=csv_path,
+                    n_blocks_per_stack=cfg["n_blocks_per_stack"],
+                    share_weights=cfg["share_weights"],
+                    active_g=False,
+                    sum_losses=False,
+                    activation="ReLU",
+                    max_epochs=max_epochs,
+                )
+
+
+def run_mixed_stack_ensemble(periods, max_epochs):
+    """Part 7b: Multi-horizon ensemble for mixed stack configs.
+
+    Same strategy as Part 3: train at 6 backcast multipliers (2H-7H) x N_RUNS
+    seeds, take element-wise median forecast across all models.
+    """
+    individual_csv = os.path.join(RESULTS_DIR, "ensemble_individual_results.csv")
+    summary_csv = os.path.join(RESULTS_DIR, "ensemble_summary_results.csv")
+    preds_dir = os.path.join(RESULTS_DIR, "ensemble_predictions")
+    os.makedirs(preds_dir, exist_ok=True)
+
+    init_csv(individual_csv, ENSEMBLE_INDIVIDUAL_COLUMNS)
+    init_csv(summary_csv, ENSEMBLE_SUMMARY_COLUMNS)
+
+    for period in periods:
+        print(f"\n{'='*60}")
+        print(f"Mixed Stack Ensemble — {period}")
+        print(f"{'='*60}")
+
+        m4 = M4Dataset(period, "All")
+        train_series_list = get_training_series(m4)
+        forecast_length = m4.forecast_length
+        frequency = m4.frequency
+
+        for config_name, cfg in MIXED_STACK_ENSEMBLE_CONFIGS.items():
+            # Skip if ensemble summary already computed
+            if ensemble_summary_exists(summary_csv, config_name, period):
+                print(f"  [SKIP] {config_name} / {period} ensemble — already exists")
+                continue
+
+            stack_types = cfg["stack_types"]
+            n_stacks = len(stack_types)
+            n_blocks_per_stack = cfg["n_blocks_per_stack"]
+            share_weights = cfg["share_weights"]
+
+            all_predictions = []
+            targets = None
+
+            for multiplier in FORECAST_MULTIPLIERS:
+                backcast_length = forecast_length * multiplier
+
+                for run_idx in range(N_RUNS):
+                    seed = BASE_SEED + run_idx
+                    pred_file = os.path.join(
+                        preds_dir,
+                        f"{config_name}_{period}_m{multiplier}_run{run_idx}.npz",
+                    )
+
+                    if os.path.exists(pred_file):
+                        # Load cached predictions
+                        data = np.load(pred_file)
+                        preds = data["preds"]
+                        targets = data["targets"]
+                        all_predictions.append(preds)
+                        print(f"  [LOAD] {config_name} / {period} / "
+                              f"m={multiplier} / run {run_idx}")
+                        continue
+
+                    set_seed(seed)
+
+                    # Detect accelerator
+                    if torch.cuda.is_available():
+                        accelerator, device = "cuda", torch.device("cuda")
+                    elif torch.backends.mps.is_available():
+                        accelerator, device = "mps", torch.device("mps")
+                    else:
+                        accelerator, device = "cpu", torch.device("cpu")
+
+                    model = NBeatsNet(
+                        backcast_length=backcast_length,
+                        forecast_length=forecast_length,
+                        stack_types=stack_types,
+                        n_blocks_per_stack=n_blocks_per_stack,
+                        share_weights=share_weights,
+                        thetas_dim=THETAS_DIM,
+                        loss=LOSS,
+                        active_g=False,
+                        sum_losses=False,
+                        activation="ReLU",
+                        latent_dim=LATENT_DIM,
+                        basis_dim=BASIS_DIM,
+                        learning_rate=LEARNING_RATE,
+                        no_val=False,
+                    )
+
+                    n_params = count_parameters(model)
+                    train_data = m4.train_data
+                    test_data = m4.test_data
+
+                    dm = ColumnarCollectionTimeSeriesDataModule(
+                        train_data,
+                        backcast_length=backcast_length,
+                        forecast_length=forecast_length,
+                        batch_size=BATCH_SIZE,
+                        no_val=False,
+                    )
+                    test_dm = ColumnarCollectionTimeSeriesTestDataModule(
+                        train_data, test_data,
+                        backcast_length=backcast_length,
+                        forecast_length=forecast_length,
+                        batch_size=BATCH_SIZE,
+                    )
+
+                    log_dir = os.path.join(RESULTS_DIR, "lightning_logs")
+                    log_name = (f"mixed_ensemble/{config_name}/{period}/"
+                                f"m{multiplier}/run{run_idx}")
+
+                    chk_cb = ModelCheckpoint(
+                        filename="best-checkpoint",
+                        save_top_k=1, monitor="val_loss", mode="min",
+                    )
+                    es_cb = EarlyStopping(
+                        monitor="val_loss",
+                        patience=EARLY_STOPPING_PATIENCE,
+                        mode="min", verbose=False,
+                    )
+                    tb_logger = pl_loggers.TensorBoardLogger(
+                        save_dir=log_dir, name=log_name,
+                    )
+
+                    trainer = pl.Trainer(
+                        accelerator=accelerator, devices=1,
+                        max_epochs=max_epochs,
+                        callbacks=[chk_cb, es_cb],
+                        logger=[tb_logger],
+                        enable_progress_bar=True,
+                        deterministic=False,
+                    )
+
+                    stack_summary = (
+                        f"{n_stacks}x{stack_types[0]}"
+                        if len(set(stack_types)) == 1
+                        else f"{n_stacks} mixed"
+                    )
+                    print(f"  [RUN]  {config_name} / {period} / "
+                          f"m={multiplier} / run {run_idx} "
+                          f"(seed={seed}, {stack_summary}, "
+                          f"params={n_params:,})")
+
+                    t0 = time.time()
+                    trainer.fit(model, datamodule=dm)
+                    training_time = time.time() - t0
+
+                    best_path = trainer.checkpoint_callback.best_model_path
+                    if best_path:
+                        model = NBeatsNet.load_from_checkpoint(
+                            best_path, weights_only=False,
+                        )
+                    epochs_trained = trainer.current_epoch
+
+                    preds, tgts = run_inference(model, test_dm, device)
+                    targets = tgts  # same for all multipliers
+
+                    # Cache predictions
+                    np.savez_compressed(pred_file, preds=preds, targets=targets)
+                    all_predictions.append(preds)
+
+                    # Per-model metrics
+                    smape = compute_smape(preds, targets)
+                    mase = compute_m4_mase(
+                        preds, targets, train_series_list, frequency,
+                    )
+                    owa = compute_owa(smape, mase, period)
+
+                    print(f"         sMAPE={smape:.4f}  MASE={mase:.4f}  "
+                          f"OWA={owa:.4f}  time={training_time:.1f}s  "
+                          f"epochs={epochs_trained}")
+
+                    unique_types = list(dict.fromkeys(stack_types))
+                    row = {
+                        "experiment": "mixed_stack_ensemble",
+                        "config_name": config_name,
+                        "stack_types": str(unique_types),
+                        "period": period,
+                        "frequency": frequency,
+                        "forecast_length": forecast_length,
+                        "backcast_length": backcast_length,
+                        "forecast_multiplier": multiplier,
+                        "n_stacks": n_stacks,
+                        "n_blocks_per_stack": n_blocks_per_stack,
+                        "share_weights": share_weights,
+                        "run": run_idx,
+                        "seed": seed,
+                        "smape": f"{smape:.6f}",
+                        "mase": f"{mase:.6f}",
+                        "owa": f"{owa:.6f}",
+                        "n_params": n_params,
+                        "training_time_seconds": f"{training_time:.2f}",
+                        "epochs_trained": epochs_trained,
+                        "active_g": False,
+                        "sum_losses": False,
+                        "activation": "ReLU",
+                    }
+                    append_result(
+                        individual_csv, row, ENSEMBLE_INDIVIDUAL_COLUMNS,
+                    )
+
+                    del model, trainer, dm, test_dm
+                    gc.collect()
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+
+            # --- Ensemble aggregation: median across all models ---
+            n_models = len(all_predictions)
+            if n_models == 0:
+                print(f"  [WARN] No predictions for {config_name}/{period}")
+                continue
+
+            ensemble_preds = np.median(np.stack(all_predictions), axis=0)
+            ens_smape = compute_smape(ensemble_preds, targets)
+            ens_mase = compute_m4_mase(
+                ensemble_preds, targets, train_series_list, frequency,
+            )
+            ens_owa = compute_owa(ens_smape, ens_mase, period)
+
+            print(f"  [ENS]  {config_name} / {period} — "
+                  f"{n_models} models → median ensemble")
+            print(f"         sMAPE={ens_smape:.4f}  MASE={ens_mase:.4f}  "
+                  f"OWA={ens_owa:.4f}")
+
+            summary_row = {
+                "config_name": config_name,
+                "period": period,
+                "frequency": frequency,
+                "forecast_length": forecast_length,
+                "n_models": n_models,
+                "multipliers": str(FORECAST_MULTIPLIERS),
+                "n_runs_per_multiplier": N_RUNS,
+                "ensemble_smape": f"{ens_smape:.6f}",
+                "ensemble_mase": f"{ens_mase:.6f}",
+                "ensemble_owa": f"{ens_owa:.6f}",
+            }
+            append_result(summary_csv, summary_row, ENSEMBLE_SUMMARY_COLUMNS)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -1173,11 +1458,12 @@ def main():
         description="M4 Benchmark — 1:1 N-BEATS paper comparison + novel extensions"
     )
     parser.add_argument(
-        "--part", choices=["1", "2", "3", "4", "5", "6", "all"], default="all",
+        "--part", choices=["1", "2", "3", "4", "5", "6", "7", "all"], default="all",
         help=("Which experiments to run: 1=block benchmark, 2=ablation, "
               "3=multi-horizon ensemble, 4=wavelet V2 benchmark, "
               "5=wavelet V3 benchmark, 6=convergence study, "
-              "all=1-3 (use 4/5/6 explicitly)"),
+              "7=mixed stack benchmark+ensemble, "
+              "all=1-3 (use 4/5/6/7 explicitly)"),
     )
     parser.add_argument(
         "--periods", nargs="+",
@@ -1235,6 +1521,15 @@ def main():
     if args.part == "6":
         print(f"Part 6 — Convergence study: {n_convergence_runs} runs "
               f"({len(CONVERGENCE_STUDY_CONFIGS)} configs x {n_convergence_periods} periods x {CONVERGENCE_STUDY_N_RUNS} runs)")
+    if args.part == "7":
+        n_mixed_bench_runs = len(MIXED_STACK_CONFIGS) * len(args.periods) * N_RUNS
+        n_mixed_ens_runs = (len(MIXED_STACK_ENSEMBLE_CONFIGS) * len(FORECAST_MULTIPLIERS)
+                            * len(args.periods) * N_RUNS)
+        print(f"Part 7 — Mixed stack benchmark: {n_mixed_bench_runs} runs "
+              f"({len(MIXED_STACK_CONFIGS)} configs x {len(args.periods)} periods x {N_RUNS} runs)")
+        print(f"Part 7 — Mixed stack ensemble: {n_mixed_ens_runs} runs "
+              f"({len(MIXED_STACK_ENSEMBLE_CONFIGS)} configs x {len(FORECAST_MULTIPLIERS)} multipliers "
+              f"x {len(args.periods)} periods x {N_RUNS} runs)")
 
     if args.part in ("1", "all"):
         run_block_benchmark(args.periods, args.max_epochs)
@@ -1254,6 +1549,10 @@ def main():
     if args.part == "6":
         run_convergence_study(args.periods, args.max_epochs)
 
+    if args.part == "7":
+        run_mixed_stack_benchmark(args.periods, args.max_epochs)
+        run_mixed_stack_ensemble(args.periods, args.max_epochs)
+
     print("\nDone. Results saved to:")
     if args.part in ("1", "all"):
         print(f"  {os.path.join(RESULTS_DIR, 'block_benchmark_results.csv')}")
@@ -1268,6 +1567,10 @@ def main():
         print(f"  {os.path.join(RESULTS_DIR, 'wavelet_v3_benchmark_results.csv')}")
     if args.part == "6":
         print(f"  {os.path.join(RESULTS_DIR, 'convergence_study_results.csv')}")
+    if args.part == "7":
+        print(f"  {os.path.join(RESULTS_DIR, 'block_benchmark_results.csv')}")
+        print(f"  {os.path.join(RESULTS_DIR, 'ensemble_individual_results.csv')}")
+        print(f"  {os.path.join(RESULTS_DIR, 'ensemble_summary_results.csv')}")
 
 
 if __name__ == "__main__":

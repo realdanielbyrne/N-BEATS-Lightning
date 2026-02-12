@@ -63,3 +63,113 @@ ensemble,NBEATS-G,['Generic'],Quarterly,4,8,32,4,30,1,True,0,42,9.995440,1.14611
 ensemble,NBEATS-G,['Generic'],Quarterly,4,8,32,4,30,1,True,1,43,10.045170,1.150091,0.875536,24760320,369.67,15,False,False,ReLU
 ensemble,NBEATS-G,['Generic'],Quarterly,4,8,32,4,30,1,True,2,44,10.122489,1.174590,0.887982,24760320,327.10,13,False,False,ReLU
 ensemble,NBEATS-G,['Generic'],Quarterly,4,8,40,5,30,1,True,0,42,10.145321,1.173334,0.888560,25006080,254.11,12,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Quarterly,4,8,40,5,30,1,True,1,43,10.335802,1.192058,0.904038,25006080,362.97,17,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Quarterly,4,8,40,5,30,1,True,2,44,10.337298,1.213713,0.912003,25006080,281.02,13,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Quarterly,4,8,48,6,30,1,True,0,42,10.295992,1.196165,0.903728,25251840,259.71,14,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Quarterly,4,8,48,6,30,1,True,1,43,34.437416,4.438675,3.182404,25251840,302.30,16,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Quarterly,4,8,48,6,30,1,True,2,44,10.283687,1.171985,0.894351,25251840,255.30,14,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Quarterly,4,8,56,7,30,1,True,0,42,10.273091,1.188650,0.899947,25497600,184.24,12,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Quarterly,4,8,56,7,30,1,True,1,43,10.260486,1.187077,0.898801,25497600,185.84,12,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Quarterly,4,8,56,7,30,1,True,2,44,10.480614,1.202680,0.914486,25497600,230.03,15,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,16,2,2,3,True,0,42,9.964579,1.145986,0.870380,12871941,342.53,20,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,16,2,2,3,True,1,43,9.912827,1.137567,0.864960,12871941,328.59,19,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,16,2,2,3,True,2,44,9.867853,1.133132,0.861300,12871941,394.08,23,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,24,3,2,3,True,0,42,9.900501,1.131129,0.862052,12906757,258.14,17,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,24,3,2,3,True,1,43,9.934324,1.136674,0.865610,12906757,199.11,13,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,24,3,2,3,True,2,44,9.983850,1.146265,0.871357,12906757,276.02,18,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,32,4,2,3,True,0,42,10.170080,1.171398,0.888978,12941573,260.28,19,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,32,4,2,3,True,1,43,10.106942,1.156009,0.880499,12941573,231.89,17,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,32,4,2,3,True,2,44,10.127663,1.175359,0.888497,12941573,230.14,17,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,40,5,2,3,True,0,42,10.200346,1.169160,0.889536,12976389,152.71,13,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,40,5,2,3,True,1,43,10.212457,1.174986,0.892211,12976389,160.44,14,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,40,5,2,3,True,2,44,10.192356,1.181133,0.893540,12976389,181.74,15,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,48,6,2,3,True,0,42,10.497200,1.214844,0.919676,13011205,209.85,21,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,48,6,2,3,True,1,43,10.375594,1.202747,0.909742,13011205,149.03,15,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,48,6,2,3,True,2,44,10.301394,1.193698,0.903073,13011205,172.06,17,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,56,7,2,3,True,0,42,10.423810,1.208160,0.913906,13046021,139.60,16,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,56,7,2,3,True,1,43,10.384794,1.201145,0.909576,13046021,111.91,13,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Quarterly,4,8,56,7,2,3,True,2,44,10.305669,1.198274,0.904936,13046021,123.62,15,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,16,2,30,1,True,0,42,9.856677,1.125650,0.858064,35522821,523.07,17,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,16,2,30,1,True,1,43,9.828140,1.129487,0.858168,35522821,438.12,14,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,16,2,30,1,True,2,44,9.846869,1.127899,0.858439,35522821,461.87,15,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,24,3,30,1,True,0,42,9.913869,1.146524,0.868273,35787013,357.79,13,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,24,3,30,1,True,1,43,9.953657,1.141397,0.868210,35787013,468.60,17,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,24,3,30,1,True,2,44,9.909977,1.130461,0.862239,35787013,333.02,12,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,32,4,30,1,True,0,42,9.946069,1.138596,0.866844,36051205,264.05,11,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,32,4,30,1,True,1,43,9.951798,1.140999,0.867981,36051205,292.05,12,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,32,4,30,1,True,2,44,10.048898,1.150603,0.875892,36051205,290.90,12,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,40,5,30,1,True,0,42,10.336320,1.188777,0.902865,36315397,315.85,15,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,40,5,30,1,True,1,43,10.289980,1.169003,0.893549,36315397,293.16,14,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,40,5,30,1,True,2,44,10.228077,1.174351,0.892689,36315397,334.56,16,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,48,6,30,1,True,0,42,10.321195,1.190183,0.902691,36579589,288.82,16,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,48,6,30,1,True,1,43,10.712146,1.230932,0.935303,36579589,371.67,21,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,48,6,30,1,True,2,44,10.191118,1.176142,0.891664,36579589,235.50,13,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,56,7,30,1,True,0,42,10.477809,1.213993,0.918485,36843781,211.77,14,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,56,7,30,1,True,1,43,10.282634,1.206793,0.906997,36843781,197.59,13,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Quarterly,4,8,56,7,30,1,True,2,44,10.251801,1.198647,0.902627,36843781,194.04,13,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,36,2,30,1,True,0,42,23.322086,3.249700,2.336830,25036800,2021.53,14,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,36,2,30,1,True,1,43,12.948051,0.921411,0.882145,25036800,2606.10,18,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,36,2,30,1,True,2,44,12.797755,0.921257,0.876864,25036800,2352.29,16,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,54,3,30,1,True,0,42,13.110760,0.934621,0.893997,25589760,1662.54,12,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,54,3,30,1,True,1,43,23.812195,3.227676,2.343457,25589760,1854.50,13,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,54,3,30,1,True,2,44,12.969361,0.940780,0.891994,25589760,1560.49,11,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,72,4,30,1,True,0,42,25.379784,3.278494,2.421688,26142720,1714.82,13,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,36,2,30,1,True,3,45,12.877299,0.919491,0.878790,25036800,1610.45,12,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,36,2,30,1,True,4,46,12.835978,0.921199,0.878161,25036800,1875.04,14,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,54,3,30,1,True,3,45,13.125391,0.928747,0.891742,25589760,1475.12,12,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,54,3,30,1,True,4,46,13.219510,0.955773,0.907716,25589760,1514.63,12,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,72,4,30,1,True,1,43,13.062887,0.934790,0.892418,26142720,1483.72,13,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,72,4,30,1,True,2,44,13.598097,0.950033,0.918137,26142720,1516.42,13,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,72,4,30,1,True,3,45,13.584897,0.959760,0.922254,26142720,1753.95,15,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,72,4,30,1,True,4,46,13.517814,0.952151,0.916351,26142720,1401.37,12,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,90,5,30,1,True,0,42,13.019863,0.946846,0.896597,26695680,1144.77,12,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,90,5,30,1,True,1,43,13.689923,0.968511,0.930010,26695680,1134.28,12,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,90,5,30,1,True,2,44,13.426902,0.950623,0.912481,26695680,1039.65,11,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,90,5,30,1,True,3,45,14.023500,0.979386,0.946687,26695680,1322.94,14,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,90,5,30,1,True,4,46,14.393656,0.987792,0.963469,26695680,1436.62,15,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,108,6,30,1,True,0,42,13.422654,0.992119,0.931852,27248640,1195.35,14,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,108,6,30,1,True,1,43,34.390293,4.516779,3.316416,27248640,1023.73,12,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,108,6,30,1,True,2,44,13.741903,1.002682,0.947885,27248640,1530.82,18,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,108,6,30,1,True,3,45,14.182308,1.039641,0.980533,27248640,1115.08,13,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,108,6,30,1,True,4,46,13.975517,1.032879,0.970185,27248640,1126.11,13,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,126,7,30,1,True,0,42,14.795314,1.047715,1.005575,27801600,1008.91,13,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,126,7,30,1,True,1,43,13.664855,0.987106,0.937888,27801600,1221.34,16,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,126,7,30,1,True,2,44,14.246299,1.007082,0.967435,27801600,1062.71,14,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,126,7,30,1,True,3,45,14.101882,1.033860,0.975026,27801600,998.74,13,False,False,ReLU
+ensemble,NBEATS-G,['Generic'],Monthly,12,18,126,7,30,1,True,4,46,13.658646,1.008127,0.947561,27801600,996.60,13,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,36,2,2,3,True,0,42,12.914306,0.922864,0.881659,12979461,1138.02,15,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,36,2,2,3,True,1,43,12.834705,0.918847,0.877011,12979461,1202.94,16,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,36,2,2,3,True,2,44,12.803946,0.918857,0.875949,12979461,1211.21,16,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,36,2,2,3,True,3,45,12.875116,0.922795,0.880268,12979461,825.11,11,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,36,2,2,3,True,4,46,12.853634,0.920912,0.878638,12979461,1910.15,25,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,54,3,2,3,True,0,42,13.107933,0.925849,0.889774,13057797,1033.07,15,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,54,3,2,3,True,1,43,13.175501,0.931477,0.894762,13057797,822.42,12,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,54,3,2,3,True,2,44,12.938333,0.927111,0.884489,13057797,886.15,13,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,54,3,2,3,True,3,45,13.162652,0.935758,0.896331,13057797,889.45,13,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,54,3,2,3,True,4,46,13.432306,0.939306,0.907345,13057797,1019.93,15,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,72,4,2,3,True,0,42,13.345822,0.940303,0.904817,13136133,925.15,15,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,72,4,2,3,True,1,43,13.432415,0.950714,0.912715,13136133,980.12,16,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,72,4,2,3,True,2,44,13.839825,0.963655,0.932921,13136133,677.16,11,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,72,4,2,3,True,3,45,13.291550,0.940290,0.902930,13136133,1286.06,21,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,72,4,2,3,True,4,46,13.715866,0.959533,0.926687,13136133,743.59,12,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,90,5,2,3,True,0,42,13.406955,0.956634,0.914617,13214469,825.70,15,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,90,5,2,3,True,1,43,13.555331,0.966033,0.924180,13214469,826.27,15,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,90,5,2,3,True,2,44,13.727797,0.967888,0.931030,13214469,769.12,14,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,90,5,2,3,True,3,45,13.266057,0.950050,0.906637,13214469,885.23,16,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,90,5,2,3,True,4,46,13.551101,0.964893,0.923498,13214469,715.56,13,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,108,6,2,3,True,0,42,14.886122,1.033033,1.001816,13292805,933.18,19,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,108,6,2,3,True,1,43,14.185071,1.057428,0.988995,13292805,638.71,13,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,108,6,2,3,True,2,44,14.172609,1.040049,0.980388,13292805,641.03,13,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,108,6,2,3,True,3,45,13.825302,0.991786,0.945650,13292805,640.75,13,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,108,6,2,3,True,4,46,13.509367,0.987752,0.932803,13292805,845.92,17,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,126,7,2,3,True,0,42,14.153923,1.028550,0.974332,13371141,608.63,14,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,126,7,2,3,True,1,43,13.975414,1.002343,0.955818,13371141,565.46,13,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,126,7,2,3,True,2,44,13.779767,0.993957,0.945093,13371141,479.87,11,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,126,7,2,3,True,3,45,13.815776,0.997597,0.948053,13371141,526.10,12,False,False,ReLU
+ensemble,NBEATS-I,"['Trend', 'Seasonality']",Monthly,12,18,126,7,2,3,True,4,46,14.110883,0.995856,0.957462,13371141,569.17,13,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Monthly,12,18,36,2,30,1,True,0,42,12.787147,0.915246,0.873669,36347141,1974.36,15,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Monthly,12,18,36,2,30,1,True,1,43,12.800908,0.912353,0.872785,36347141,1592.21,12,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Monthly,12,18,36,2,30,1,True,2,44,12.901256,0.917041,0.878468,36347141,2007.26,15,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Monthly,12,18,36,2,30,1,True,3,45,12.758255,0.912554,0.871401,36347141,1604.28,12,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Monthly,12,18,36,2,30,1,True,4,46,12.882204,0.916592,0.877596,36347141,1875.85,14,False,False,ReLU
+ensemble,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Monthly,12,18,54,3,30,1,True,0,42,200.000000,1175024669079.711914,552692678656.000000,36941573,1341.33,11,False,False,ReLU
