@@ -393,8 +393,9 @@ ABLATION_CONFIGS = {
 # ---------------------------------------------------------------------------
 
 CONVERGENCE_STUDY_CONFIGS = {
-    "Generic30_baseline": {"active_g": False, "activation": "ReLU"},
-    "Generic30_activeG":  {"active_g": True,  "activation": "ReLU"},
+    "Generic30_baseline":        {"active_g": False,      "activation": "ReLU"},
+    "Generic30_activeG":         {"active_g": True,       "activation": "ReLU"},
+    "Generic30_activeG_forecast": {"active_g": "forecast", "activation": "ReLU"},
 }
 
 CONVERGENCE_STUDY_STACKS = 30
@@ -403,7 +404,7 @@ CONVERGENCE_STUDY_N_RUNS = 200
 # Convergence study iterates over multiple datasets internally (Part 6 only)
 CONVERGENCE_STUDY_DATASETS = {
     "tourism": ["Tourism-Yearly"],
-    "m4":      ["Yearly", "Weekly"],
+    "m4":      ["Yearly"],
 }
 
 # ---------------------------------------------------------------------------
@@ -475,7 +476,7 @@ CONVERGENCE_CSV_COLUMNS = [
     "experiment", "config_name", "dataset", "period",
     "frequency", "forecast_length", "backcast_length",
     "n_stacks", "n_blocks_per_stack", "share_weights",
-    "run", "seed", "active_g", "activation",
+    "run", "seed", "active_g", "sum_losses", "activation",
     "smape", "mase", "mae", "mse", "owa",
     "best_val_loss", "final_val_loss", "final_train_loss",
     "best_epoch", "epochs_trained", "stopping_reason",
