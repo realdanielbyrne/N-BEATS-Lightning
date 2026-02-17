@@ -41,9 +41,11 @@ python experiments/run_experiments.py --dataset traffic --part 1 --periods Traff
 python experiments/run_experiments.py --dataset m4 --part 2 --periods Yearly Monthly --max-epochs 100
 python experiments/run_experiments.py --dataset m4 --part all
 python experiments/run_experiments.py --part 6 --max-epochs 100
+python experiments/run_experiments.py --part 8 --max-epochs 100
+python experiments/run_experiments.py --part 8 --max-epochs 100 --convergence-config Generic30_sumLosses
 ```
 
-`--dataset`: `m4` (default), `traffic`, or `weather`. `--part 1`: Block-type benchmark (paper baselines + novel blocks at 30-stack scale). `--part 2`: Ablation studies (active_g, sum_losses, activations). `--part 6`: Convergence study (ignores `--dataset`; runs across both M4-Yearly and Weather-96 with random seeds). `--convergence-config`: filter to a single config for parallel Part 6 execution. `--periods`: one or more of `Yearly`, `Quarterly`, `Monthly`, `Weekly`, `Daily`, `Hourly` for M4; `Traffic-96` for Traffic; `Weather-96` for Weather. Results are saved to dataset-specific subdirectories under `experiments/results/<dataset>/`.
+`--dataset`: `m4` (default), `traffic`, or `weather`. `--part 1`: Block-type benchmark (paper baselines + novel blocks at 30-stack scale). `--part 2`: Ablation studies (active_g, sum_losses, activations). `--part 6`: Convergence study (ignores `--dataset`; runs across both M4-Yearly and Weather-96 with random seeds). `--part 8`: sum_losses convergence study — 2x2 factorial (active_g x sum_losses) with 200 runs/config, per-epoch tracking, divergence detection, multi-dataset (ignores `--dataset`). `--convergence-config`: filter to a single config for parallel Part 6 or Part 8 execution. `--periods`: one or more of `Yearly`, `Quarterly`, `Monthly`, `Weekly`, `Daily`, `Hourly` for M4; `Traffic-96` for Traffic; `Weather-96` for Weather. Results are saved to dataset-specific subdirectories under `experiments/results/<dataset>/`.
 
 ## Testing
 
