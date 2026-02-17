@@ -303,3 +303,119 @@ block_benchmark,Generic+DB3Wavelet,"['Generic', 'DB3Wavelet']",Weekly,1,13,65,30
 block_benchmark,Generic+DB3Wavelet,"['Generic', 'DB3Wavelet']",Weekly,1,13,65,30,1,True,4,46,7.113221,2.067807,0.760543,26386560,101.01,15,False,False,ReLU
 block_benchmark,NBEATS-G,['Generic'],Daily,1,14,70,30,1,True,2,44,2.663839,2.911585,0.881522,26019840,5907.66,34,False,False,ReLU
 block_benchmark,NBEATS-G,['Generic'],Daily,1,14,70,30,1,True,3,45,2.593698,2.835277,0.858365,26019840,8870.63,51,False,False,ReLU
+block_benchmark,NBEATS-G,['Generic'],Daily,1,14,70,30,1,True,4,46,2.631469,2.848747,0.866622,26019840,7774.98,41,False,False,ReLU
+block_benchmark,NBEATS-I,"['Trend', 'Seasonality']",Daily,1,14,70,2,3,True,0,42,2.836723,3.063905,0.933144,13119237,7155.13,69,False,False,ReLU
+block_benchmark,NBEATS-I,"['Trend', 'Seasonality']",Daily,1,14,70,2,3,True,1,43,2.734540,2.964457,0.901196,13119237,2658.78,26,False,False,ReLU
+block_benchmark,NBEATS-I,"['Trend', 'Seasonality']",Daily,1,14,70,2,3,True,2,44,2.784081,3.053505,0.922914,13119237,2280.44,22,False,False,ReLU
+block_benchmark,NBEATS-I,"['Trend', 'Seasonality']",Daily,1,14,70,2,3,True,3,45,2.726691,2.972182,0.901086,13119237,2770.61,27,False,False,ReLU
+block_benchmark,NBEATS-I,"['Trend', 'Seasonality']",Daily,1,14,70,2,3,True,4,46,2.684509,2.902005,0.883455,13119237,3103.31,30,False,False,ReLU
+block_benchmark,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Daily,1,14,70,30,1,True,0,42,2.616530,2.823848,0.860371,37404421,8468.12,47,False,False,ReLU
+block_benchmark,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Daily,1,14,70,30,1,True,1,43,2.561648,2.769302,0.843039,37404421,8694.28,48,False,False,ReLU
+block_benchmark,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Daily,1,14,70,30,1,True,2,44,200.000000,1287398999553226307534848.000000,196369589861107281952768.000000,37404421,1967.82,11,False,False,ReLU
+block_benchmark,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Daily,1,14,70,30,1,True,3,45,2.645462,2.853586,0.869658,37404421,6696.28,37,False,False,ReLU
+block_benchmark,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Daily,1,14,70,30,1,True,4,46,200.000000,72412337911669.859375,11045201510400.000000,37404421,1975.26,11,False,False,ReLU
+block_benchmark,BottleneckGeneric,['BottleneckGeneric'],Daily,1,14,70,30,1,True,0,42,2.768620,3.020897,0.915401,24819150,9042.43,45,False,False,ReLU
+block_benchmark,BottleneckGeneric,['BottleneckGeneric'],Daily,1,14,70,30,1,True,1,43,2.844275,3.096672,0.939382,24819150,8052.35,40,False,False,ReLU
+block_benchmark,BottleneckGeneric,['BottleneckGeneric'],Daily,1,14,70,30,1,True,2,44,2.842871,3.132590,0.944630,24819150,7057.49,35,False,False,ReLU
+block_benchmark,BottleneckGeneric,['BottleneckGeneric'],Daily,1,14,70,30,1,True,3,45,2.703924,2.920476,0.889460,24819150,8897.42,44,False,False,ReLU
+block_benchmark,BottleneckGeneric,['BottleneckGeneric'],Daily,1,14,70,30,1,True,4,46,2.767859,3.014474,0.914296,24819150,10070.56,50,False,False,ReLU
+block_benchmark,AutoEncoder,['AutoEncoder'],Daily,1,14,70,30,1,True,0,42,200.000000,2571423.617686,392257.312500,26283630,3799.59,11,False,False,ReLU
+block_benchmark,AutoEncoder,['AutoEncoder'],Daily,1,14,70,30,1,True,1,43,17.300655,45.262015,9.744738,26283630,7605.22,18,False,False,ReLU
+block_benchmark,AutoEncoder,['AutoEncoder'],Daily,1,14,70,30,1,True,2,44,17.007116,42.100124,9.214248,26283630,17631.97,42,False,False,ReLU
+block_benchmark,AutoEncoder,['AutoEncoder'],Daily,1,14,70,30,1,True,3,45,200.000000,48039131512.934013,7327506432.000000,26283630,4741.86,11,False,False,ReLU
+block_benchmark,AutoEncoder,['AutoEncoder'],Daily,1,14,70,30,1,True,4,46,3.031680,3.271969,0.996893,26283630,6905.14,16,False,False,ReLU
+block_benchmark,GenericAE,['GenericAE'],Daily,1,14,70,30,1,True,0,42,3.042675,3.278063,0.999628,5852280,6337.71,21,False,False,ReLU
+block_benchmark,GenericAE,['GenericAE'],Daily,1,14,70,30,1,True,1,43,3.040557,3.280162,0.999600,5852280,11803.91,39,False,False,ReLU
+block_benchmark,GenericAE,['GenericAE'],Daily,1,14,70,30,1,True,2,44,3.010933,3.248677,0.989933,5852280,6696.95,22,False,False,ReLU
+block_benchmark,GenericAE,['GenericAE'],Daily,1,14,70,30,1,True,3,45,3.028658,3.252575,0.993438,5852280,5158.38,17,False,False,ReLU
+block_benchmark,GenericAE,['GenericAE'],Daily,1,14,70,30,1,True,4,46,3.182093,3.478187,1.053046,5852280,5182.57,17,False,False,ReLU
+block_benchmark,BottleneckGenericAE,['BottleneckGenericAE'],Daily,1,14,70,30,1,True,0,42,3.038798,3.289366,1.000715,4651590,9801.58,28,False,False,ReLU
+block_benchmark,BottleneckGenericAE,['BottleneckGenericAE'],Daily,1,14,70,30,1,True,1,43,3.108681,3.370822,1.024615,4651590,7448.20,21,False,False,ReLU
+block_benchmark,BottleneckGenericAE,['BottleneckGenericAE'],Daily,1,14,70,30,1,True,2,44,3.037745,3.312193,1.004024,4651590,11498.60,33,False,False,ReLU
+block_benchmark,BottleneckGenericAE,['BottleneckGenericAE'],Daily,1,14,70,30,1,True,3,45,3.189144,3.464119,1.052058,4651590,4443.05,14,False,False,ReLU
+block_benchmark,BottleneckGenericAE,['BottleneckGenericAE'],Daily,1,14,70,30,1,True,4,46,3.046132,3.313060,1.005534,4651590,4823.83,16,False,False,ReLU
+block_benchmark,GenericAEBackcast,['GenericAEBackcast'],Daily,1,14,70,30,1,True,0,42,2.681148,2.927581,0.886804,26055060,12423.44,37,False,False,ReLU
+block_benchmark,GenericAEBackcast,['GenericAEBackcast'],Daily,1,14,70,30,1,True,1,43,2.644073,2.872255,0.872277,26055060,19500.48,59,False,False,ReLU
+block_benchmark,GenericAEBackcast,['GenericAEBackcast'],Daily,1,14,70,30,1,True,2,44,200.000000,1076290357522.392212,164168761344.000000,26055060,3638.34,11,False,False,ReLU
+block_benchmark,GenericAEBackcast,['GenericAEBackcast'],Daily,1,14,70,30,1,True,3,45,2.711539,2.968801,0.898082,26055060,9712.74,34,False,False,ReLU
+block_benchmark,GenericAEBackcast,['GenericAEBackcast'],Daily,1,14,70,30,1,True,4,46,2.617186,2.857384,0.865594,26055060,9113.71,39,False,False,ReLU
+block_benchmark,NBEATS-I-AE,"['TrendAE', 'SeasonalityAE']",Daily,1,14,70,2,3,True,0,42,3.061581,3.296676,1.005571,2393613,3436.78,40,False,False,ReLU
+block_benchmark,NBEATS-I-AE,"['TrendAE', 'SeasonalityAE']",Daily,1,14,70,2,3,True,1,43,3.068549,3.262840,1.001554,2393613,3362.27,39,False,False,ReLU
+block_benchmark,NBEATS-I-AE,"['TrendAE', 'SeasonalityAE']",Daily,1,14,70,2,3,True,2,44,3.014832,3.228973,0.987568,2393613,1891.04,22,False,False,ReLU
+block_benchmark,NBEATS-I-AE,"['TrendAE', 'SeasonalityAE']",Daily,1,14,70,2,3,True,3,45,2.948015,3.141880,0.963312,2393613,1539.65,18,False,False,ReLU
+block_benchmark,NBEATS-I-AE,"['TrendAE', 'SeasonalityAE']",Daily,1,14,70,2,3,True,4,46,3.046891,3.288098,1.001851,2393613,1455.26,17,False,False,ReLU
+block_benchmark,Trend+HaarWavelet,"['Trend', 'HaarWavelet']",Daily,1,14,70,30,1,True,0,42,200.000000,37838277641784339588577339899904.000000,5771549075920765940458613374976.000000,16763595,2181.23,11,False,False,ReLU
+block_benchmark,Trend+HaarWavelet,"['Trend', 'HaarWavelet']",Daily,1,14,70,30,1,True,1,43,200.000000,714458329810294568579357994909696.000000,108977776596790295171982640021504.000000,16763595,2199.14,11,False,False,ReLU
+block_benchmark,Trend+HaarWavelet,"['Trend', 'HaarWavelet']",Daily,1,14,70,30,1,True,2,44,nan,nan,nan,16763595,200.27,1,False,False,ReLU
+block_benchmark,Trend+HaarWavelet,"['Trend', 'HaarWavelet']",Daily,1,14,70,30,1,True,3,45,200.000000,82103518943136733346022314475520.000000,12523416098967034678686464868352.000000,16763595,2206.20,11,False,False,ReLU
+block_benchmark,Trend+HaarWavelet,"['Trend', 'HaarWavelet']",Daily,1,14,70,30,1,True,4,46,nan,nan,nan,16763595,199.95,1,False,False,ReLU
+block_benchmark,Trend+DB3Wavelet,"['Trend', 'DB3Wavelet']",Daily,1,14,70,30,1,True,0,42,200.000000,534372765005575086197729918976.000000,81508961633427753099564417024.000000,16763595,2199.97,11,False,False,ReLU
+block_benchmark,Trend+DB3Wavelet,"['Trend', 'DB3Wavelet']",Daily,1,14,70,30,1,True,1,43,200.000000,14750037318869401137879973888.000000,2249853156453265541582290944.000000,16763595,2197.38,11,False,False,ReLU
+block_benchmark,Trend+DB3Wavelet,"['Trend', 'DB3Wavelet']",Daily,1,14,70,30,1,True,2,44,200.000000,16802993867036356.000000,2562994890342400.000000,16763595,2206.62,11,False,False,ReLU
+block_benchmark,Trend+DB3Wavelet,"['Trend', 'DB3Wavelet']",Daily,1,14,70,30,1,True,3,45,200.000000,174901221974663.562500,26678038364160.000000,16763595,2199.17,11,False,False,ReLU
+block_benchmark,Trend+DB3Wavelet,"['Trend', 'DB3Wavelet']",Daily,1,14,70,30,1,True,4,46,200.000000,2479158975952477230767064219648.000000,378151165238955020790534242304.000000,16763595,2199.76,11,False,False,ReLU
+block_benchmark,Generic+DB3Wavelet,"['Generic', 'DB3Wavelet']",Daily,1,14,70,30,1,True,0,42,200.000000,145169581321309840358768640.000000,22143010417479103021056000.000000,26520960,2123.16,11,False,False,ReLU
+block_benchmark,Generic+DB3Wavelet,"['Generic', 'DB3Wavelet']",Daily,1,14,70,30,1,True,1,43,200.000000,10745015029177429108657640964096.000000,1638959018654574443415430234112.000000,26520960,2123.18,11,False,False,ReLU
+block_benchmark,Generic+DB3Wavelet,"['Generic', 'DB3Wavelet']",Daily,1,14,70,30,1,True,2,44,200.000000,148969075968527011773996939083776.000000,22722556252846261764599534583808.000000,26520960,962.89,5,False,False,ReLU
+block_benchmark,Generic+DB3Wavelet,"['Generic', 'DB3Wavelet']",Daily,1,14,70,30,1,True,3,45,200.000000,71498904679535769046042058627743744.000000,10905872936452178895497165281427456.000000,26520960,2117.31,11,False,False,ReLU
+block_benchmark,Generic+DB3Wavelet,"['Generic', 'DB3Wavelet']",Daily,1,14,70,30,1,True,4,46,200.000000,469411713781536896728063541248.000000,71600322273877280204959776768.000000,26520960,770.42,4,False,False,ReLU
+block_benchmark,NBEATS-G,['Generic'],Hourly,24,48,240,30,1,True,0,42,8.683887,0.830571,0.409590,31764480,135.59,33,False,False,ReLU
+block_benchmark,NBEATS-G,['Generic'],Hourly,24,48,240,30,1,True,1,43,8.863003,0.805806,0.409292,31764480,163.33,40,False,False,ReLU
+block_benchmark,NBEATS-G,['Generic'],Hourly,24,48,240,30,1,True,2,44,8.919393,0.846147,0.419248,31764480,163.42,40,False,False,ReLU
+block_benchmark,NBEATS-G,['Generic'],Hourly,24,48,240,30,1,True,3,45,8.934733,0.823495,0.414936,31764480,174.94,43,False,False,ReLU
+block_benchmark,NBEATS-G,['Generic'],Hourly,24,48,240,30,1,True,4,46,8.821381,0.809626,0.408957,31764480,175.33,43,False,False,ReLU
+block_benchmark,NBEATS-I,"['Trend', 'Seasonality']",Hourly,24,48,240,2,3,True,0,42,200.000000,2094504792616.322510,437266120704.000000,13928709,24.93,11,False,False,ReLU
+block_benchmark,NBEATS-I,"['Trend', 'Seasonality']",Hourly,24,48,240,2,3,True,1,43,200.000000,1695051570449.355957,353872969728.000000,13928709,24.81,11,False,False,ReLU
+block_benchmark,NBEATS-I,"['Trend', 'Seasonality']",Hourly,24,48,240,2,3,True,2,44,200.000000,1133784384175.927734,236698206208.000000,13928709,24.79,11,False,False,ReLU
+block_benchmark,NBEATS-I,"['Trend', 'Seasonality']",Hourly,24,48,240,2,3,True,3,45,200.000000,1261702760143.036377,263403503616.000000,13928709,24.75,11,False,False,ReLU
+block_benchmark,NBEATS-I,"['Trend', 'Seasonality']",Hourly,24,48,240,2,3,True,4,46,200.000000,1407690301956.218506,293881053184.000000,13928709,24.62,11,False,False,ReLU
+block_benchmark,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Hourly,24,48,240,30,1,True,0,42,8.736650,0.766070,0.397560,43575557,204.48,48,False,False,ReLU
+block_benchmark,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Hourly,24,48,240,30,1,True,1,43,8.816495,0.779432,0.402521,43575557,180.84,42,False,False,ReLU
+block_benchmark,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Hourly,24,48,240,30,1,True,2,44,8.824635,0.800724,0.407187,43575557,222.07,52,False,False,ReLU
+block_benchmark,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Hourly,24,48,240,30,1,True,3,45,8.769922,0.753349,0.395809,43575557,242.78,57,False,False,ReLU
+block_benchmark,NBEATS-I+G,"['Trend', 'Seasonality', 'Generic']",Hourly,24,48,240,30,1,True,4,46,8.899340,0.820912,0.413434,43575557,154.25,36,False,False,ReLU
+block_benchmark,BottleneckGeneric,['BottleneckGeneric'],Hourly,24,48,240,30,1,True,0,42,9.124815,0.899513,0.435976,27460950,297.57,64,False,False,ReLU
+block_benchmark,BottleneckGeneric,['BottleneckGeneric'],Hourly,24,48,240,30,1,True,1,43,9.384855,0.977773,0.459387,27460950,258.28,55,False,False,ReLU
+block_benchmark,BottleneckGeneric,['BottleneckGeneric'],Hourly,24,48,240,30,1,True,2,44,9.195623,0.839710,0.425417,27460950,463.66,100,False,False,ReLU
+block_benchmark,BottleneckGeneric,['BottleneckGeneric'],Hourly,24,48,240,30,1,True,3,45,9.294498,0.913303,0.443470,27460950,336.58,72,False,False,ReLU
+block_benchmark,BottleneckGeneric,['BottleneckGeneric'],Hourly,24,48,240,30,1,True,4,46,10.101315,1.206779,0.526683,27460950,151.28,32,False,False,ReLU
+block_benchmark,AutoEncoder,['AutoEncoder'],Hourly,24,48,240,30,1,True,0,42,9.091325,0.980047,0.451878,32034390,214.16,36,False,False,ReLU
+block_benchmark,AutoEncoder,['AutoEncoder'],Hourly,24,48,240,30,1,True,1,43,12.878020,2.587883,0.890538,32034390,257.66,43,False,False,ReLU
+block_benchmark,AutoEncoder,['AutoEncoder'],Hourly,24,48,240,30,1,True,2,44,9.013937,0.925529,0.438392,32034390,294.85,49,False,False,ReLU
+block_benchmark,AutoEncoder,['AutoEncoder'],Hourly,24,48,240,30,1,True,3,45,9.421830,1.047548,0.474960,32034390,139.18,23,False,False,ReLU
+block_benchmark,AutoEncoder,['AutoEncoder'],Hourly,24,48,240,30,1,True,4,46,9.020421,0.883505,0.429795,32034390,258.97,43,False,False,ReLU
+block_benchmark,GenericAE,['GenericAE'],Hourly,24,48,240,30,1,True,0,42,9.387479,0.995823,0.463227,10291320,169.69,44,False,False,ReLU
+block_benchmark,GenericAE,['GenericAE'],Hourly,24,48,240,30,1,True,1,43,9.175108,0.853418,0.427721,10291320,277.56,72,False,False,ReLU
+block_benchmark,GenericAE,['GenericAE'],Hourly,24,48,240,30,1,True,2,44,9.551564,0.913367,0.450475,10291320,225.74,59,False,False,ReLU
+block_benchmark,GenericAE,['GenericAE'],Hourly,24,48,240,30,1,True,3,45,9.431483,0.918000,0.448177,10291320,200.71,52,False,False,ReLU
+block_benchmark,GenericAE,['GenericAE'],Hourly,24,48,240,30,1,True,4,46,9.171245,0.910747,0.439584,10291320,273.28,71,False,False,ReLU
+block_benchmark,BottleneckGenericAE,['BottleneckGenericAE'],Hourly,24,48,240,30,1,True,0,42,9.356123,0.925179,0.447626,5987790,446.75,100,False,False,ReLU
+block_benchmark,BottleneckGenericAE,['BottleneckGenericAE'],Hourly,24,48,240,30,1,True,1,43,10.034210,1.192396,0.521855,5987790,222.66,50,False,False,ReLU
+block_benchmark,BottleneckGenericAE,['BottleneckGenericAE'],Hourly,24,48,240,30,1,True,2,44,10.203626,1.199589,0.527965,5987790,187.95,42,False,False,ReLU
+block_benchmark,BottleneckGenericAE,['BottleneckGenericAE'],Hourly,24,48,240,30,1,True,3,45,9.684669,1.006069,0.473449,5987790,282.00,63,False,False,ReLU
+block_benchmark,BottleneckGenericAE,['BottleneckGenericAE'],Hourly,24,48,240,30,1,True,4,46,9.947339,1.161723,0.513089,5987790,259.85,58,False,False,ReLU
+block_benchmark,GenericAEBackcast,['GenericAEBackcast'],Hourly,24,48,240,30,1,True,0,42,9.199272,0.932412,0.444870,31287660,401.74,75,False,False,ReLU
+block_benchmark,GenericAEBackcast,['GenericAEBackcast'],Hourly,24,48,240,30,1,True,1,43,9.240847,0.939863,0.447556,31287660,392.63,73,False,False,ReLU
+block_benchmark,GenericAEBackcast,['GenericAEBackcast'],Hourly,24,48,240,30,1,True,2,44,9.366671,1.051443,0.474272,31287660,376.80,70,False,False,ReLU
+block_benchmark,GenericAEBackcast,['GenericAEBackcast'],Hourly,24,48,240,30,1,True,3,45,9.103882,0.864160,0.428026,31287660,536.34,100,False,False,ReLU
+block_benchmark,GenericAEBackcast,['GenericAEBackcast'],Hourly,24,48,240,30,1,True,4,46,9.520478,0.922429,0.451522,31287660,354.77,66,False,False,ReLU
+block_benchmark,NBEATS-I-AE,"['TrendAE', 'SeasonalityAE']",Hourly,24,48,240,2,3,True,0,42,26.248337,7.929582,2.369375,3007245,190.01,100,False,False,ReLU
+block_benchmark,NBEATS-I-AE,"['TrendAE', 'SeasonalityAE']",Hourly,24,48,240,2,3,True,1,43,26.117498,8.014353,2.383514,3007245,121.00,64,False,False,ReLU
+block_benchmark,NBEATS-I-AE,"['TrendAE', 'SeasonalityAE']",Hourly,24,48,240,2,3,True,2,44,27.952190,8.250640,2.482745,3007245,87.25,46,False,False,ReLU
+block_benchmark,NBEATS-I-AE,"['TrendAE', 'SeasonalityAE']",Hourly,24,48,240,2,3,True,3,45,25.822765,8.048138,2.382550,3007245,150.10,80,False,False,ReLU
+block_benchmark,NBEATS-I-AE,"['TrendAE', 'SeasonalityAE']",Hourly,24,48,240,2,3,True,4,46,25.958221,8.006762,2.377597,3007245,189.10,100,False,False,ReLU
+block_benchmark,Trend+HaarWavelet,"['Trend', 'HaarWavelet']",Hourly,24,48,240,30,1,True,0,42,200.000000,50134204571389890485314125824.000000,10466431121407586778310770688.000000,19113675,48.25,11,False,False,ReLU
+block_benchmark,Trend+HaarWavelet,"['Trend', 'HaarWavelet']",Hourly,24,48,240,30,1,True,1,43,nan,nan,nan,19113675,4.71,1,False,False,ReLU
+block_benchmark,Trend+HaarWavelet,"['Trend', 'HaarWavelet']",Hourly,24,48,240,30,1,True,2,44,200.000000,195025357949133706607078217351168.000000,40715108029494553088377275547648.000000,19113675,48.55,11,False,False,ReLU
+block_benchmark,Trend+HaarWavelet,"['Trend', 'HaarWavelet']",Hourly,24,48,240,30,1,True,3,45,200.000000,180000132071256088707755671552.000000,37578316290031893441599766528.000000,19113675,48.71,11,False,False,ReLU
+block_benchmark,Trend+HaarWavelet,"['Trend', 'HaarWavelet']",Hourly,24,48,240,30,1,True,4,46,200.000000,6240629331040910981269850947584.000000,1302845302036032841516689915904.000000,19113675,49.41,11,False,False,ReLU
+block_benchmark,Trend+DB3Wavelet,"['Trend', 'DB3Wavelet']",Hourly,24,48,240,30,1,True,0,42,8.994415,0.773205,0.406060,19113675,263.39,58,False,False,ReLU
+block_benchmark,Trend+DB3Wavelet,"['Trend', 'DB3Wavelet']",Hourly,24,48,240,30,1,True,1,43,9.071328,0.776827,0.408908,19113675,227.90,50,False,False,ReLU
+block_benchmark,Trend+DB3Wavelet,"['Trend', 'DB3Wavelet']",Hourly,24,48,240,30,1,True,2,44,8.988750,0.787917,0.408978,19113675,243.11,54,False,False,ReLU
+block_benchmark,Trend+DB3Wavelet,"['Trend', 'DB3Wavelet']",Hourly,24,48,240,30,1,True,3,45,9.212618,0.829916,0.423834,19113675,168.43,37,False,False,ReLU
+block_benchmark,Trend+DB3Wavelet,"['Trend', 'DB3Wavelet']",Hourly,24,48,240,30,1,True,4,46,9.061130,0.811978,0.415969,19113675,185.36,41,False,False,ReLU
+block_benchmark,Generic+DB3Wavelet,"['Generic', 'DB3Wavelet']",Hourly,24,48,240,30,1,True,0,42,8.914190,0.831845,0.416120,31090560,248.08,55,False,False,ReLU
+block_benchmark,Generic+DB3Wavelet,"['Generic', 'DB3Wavelet']",Hourly,24,48,240,30,1,True,1,43,8.650995,0.838182,0.410285,31090560,179.10,40,False,False,ReLU
+block_benchmark,Generic+DB3Wavelet,"['Generic', 'DB3Wavelet']",Hourly,24,48,240,30,1,True,2,44,8.804490,0.851805,0.417304,31090560,118.15,26,False,False,ReLU
+block_benchmark,Generic+DB3Wavelet,"['Generic', 'DB3Wavelet']",Hourly,24,48,240,30,1,True,3,45,8.775692,0.798573,0.405407,31090560,215.94,48,False,False,ReLU
+block_benchmark,Generic+DB3Wavelet,"['Generic', 'DB3Wavelet']",Hourly,24,48,240,30,1,True,4,46,200.000000,506512198209150528.000000,105743675375484928.000000,31090560,46.91,11,False,False,ReLU

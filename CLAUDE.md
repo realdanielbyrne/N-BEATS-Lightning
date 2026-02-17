@@ -33,15 +33,17 @@ python examples/M4AllBlks.py       # M4 dataset benchmark across all block types
 python examples/TourismAllBlks.py  # Tourism dataset benchmark
 ```
 
-The `experiments/run_experiments.py` script runs systematic M4 benchmarks with multiple seeds:
+The `experiments/run_experiments.py` script runs systematic benchmarks with multiple seeds across datasets:
 
 ```bash
-python experiments/run_experiments.py --part 1 --periods Yearly --max-epochs 50
-python experiments/run_experiments.py --part 2 --periods Yearly Monthly --max-epochs 100
-python experiments/run_experiments.py --part all
+python experiments/run_experiments.py --dataset m4 --part 1 --periods Yearly --max-epochs 50
+python experiments/run_experiments.py --dataset traffic --part 1 --periods Traffic-96 --max-epochs 100
+python experiments/run_experiments.py --dataset m4 --part 2 --periods Yearly Monthly --max-epochs 100
+python experiments/run_experiments.py --dataset m4 --part all
+python experiments/run_experiments.py --part 6 --max-epochs 100
 ```
 
-`--part 1`: Block-type benchmark (paper baselines + novel blocks at 30-stack scale). `--part 2`: Ablation studies (active_g, sum_losses, activations). `--periods`: one or more of `Yearly`, `Quarterly`, `Monthly`, `Weekly`, `Daily`, `Hourly`.
+`--dataset`: `m4` (default), `traffic`, or `weather`. `--part 1`: Block-type benchmark (paper baselines + novel blocks at 30-stack scale). `--part 2`: Ablation studies (active_g, sum_losses, activations). `--part 6`: Convergence study (ignores `--dataset`; runs across both M4-Yearly and Weather-96 with random seeds). `--convergence-config`: filter to a single config for parallel Part 6 execution. `--periods`: one or more of `Yearly`, `Quarterly`, `Monthly`, `Weekly`, `Daily`, `Hourly` for M4; `Traffic-96` for Traffic; `Weather-96` for Weather. Results are saved to dataset-specific subdirectories under `experiments/results/<dataset>/`.
 
 ## Testing
 
@@ -74,7 +76,10 @@ Test files: `test_blocks.py` (block shapes, attributes, registries), `test_loade
   - Test variants (`RowCollectionTimeSeriesTestModule`, `ColumnarCollectionTimeSeriesTestDataModule`) concatenate train tail + test head for evaluation.
 - **`losses.py`** — Custom loss functions: `SMAPELoss`, `MAPELoss`, `MASELoss`, `NormalizedDeviationLoss`
 - **`constants.py`** — String registries: `ACTIVATIONS`, `LOSSES`, `OPTIMIZERS`, `BLOCKS`. All configuration is resolved by string lookup against these lists.
-- **`data/M4/`** — `M4Dataset` loader with bundled CSV data files for all 6 M4 periods.
+- **`data/benchmark_dataset.py`** — `BenchmarkDataset(ABC)`: abstract base class all datasets implement. Interface: `train_data`, `test_data`, `forecast_length`, `frequency`, `name`, `supports_owa`, `compute_owa()`, `get_training_series()`.
+- **`data/M4/`** — `M4Dataset(BenchmarkDataset)` loader with bundled CSV data files for all 6 M4 periods. Includes Naive2 baseline constants and OWA computation.
+- **`data/Traffic/`** — `TrafficDataset(BenchmarkDataset)` loader for PeMS Traffic (862 sensors, hourly). Downloads from Hugging Face on first use, caches at `~/.cache/lightningnbeats/Traffic/`. Parameterized by `horizon` (96, 192, 336, 720).
+- **`data/Weather/`** — `WeatherDataset(BenchmarkDataset)` loader for Weather (21 meteorological indicators, 10-min intervals). Downloads from Hugging Face on first use, caches at `~/.cache/lightningnbeats/Weather/`. Parameterized by `horizon` (96, 192, 336, 720).
 
 ### Key Design Patterns
 
@@ -103,6 +108,14 @@ The `create_stack` method selects hidden layer width by block type:
 2. Add the class name string to the `BLOCKS` list in `constants.py`.
 3. If the block needs a new width parameter, add the mapping in `NBeatsNet.create_stack()` in `models.py`.
 4. Add a shape test in `tests/test_blocks.py` — the parametrized `TestAllBlocksOutputShapes` will automatically cover it if it's in `BLOCKS`.
+
+### Adding a New Dataset
+
+1. Create a new directory under `src/lightningnbeats/data/<DatasetName>/` with `__init__.py` and a dataset module.
+2. Create a class inheriting from `BenchmarkDataset` in `data/benchmark_dataset.py`. Must set `train_data` (DataFrame, columnar), `test_data`, `forecast_length`, `frequency`, and `name`.
+3. Override `supports_owa = True` and `compute_owa()` if Naive2 baselines exist.
+4. Add the import to `src/lightningnbeats/data/__init__.py`.
+5. In `experiments/run_experiments.py`: add a horizons dict (e.g. `NEW_HORIZONS`), add to `DATASET_DEFAULTS`, extend `load_dataset()`, and add the dataset choice to the CLI `--dataset` argument.
 
 ## CI/CD
 

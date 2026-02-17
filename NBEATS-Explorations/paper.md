@@ -617,7 +617,41 @@ The results across three M4 periods, ensemble evaluation, and statistical analys
 
 However, block type **does** significantly affect three practically important dimensions: (a) **parameter count** (5-10x variation between AE-backbone and standard backbone), (b) **training stability** (0-100% convergence rate for wavelets vs 100% for all non-wavelet blocks), and (c) **convergence speed** (epochs to convergence range from 12 to 39). The practical recommendation is therefore: choose blocks based on deployment constraints (model size, stability requirements, interpretability needs) rather than chasing marginal OWA differences that are likely within noise.
 
-### 5.6 Suggested Additional Metrics
+### 5.6 Convergence Study (Part 6)
+
+To disentangle initialization sensitivity from data distribution effects, we conduct a high-replication convergence study using 50 random seeds per configuration across two structurally different datasets: M4-Yearly (23,000 short annual series, horizon 6) and Weather-96 (21 meteorological indicators at 10-minute resolution, horizon 96). The study uses a 10-stack Generic architecture with a 2×2 factorial design over `active_g` and `sum_losses`, yielding 4 configurations × 50 runs × 2 datasets = 400 total training runs.
+
+#### 5.6.1 Results
+
+**Table 9: Convergence Study — M4-Yearly (50 runs per configuration)**
+
+| Configuration | sMAPE (mean±std) | MASE (mean±std) | sMAPE CV% | MASE CV% | Epochs (mean±std) |
+|---|---|---|---|---|---|
+| Baseline | 14.17 ± 4.44 | 3.23 ± 0.81 | 31.37 | 24.94 | 17.8 ± 3.5 |
+| active_g | 13.67 ± 0.12 | 3.18 ± 0.06 | 0.88 | 1.95 | 18.0 ± 2.7 |
+| sum_losses | 13.56 ± 0.13 | 3.13 ± 0.05 | 0.93 | 1.74 | 17.8 ± 3.9 |
+| active_g + sum_losses | 13.65 ± 0.16 | 3.17 ± 0.08 | 1.20 | 2.42 | 18.4 ± 4.0 |
+
+**Table 10: Convergence Study — Weather-96 (50 runs per configuration)**
+
+| Configuration | sMAPE (mean±std) | MASE (mean±std) | sMAPE CV% | MASE CV% | Epochs (mean±std) |
+|---|---|---|---|---|---|
+| Baseline | 65.37 ± 0.88 | 1.14 ± 0.12 | 1.35 | 10.32 | 12.6 ± 1.7 |
+| active_g | 63.93 ± 1.81 | 1.14 ± 0.11 | 2.83 | 9.95 | 11.8 ± 1.6 |
+| sum_losses | 66.92 ± 0.66 | 50.67 ± 348.15 | 0.99 | 687.10 | 14.8 ± 6.1 |
+| active_g + sum_losses | 63.50 ± 2.10 | 1.20 ± 0.17 | 3.31 | 14.61 | 24.7 ± 8.4 |
+
+#### 5.6.2 Analysis
+
+The convergence study reveals strikingly different behavior across datasets:
+
+**M4-Yearly: `active_g` and `sum_losses` are powerful stabilizers.** The baseline configuration exhibits catastrophic initialization sensitivity: sMAPE CV = 31.37% with a worst-case run reaching sMAPE 44.95 (3.2× the best run's 13.33). Enabling `active_g` alone reduces sMAPE CV from 31.37% to 0.88% — a 36× improvement in convergence stability. `sum_losses` achieves a similar stabilization (CV = 0.93%) while also producing the best mean sMAPE (13.56) and MASE (3.13). The combined `active_g + sum_losses` configuration provides no additional benefit over either extension alone (CV = 1.20%), suggesting that both mechanisms address the same underlying failure mode — initialization-dependent convergence to poor local minima — through different regularization pathways.
+
+**Weather-96: Dataset-dependent interaction effects.** On Weather data, the baseline is already stable (sMAPE CV = 1.35%), so the initialization sensitivity observed on M4-Yearly is not a universal phenomenon but rather a property of the M4-Yearly data distribution. The `sum_losses` configuration exhibits a pathological failure mode unique to Weather: while sMAPE remains stable (CV = 0.99%), MASE explodes in a subset of runs (CV = 687%, max MASE = 2463), indicating that the backcast reconstruction loss creates a harmful gradient signal for this dataset's scale characteristics. The `active_g + sum_losses` combination rescues `sum_losses` from this failure mode (MASE CV = 14.61%) but trains for significantly more epochs (24.7 mean vs 12.6 for baseline), suggesting that the interaction of both extensions creates a more complex loss landscape that delays early stopping.
+
+**Cross-dataset conclusions.** The convergence study demonstrates that: (1) `active_g` is a reliable stabilizer that eliminates catastrophic initialization sensitivity on M4-Yearly without harmful effects on Weather; (2) `sum_losses` improves mean accuracy on M4-Yearly but can cause MASE instability on datasets with different scale distributions; (3) the combined effect is not simply additive — `active_g + sum_losses` together delay convergence (2× more epochs on Weather) while rescuing the MASE pathology of `sum_losses` alone; and (4) the practical recommendation is to enable `active_g` by default and add `sum_losses` with caution, monitoring for scale-dependent instability on new datasets.
+
+### 5.7 Suggested Additional Metrics
 
 We identify several metrics that could strengthen the analysis in future iterations of this work, organized by whether they are derivable from existing experimental data or require additional code changes.
 
@@ -654,6 +688,8 @@ This work presents a systematic exploration of alternative block types within th
 2. AE-backbone variants achieve 5-10x parameter reduction with comparable or better OWA, making them attractive for resource-constrained deployment. NBEATS-I-AE (2.2M parameters) matches the 24.7M-parameter NBEATS-G on Yearly while exhibiting the lowest training variance of any configuration tested.
 
 3. Wavelet basis blocks suffer from severe numerical instability (67-100% failure rate) but produce competitive results when they converge and when stabilized by complementary Trend stacks. Numerical remediation is a promising direction for future work.
+
+4. The convergence study (Part 6) reveals that `active_g` eliminates catastrophic initialization sensitivity on M4-Yearly, reducing sMAPE coefficient of variation from 31.37% to 0.88% (a 36× improvement). This stabilization effect is dataset-dependent: the baseline is already stable on Weather-96 (CV = 1.35%), indicating that initialization sensitivity is a property of the data distribution rather than the architecture. The `sum_losses` extension improves mean accuracy on M4-Yearly but exhibits a pathological MASE explosion on Weather-96 (CV = 687%), cautioning against blind application across datasets.
 
 **Contingent findings (require remaining experiments for confirmation):**
 

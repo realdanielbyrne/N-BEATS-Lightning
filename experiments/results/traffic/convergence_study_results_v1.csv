@@ -1,0 +1,2 @@
+experiment,config_name,stack_types,period,frequency,forecast_length,backcast_length,n_stacks,n_blocks_per_stack,share_weights,run,seed,smape,mase,mae,mse,owa,n_params,training_time_seconds,epochs_trained,active_g,sum_losses,activation
+convergence_study,Generic10_baseline,['Generic'],Traffic-96,24,96,192,10,1,True,0,1428729634,18.755840,0.745063,0.011450,0.000752,nan,10342400,12305.74,13,False,False,ReLU

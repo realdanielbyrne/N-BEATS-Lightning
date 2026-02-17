@@ -74,12 +74,12 @@ Orthonormal DWT basis with impulse-response synthesis + SVD orthogonalization.
 
 - [ ] Run Part 5: all periods
 
-### Part 6: Convergence Study (4 configurations × 2 periods × 10 seeds)
+### Part 6: Convergence Study (4 configurations × 2 datasets × 50 seeds)
 
-2×2 factorial: `active_g` × `sum_losses`. Yearly and Quarterly only.
+2×2 factorial: `active_g` × `sum_losses` on 10-stack Generic. Multi-dataset (M4-Yearly + Weather-96), 50 random seeds per config.
 
-- [ ] Run Part 6: Yearly
-- [ ] Run Part 6: Quarterly
+- [x] Run Part 6: M4-Yearly (200 runs complete)
+- [x] Run Part 6: Weather-96 (200 runs complete — replaced original Quarterly with Weather for cross-domain generalizability)
 
 ---
 
@@ -156,7 +156,7 @@ All 9 figures are currently marked "[To be produced]" in the paper.
 ### Optional enhancements
 
 - [ ] Add parameter efficiency ratio (OWA / params) discussion
-- [ ] Add convergence rate analysis (Part 6 results)
+- [x] Add convergence rate analysis (Part 6 results) — Section 5.6 added to paper.md
 - [ ] Add per-series distribution analysis (if implementing code changes)
 
 ---
