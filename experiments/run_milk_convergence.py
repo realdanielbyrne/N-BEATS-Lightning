@@ -225,6 +225,7 @@ class DivergenceDetector(pl.Callback):
 def run_single_milk_convergence_experiment(
     config_name, active_g, activation, run_idx, seed,
     max_epochs, n_threads,
+    wandb_enabled=False, wandb_project="nbeats-lightning",
 ):
     """Train one N-BEATS model on the milk dataset and return convergence metrics.
 
@@ -287,7 +288,24 @@ def run_single_milk_convergence_experiment(
 
     log_dir = os.path.join(RESULTS_DIR, "lightning_logs")
     log_name = f"milk_convergence/{config_name}/run{run_idx}"
-    tb_logger = pl_loggers.TensorBoardLogger(save_dir=log_dir, name=log_name)
+
+    exp_loggers = [pl_loggers.TensorBoardLogger(save_dir=log_dir, name=log_name)]
+    if wandb_enabled:
+        exp_loggers.append(pl_loggers.WandbLogger(
+            project=wandb_project,
+            group="milk_convergence",
+            name=log_name,
+            config={
+                "dataset": "milk", "config_name": config_name,
+                "n_stacks": N_STACKS, "backcast_length": BACKCAST_LENGTH,
+                "forecast_length": FORECAST_LENGTH, "batch_size": BATCH_SIZE,
+                "max_epochs": max_epochs, "seed": seed,
+                "run_idx": run_idx, "active_g": active_g,
+                "activation": activation, "n_params": n_params,
+            },
+            save_dir=log_dir,
+            reinit=True,
+        ))
 
     trainer = pl.Trainer(
         accelerator="cpu",
@@ -297,7 +315,7 @@ def run_single_milk_convergence_experiment(
             checkpoint_callback, early_stop_callback,
             tracker, divergence_detector,
         ],
-        logger=[tb_logger],
+        logger=exp_loggers,
         enable_progress_bar=False,
         deterministic=False,
         log_every_n_steps=50,
@@ -380,6 +398,10 @@ def run_single_milk_convergence_experiment(
         ),
     }
 
+    if wandb_enabled:
+        import wandb
+        wandb.finish(quiet=True)
+
     # Cleanup
     del model, trainer, dm
     gc.collect()
@@ -396,6 +418,9 @@ def run_milk_convergence_study(
     n_runs=N_RUNS,
     config_filter=None,
     max_workers=5,
+    n_threads_override=None,
+    wandb_enabled=False,
+    wandb_project="nbeats-lightning",
 ):
     """Run the full milk convergence study with parallel execution.
 
@@ -415,7 +440,7 @@ def run_milk_convergence_study(
 
     # Compute threads per worker
     n_cpus = os.cpu_count() or 1
-    n_threads = max(1, n_cpus // max_workers)
+    n_threads = n_threads_override if n_threads_override is not None else max(1, n_cpus // max_workers)
 
     csv_path = os.path.join(RESULTS_DIR, "milk_convergence_results.csv")
     init_csv(csv_path)
@@ -435,6 +460,8 @@ def run_milk_convergence_study(
                 "seed": seed,
                 "max_epochs": max_epochs,
                 "n_threads": n_threads,
+                "wandb_enabled": wandb_enabled,
+                "wandb_project": wandb_project,
             })
 
     total_jobs = len(jobs)
@@ -647,8 +674,20 @@ def main():
         help="Number of parallel worker processes (default: 5)",
     )
     parser.add_argument(
+        "--n-threads", type=int, default=None,
+        help="PyTorch threads per worker (default: auto = n_cpus // max_workers).",
+    )
+    parser.add_argument(
         "--summary-only", action="store_true",
         help="Skip training, only print summary statistics from existing CSV",
+    )
+    parser.add_argument(
+        "--wandb", action="store_true",
+        help="Enable Weights & Biases logging alongside TensorBoard",
+    )
+    parser.add_argument(
+        "--wandb-project", default="nbeats-lightning",
+        help="W&B project name (default: nbeats-lightning)",
     )
 
     args = parser.parse_args()
@@ -663,6 +702,9 @@ def main():
         n_runs=args.n_runs,
         config_filter=args.config,
         max_workers=args.max_workers,
+        n_threads_override=args.n_threads,
+        wandb_enabled=args.wandb,
+        wandb_project=args.wandb_project,
     )
 
 

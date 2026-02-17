@@ -32,6 +32,7 @@ dependencies = [
   "tensorboard",
   "torch>=2.1.0",
   "tqdm",
+  "wandb",
   "ipykernel",
   "ipython",
   "statsmodels"

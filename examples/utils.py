@@ -11,14 +11,17 @@ import matplotlib.pyplot as plt
 yearly_tourism_data_path = "../src/lightningnbeats/data/tourism1/tourism_data.csv"
 mth_qtr_tourism_data_path = '../src/lightningnbeats/data/tourism2/tourism2_revision2.csv'
 
-def get_trainer(name, max_epochs:int=100, subdirectory :str="", no_val:bool=False, **kwargs):
+def get_trainer(name, max_epochs:int=100, subdirectory :str="", no_val:bool=False,
+                wandb_enabled:bool=False, wandb_project:str="nbeats-lightning", **kwargs):
   """Returns a Pytorch Lightning Trainer object
 
   Args:
       name (string): The model name to be used for logging and checkpointing
       max_epocs (int, optional): The maximum number of epochs to train. Defaults to 100.
-      subdirectory (string, optional): The subdirectory to save the logs. 
+      subdirectory (string, optional): The subdirectory to save the logs.
       Path to logs is always ./lightning_logs/{subdirectory}.
+      wandb_enabled (bool, optional): Enable Weights & Biases logging. Defaults to False.
+      wandb_project (string, optional): W&B project name. Defaults to "nbeats-lightning".
 
   Returns:
        pl.Trainer: A Pytorch Lightning Trainer object
@@ -28,25 +31,33 @@ def get_trainer(name, max_epochs:int=100, subdirectory :str="", no_val:bool=Fals
     monitor = "train_loss"
   else:
     monitor = "val_loss"
-  chk_callback = ModelCheckpoint(    
+  chk_callback = ModelCheckpoint(
     filename="best-checkpoint",
-    save_top_k = 1, 
-    monitor = monitor, # monitor validation loss as evaluation 
+    save_top_k = 1,
+    monitor = monitor, # monitor validation loss as evaluation
     mode = "min"
   )
-  
-  # Define a tensorboard loger
-  tb_logger = pl_loggers.TensorBoardLogger(save_dir=f"lightning_logs/{subdirectory}", name=name)
+
+  # Define loggers
+  save_dir = f"lightning_logs/{subdirectory}"
+  loggers = [pl_loggers.TensorBoardLogger(save_dir=save_dir, name=name)]
+  if wandb_enabled:
+    loggers.append(pl_loggers.WandbLogger(
+      project=wandb_project,
+      name=name,
+      save_dir=save_dir,
+      reinit=True,
+    ))
 
   # Train the generic model
   trainer =  pl.Trainer(
     accelerator='auto' # use GPU if available
     ,max_epochs=max_epochs
-    ,callbacks=[chk_callback]  
-    ,logger=[tb_logger],
+    ,callbacks=[chk_callback]
+    ,logger=loggers,
     **kwargs
   )
-  
+
   return trainer
 
 def filter_dataset_by_removing_short_columnar_ts(data, backcast_length:int= 8, forecast_length:int=4):

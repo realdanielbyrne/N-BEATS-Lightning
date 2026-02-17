@@ -19,6 +19,9 @@ Part 6: Convergence study — Multi-dataset (Tourism-Yearly, M4-Yearly, M4-Weekl
 Part 7: Novel mixed stack benchmark + ensemble — I+G compositional pattern with novel
         G-position blocks (GenericAE, BottleneckGeneric, AutoEncoder) plus AE
         interpretable front-end. Benchmark + multi-horizon ensemble for each config.
+Part 8: sum_losses convergence study — 2x2 factorial (active_g x sum_losses) on 30-stack
+        Generic, 200 runs per config with random seeds, multi-dataset, parallel CPU
+        execution with divergence detection and per-epoch tracking.
 
 Usage:
     python experiments/run_experiments.py --dataset m4 --part 1 --periods Yearly --max-epochs 100
@@ -30,6 +33,8 @@ Usage:
     python experiments/run_experiments.py --dataset m4 --part 5 --periods Yearly --max-epochs 100
     python experiments/run_experiments.py --part 6 --max-epochs 100
     python experiments/run_experiments.py --dataset m4 --part 7 --periods Yearly --max-epochs 100
+    python experiments/run_experiments.py --part 8 --max-epochs 100
+    python experiments/run_experiments.py --part 8 --max-epochs 100 --convergence-config Generic30_sumLosses
 """
 
 import argparse
@@ -60,6 +65,33 @@ from lightningnbeats.loaders import (
 from lightningnbeats.data import M4Dataset, TrafficDataset, WeatherDataset, TourismDataset
 
 torch.set_float32_matmul_precision("medium")
+
+
+# ---------------------------------------------------------------------------
+# Logger Helpers
+# ---------------------------------------------------------------------------
+
+def build_loggers(log_dir, log_name, wandb_enabled, wandb_project, wandb_group, wandb_config):
+    """Build list of loggers (TensorBoard + optionally W&B)."""
+    loggers = [pl_loggers.TensorBoardLogger(save_dir=log_dir, name=log_name)]
+    if wandb_enabled:
+        loggers.append(pl_loggers.WandbLogger(
+            project=wandb_project,
+            group=wandb_group,
+            name=log_name,
+            config=wandb_config,
+            save_dir=log_dir,
+            reinit=True,
+        ))
+    return loggers
+
+
+def finish_wandb(wandb_enabled):
+    """Cleanly close the current wandb run if enabled."""
+    if wandb_enabled:
+        import wandb
+        wandb.finish(quiet=True)
+
 
 # ---------------------------------------------------------------------------
 # Configuration Constants
@@ -375,6 +407,19 @@ CONVERGENCE_STUDY_DATASETS = {
 }
 
 # ---------------------------------------------------------------------------
+# sum_losses Convergence Study Configs (Part 8) — 2x2 factorial: active_g x sum_losses
+# ---------------------------------------------------------------------------
+
+SUMLOSS_CONVERGENCE_CONFIGS = {
+    "Generic30_baseline":      {"active_g": False, "sum_losses": False, "activation": "ReLU"},
+    "Generic30_activeG":       {"active_g": True,  "sum_losses": False, "activation": "ReLU"},
+    "Generic30_sumLosses":     {"active_g": False, "sum_losses": True,  "activation": "ReLU"},
+    "Generic30_activeG+sumL":  {"active_g": True,  "sum_losses": True,  "activation": "ReLU"},
+}
+SUMLOSS_CONVERGENCE_N_RUNS = 200
+SUMLOSS_CONVERGENCE_DATASETS = CONVERGENCE_STUDY_DATASETS  # same datasets as Part 6
+
+# ---------------------------------------------------------------------------
 # Ensemble Configs (Part 3) — paper's key architectures at multiple horizons
 # ---------------------------------------------------------------------------
 
@@ -429,6 +474,19 @@ CONVERGENCE_CSV_COLUMNS = [
     "frequency", "forecast_length", "backcast_length",
     "n_stacks", "n_blocks_per_stack", "share_weights",
     "run", "seed", "active_g", "activation",
+    "smape", "mase", "mae", "mse", "owa",
+    "best_val_loss", "final_val_loss", "final_train_loss",
+    "best_epoch", "epochs_trained", "stopping_reason",
+    "loss_ratio", "diverged",
+    "n_params", "training_time_seconds",
+    "val_loss_curve",
+]
+
+SUMLOSS_CONVERGENCE_CSV_COLUMNS = [
+    "experiment", "config_name", "dataset", "period",
+    "frequency", "forecast_length", "backcast_length",
+    "n_stacks", "n_blocks_per_stack", "share_weights",
+    "run", "seed", "active_g", "sum_losses", "activation",
     "smape", "mase", "mae", "mse", "owa",
     "best_val_loss", "final_val_loss", "final_train_loss",
     "best_epoch", "epochs_trained", "stopping_reason",
@@ -647,6 +705,8 @@ def run_single_experiment(
     forecast_multiplier=None,
     seed_override=None,
     num_workers=0,
+    wandb_enabled=False,
+    wandb_project="nbeats-lightning",
 ):
     """Run a single training + evaluation experiment and save results to CSV."""
 
@@ -731,14 +791,29 @@ def run_single_experiment(
         verbose=False,
     )
 
-    tb_logger = pl_loggers.TensorBoardLogger(save_dir=log_dir, name=log_name)
+    exp_loggers = build_loggers(
+        log_dir=log_dir, log_name=log_name,
+        wandb_enabled=wandb_enabled, wandb_project=wandb_project,
+        wandb_group=experiment_name,
+        wandb_config={
+            "dataset": dataset.name, "period": period,
+            "config_name": config_name, "stack_types": stack_types,
+            "n_stacks": n_stacks, "n_blocks_per_stack": n_blocks_per_stack,
+            "share_weights": share_weights, "backcast_length": backcast_length,
+            "forecast_length": forecast_length, "batch_size": batch_size,
+            "max_epochs": max_epochs, "seed": seed,
+            "run_idx": run_idx, "active_g": active_g,
+            "sum_losses": sum_losses, "activation": activation,
+            "n_params": n_params,
+        },
+    )
 
     trainer = pl.Trainer(
         accelerator=accelerator,
         devices=1,
         max_epochs=max_epochs,
         callbacks=[chk_callback, early_stop_callback],
-        logger=[tb_logger],
+        logger=exp_loggers,
         enable_progress_bar=True,
         deterministic=False,
         log_every_n_steps=50,
@@ -802,6 +877,7 @@ def run_single_experiment(
         "activation": activation,
     }
     append_result(csv_path, row)
+    finish_wandb(wandb_enabled)
 
     # Cleanup
     del model, trainer, dm, test_dm
@@ -814,7 +890,8 @@ def run_single_experiment(
 # Runner Functions
 # ---------------------------------------------------------------------------
 
-def run_block_benchmark(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
+def run_block_benchmark(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0,
+                        wandb_enabled=False, wandb_project="nbeats-lightning"):
     """Part 1: Block-type benchmark across periods."""
     results_dir = os.path.join(RESULTS_DIR, dataset_name)
     csv_path = os.path.join(results_dir, "block_benchmark_results.csv")
@@ -850,10 +927,13 @@ def run_block_benchmark(dataset_name, periods, max_epochs, batch_size, accelerat
                     accelerator_override=accelerator_override,
                     forecast_multiplier=fm,
                     num_workers=num_workers,
+                    wandb_enabled=wandb_enabled,
+                    wandb_project=wandb_project,
                 )
 
 
-def run_wavelet_v2_benchmark(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
+def run_wavelet_v2_benchmark(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0,
+                             wandb_enabled=False, wandb_project="nbeats-lightning"):
     """Part 4: Numerically stabilized wavelet V2 benchmark."""
     results_dir = os.path.join(RESULTS_DIR, dataset_name)
     csv_path = os.path.join(results_dir, "wavelet_v2_benchmark_results.csv")
@@ -889,10 +969,13 @@ def run_wavelet_v2_benchmark(dataset_name, periods, max_epochs, batch_size, acce
                     accelerator_override=accelerator_override,
                     forecast_multiplier=fm,
                     num_workers=num_workers,
+                    wandb_enabled=wandb_enabled,
+                    wandb_project=wandb_project,
                 )
 
 
-def run_wavelet_v3_benchmark(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
+def run_wavelet_v3_benchmark(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0,
+                             wandb_enabled=False, wandb_project="nbeats-lightning"):
     """Part 5: Orthonormal DWT wavelet V3 benchmark."""
     results_dir = os.path.join(RESULTS_DIR, dataset_name)
     csv_path = os.path.join(results_dir, "wavelet_v3_benchmark_results.csv")
@@ -929,6 +1012,8 @@ def run_wavelet_v3_benchmark(dataset_name, periods, max_epochs, batch_size, acce
                     accelerator_override=accelerator_override,
                     forecast_multiplier=fm,
                     num_workers=num_workers,
+                    wandb_enabled=wandb_enabled,
+                    wandb_project=wandb_project,
                 )
 
         # V3 ablation configs (on 30-stack DB3WaveletV3)
@@ -954,6 +1039,8 @@ def run_wavelet_v3_benchmark(dataset_name, periods, max_epochs, batch_size, acce
                     accelerator_override=accelerator_override,
                     forecast_multiplier=fm,
                     num_workers=num_workers,
+                    wandb_enabled=wandb_enabled,
+                    wandb_project=wandb_project,
                 )
 
 
@@ -1024,6 +1111,8 @@ class DivergenceDetector(pl.Callback):
 def run_single_convergence_experiment(
     dataset_name, period, config_name, active_g, activation,
     run_idx, seed, max_epochs, batch_size, n_threads,
+    sum_losses=False,
+    wandb_enabled=False, wandb_project="nbeats-lightning",
 ):
     """Run a single convergence experiment in a worker process.
 
@@ -1057,7 +1146,7 @@ def run_single_convergence_experiment(
         thetas_dim=THETAS_DIM,
         loss=LOSS,
         active_g=active_g,
-        sum_losses=False,
+        sum_losses=sum_losses,
         activation=activation,
         latent_dim=LATENT_DIM,
         basis_dim=BASIS_DIM,
@@ -1107,14 +1196,28 @@ def run_single_convergence_experiment(
         mode="min",
         verbose=False,
     )
-    tb_logger = pl_loggers.TensorBoardLogger(save_dir=log_dir, name=log_name)
+    exp_loggers = build_loggers(
+        log_dir=log_dir, log_name=log_name,
+        wandb_enabled=wandb_enabled, wandb_project=wandb_project,
+        wandb_group=f"convergence/{dataset_name}",
+        wandb_config={
+            "dataset": dataset_name, "period": period,
+            "config_name": config_name, "n_stacks": CONVERGENCE_STUDY_STACKS,
+            "n_blocks_per_stack": 1, "share_weights": True,
+            "backcast_length": backcast_length, "forecast_length": forecast_length,
+            "batch_size": batch_size, "max_epochs": max_epochs,
+            "seed": seed, "run_idx": run_idx,
+            "active_g": active_g, "sum_losses": sum_losses,
+            "activation": activation, "n_params": n_params,
+        },
+    )
 
     trainer = pl.Trainer(
         accelerator="cpu",
         devices=1,
         max_epochs=max_epochs,
         callbacks=[chk_callback, early_stop_callback, tracker, divergence_detector],
-        logger=[tb_logger],
+        logger=exp_loggers,
         enable_progress_bar=False,
         deterministic=False,
         log_every_n_steps=50,
@@ -1173,6 +1276,7 @@ def run_single_convergence_experiment(
         "run": run_idx,
         "seed": seed,
         "active_g": active_g,
+        "sum_losses": sum_losses,
         "activation": activation,
         "smape": f"{smape:.6f}",
         "mase": f"{mase:.6f}",
@@ -1191,6 +1295,8 @@ def run_single_convergence_experiment(
         "training_time_seconds": f"{training_time:.2f}",
         "val_loss_curve": json.dumps([f"{v:.8f}" for v in tracker.val_losses]),
     }
+
+    finish_wandb(wandb_enabled)
 
     # Cleanup
     del model, trainer, dm, test_dm
@@ -1215,7 +1321,9 @@ def _convergence_result_exists(csv_path, config_name, dataset_name, period, run_
 
 
 def run_convergence_study(max_epochs, batch_size, accelerator_override,
-                          config_filter=None, num_workers=0, max_workers=5):
+                          config_filter=None, num_workers=0, max_workers=5,
+                          n_threads_override=None,
+                          wandb_enabled=False, wandb_project="nbeats-lightning"):
     """Part 6: Convergence study — multi-dataset, random seeds, parallel execution.
 
     Tests active_g stabilization across datasets with 200 random seeds per config.
@@ -1236,7 +1344,7 @@ def run_convergence_study(max_epochs, batch_size, accelerator_override,
 
     # Compute threads per worker
     n_cpus = os.cpu_count() or 1
-    n_threads = max(1, n_cpus // max_workers)
+    n_threads = n_threads_override if n_threads_override is not None else max(1, n_cpus // max_workers)
 
     # Unified CSV across all datasets
     csv_path = os.path.join(RESULTS_DIR, "convergence_study_v2_results.csv")
@@ -1262,6 +1370,8 @@ def run_convergence_study(max_epochs, batch_size, accelerator_override,
                         "max_epochs": max_epochs,
                         "batch_size": batch_size,
                         "n_threads": n_threads,
+                        "wandb_enabled": wandb_enabled,
+                        "wandb_project": wandb_project,
                     })
 
     total_jobs = len(jobs)
@@ -1311,7 +1421,110 @@ def run_convergence_study(max_epochs, batch_size, accelerator_override,
           f"{diverged_count} diverged")
 
 
-def run_ablation_studies(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
+def run_sumloss_convergence_study(max_epochs, batch_size, accelerator_override,
+                                   config_filter=None, num_workers=0, max_workers=5,
+                                   n_threads_override=None,
+                                   wandb_enabled=False, wandb_project="nbeats-lightning"):
+    """Part 8: sum_losses convergence study — 2x2 factorial (active_g x sum_losses).
+
+    Tests sum_losses effect on training stability across datasets with 200 random
+    seeds per config. Uses ProcessPoolExecutor for parallel CPU execution.
+
+    Args:
+        config_filter: Optional config name to run only that config.
+        max_workers: Number of parallel worker processes (default: 5).
+    """
+    # Filter configs if requested
+    configs = SUMLOSS_CONVERGENCE_CONFIGS
+    if config_filter:
+        if config_filter not in configs:
+            print(f"Unknown sumloss convergence config: {config_filter}")
+            print(f"Available: {list(configs.keys())}")
+            return
+        configs = {config_filter: configs[config_filter]}
+
+    # Compute threads per worker
+    n_cpus = os.cpu_count() or 1
+    n_threads = n_threads_override if n_threads_override is not None else max(1, n_cpus // max_workers)
+
+    # Unified CSV across all datasets
+    csv_path = os.path.join(RESULTS_DIR, "convergence_study_sumloss_results.csv")
+    init_csv(csv_path, SUMLOSS_CONVERGENCE_CSV_COLUMNS)
+
+    # Build flat job list with resumability check
+    jobs = []
+    for dataset_name, periods in SUMLOSS_CONVERGENCE_DATASETS.items():
+        for period in periods:
+            for config_name, cfg in configs.items():
+                for run_idx in range(SUMLOSS_CONVERGENCE_N_RUNS):
+                    if _convergence_result_exists(csv_path, config_name, dataset_name, period, run_idx):
+                        continue
+                    seed = random.randint(0, 2**31 - 1)
+                    jobs.append({
+                        "dataset_name": dataset_name,
+                        "period": period,
+                        "config_name": config_name,
+                        "active_g": cfg["active_g"],
+                        "activation": cfg["activation"],
+                        "run_idx": run_idx,
+                        "seed": seed,
+                        "max_epochs": max_epochs,
+                        "batch_size": batch_size,
+                        "n_threads": n_threads,
+                        "sum_losses": cfg["sum_losses"],
+                        "wandb_enabled": wandb_enabled,
+                        "wandb_project": wandb_project,
+                    })
+
+    total_jobs = len(jobs)
+    if total_jobs == 0:
+        print("All sum_losses convergence study runs already complete.")
+        return
+
+    print(f"\nsum_losses Convergence Study — {total_jobs} jobs, {max_workers} workers, "
+          f"{n_threads} threads/worker")
+    print(f"Results: {csv_path}\n")
+
+    completed = 0
+    diverged_count = 0
+
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        future_to_job = {}
+        for job in jobs:
+            future = executor.submit(run_single_convergence_experiment, **job)
+            future_to_job[future] = job
+
+        for future in as_completed(future_to_job):
+            job = future_to_job[future]
+            completed += 1
+
+            try:
+                result = future.result()
+                append_result(csv_path, result, SUMLOSS_CONVERGENCE_CSV_COLUMNS)
+
+                diverged_tag = " [DIVERGED]" if result["diverged"] else ""
+                is_diverged = result["diverged"]
+                if is_diverged:
+                    diverged_count += 1
+
+                print(f"  [{completed}/{total_jobs}] "
+                      f"{result['config_name']} / {result['dataset']} / {result['period']} "
+                      f"/ run {result['run']} — "
+                      f"sMAPE={result['smape']}  epochs={result['epochs_trained']}  "
+                      f"time={result['training_time_seconds']}s"
+                      f"{diverged_tag}")
+
+            except Exception as e:
+                print(f"  [{completed}/{total_jobs}] FAILED: "
+                      f"{job['config_name']} / {job['dataset_name']} / {job['period']} "
+                      f"/ run {job['run_idx']} — {e}")
+
+    print(f"\nsum_losses convergence study complete: {completed} runs, "
+          f"{diverged_count} diverged")
+
+
+def run_ablation_studies(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0,
+                         wandb_enabled=False, wandb_project="nbeats-lightning"):
     """Part 2: Ablation studies on 30-stack Generic."""
     results_dir = os.path.join(RESULTS_DIR, dataset_name)
     csv_path = os.path.join(results_dir, "ablation_results.csv")
@@ -1350,10 +1563,13 @@ def run_ablation_studies(dataset_name, periods, max_epochs, batch_size, accelera
                     accelerator_override=accelerator_override,
                     forecast_multiplier=fm,
                     num_workers=num_workers,
+                    wandb_enabled=wandb_enabled,
+                    wandb_project=wandb_project,
                 )
 
 
-def run_ensemble_experiment(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
+def run_ensemble_experiment(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0,
+                            wandb_enabled=False, wandb_project="nbeats-lightning"):
     """Part 3: Multi-horizon ensemble following the original N-BEATS paper.
 
     For each architecture (G, I, I+G) and each period:
@@ -1471,15 +1687,26 @@ def run_ensemble_experiment(dataset_name, periods, max_epochs, batch_size, accel
                         patience=EARLY_STOPPING_PATIENCE,
                         mode="min", verbose=False,
                     )
-                    tb_logger = pl_loggers.TensorBoardLogger(
-                        save_dir=log_dir, name=log_name,
+                    ens_loggers = build_loggers(
+                        log_dir=log_dir, log_name=log_name,
+                        wandb_enabled=wandb_enabled, wandb_project=wandb_project,
+                        wandb_group="ensemble",
+                        wandb_config={
+                            "dataset": dataset.name, "period": period,
+                            "config_name": config_name, "stack_types": stack_types,
+                            "n_stacks": n_stacks, "backcast_length": backcast_length,
+                            "forecast_length": forecast_length, "batch_size": batch_size,
+                            "max_epochs": max_epochs, "seed": seed,
+                            "run_idx": run_idx, "multiplier": multiplier,
+                            "n_params": n_params,
+                        },
                     )
 
                     trainer = pl.Trainer(
                         accelerator=accelerator, devices=1,
                         max_epochs=max_epochs,
                         callbacks=[chk_cb, es_cb],
-                        logger=[tb_logger],
+                        logger=ens_loggers,
                         enable_progress_bar=True,
                         deterministic=False,
                         log_every_n_steps=50,
@@ -1498,6 +1725,7 @@ def run_ensemble_experiment(dataset_name, periods, max_epochs, batch_size, accel
                     t0 = time.time()
                     trainer.fit(model, datamodule=dm)
                     training_time = time.time() - t0
+                    finish_wandb(wandb_enabled)
 
                     best_path = trainer.checkpoint_callback.best_model_path
                     if best_path:
@@ -1599,7 +1827,8 @@ def run_ensemble_experiment(dataset_name, periods, max_epochs, batch_size, accel
             append_result(summary_csv, summary_row, ENSEMBLE_SUMMARY_COLUMNS)
 
 
-def run_mixed_stack_benchmark(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
+def run_mixed_stack_benchmark(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0,
+                              wandb_enabled=False, wandb_project="nbeats-lightning"):
     """Part 7a: Mixed stack benchmark — I+G pattern with novel G blocks."""
     results_dir = os.path.join(RESULTS_DIR, dataset_name)
     csv_path = os.path.join(results_dir, "block_benchmark_results.csv")
@@ -1635,10 +1864,13 @@ def run_mixed_stack_benchmark(dataset_name, periods, max_epochs, batch_size, acc
                     accelerator_override=accelerator_override,
                     forecast_multiplier=fm,
                     num_workers=num_workers,
+                    wandb_enabled=wandb_enabled,
+                    wandb_project=wandb_project,
                 )
 
 
-def run_mixed_stack_ensemble(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
+def run_mixed_stack_ensemble(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0,
+                             wandb_enabled=False, wandb_project="nbeats-lightning"):
     """Part 7b: Multi-horizon ensemble for mixed stack configs.
 
     Same strategy as Part 3: train at 6 backcast multipliers (2H-7H) x N_RUNS
@@ -1754,15 +1986,26 @@ def run_mixed_stack_ensemble(dataset_name, periods, max_epochs, batch_size, acce
                         patience=EARLY_STOPPING_PATIENCE,
                         mode="min", verbose=False,
                     )
-                    tb_logger = pl_loggers.TensorBoardLogger(
-                        save_dir=log_dir, name=log_name,
+                    mix_loggers = build_loggers(
+                        log_dir=log_dir, log_name=log_name,
+                        wandb_enabled=wandb_enabled, wandb_project=wandb_project,
+                        wandb_group="mixed_ensemble",
+                        wandb_config={
+                            "dataset": dataset.name, "period": period,
+                            "config_name": config_name, "stack_types": stack_types,
+                            "n_stacks": n_stacks, "backcast_length": backcast_length,
+                            "forecast_length": forecast_length, "batch_size": batch_size,
+                            "max_epochs": max_epochs, "seed": seed,
+                            "run_idx": run_idx, "multiplier": multiplier,
+                            "n_params": n_params,
+                        },
                     )
 
                     trainer = pl.Trainer(
                         accelerator=accelerator, devices=1,
                         max_epochs=max_epochs,
                         callbacks=[chk_cb, es_cb],
-                        logger=[tb_logger],
+                        logger=mix_loggers,
                         enable_progress_bar=True,
                         deterministic=False,
                         log_every_n_steps=50,
@@ -1781,6 +2024,7 @@ def run_mixed_stack_ensemble(dataset_name, periods, max_epochs, batch_size, acce
                     t0 = time.time()
                     trainer.fit(model, datamodule=dm)
                     training_time = time.time() - t0
+                    finish_wandb(wandb_enabled)
 
                     best_path = trainer.checkpoint_callback.best_model_path
                     if best_path:
@@ -1895,12 +2139,13 @@ def main():
         help="Dataset to benchmark (default: m4). Part 6 ignores this flag.",
     )
     parser.add_argument(
-        "--part", choices=["1", "2", "3", "4", "5", "6", "7", "all"], default="all",
+        "--part", choices=["1", "2", "3", "4", "5", "6", "7", "8", "all"], default="all",
         help=("Which experiments to run: 1=block benchmark, 2=ablation, "
               "3=multi-horizon ensemble, 4=wavelet V2 benchmark, "
               "5=wavelet V3 benchmark, 6=convergence study (multi-dataset), "
               "7=mixed stack benchmark+ensemble, "
-              "all=1-3 (use 4/5/6/7 explicitly)"),
+              "8=sum_losses convergence study (multi-dataset), "
+              "all=1-3 (use 4/5/6/7/8 explicitly)"),
     )
     parser.add_argument(
         "--periods", nargs="+", default=None,
@@ -1926,12 +2171,26 @@ def main():
     )
     parser.add_argument(
         "--convergence-config", default=None,
-        choices=list(CONVERGENCE_STUDY_CONFIGS.keys()),
-        help="Run only this convergence config (Part 6). Enables parallel execution.",
+        choices=list(dict.fromkeys(
+            list(CONVERGENCE_STUDY_CONFIGS.keys()) + list(SUMLOSS_CONVERGENCE_CONFIGS.keys())
+        )),
+        help="Run only this convergence config (Part 6 or Part 8). Enables parallel execution.",
     )
     parser.add_argument(
         "--max-workers", type=int, default=5,
         help="Number of parallel worker processes for Part 6 convergence study (default: 5).",
+    )
+    parser.add_argument(
+        "--n-threads", type=int, default=None,
+        help="PyTorch threads per worker for Part 6/8 (default: auto = n_cpus // max_workers).",
+    )
+    parser.add_argument(
+        "--wandb", action="store_true",
+        help="Enable Weights & Biases logging alongside TensorBoard",
+    )
+    parser.add_argument(
+        "--wandb-project", default="nbeats-lightning",
+        help="W&B project name (default: nbeats-lightning)",
     )
 
     args = parser.parse_args()
@@ -2015,30 +2274,58 @@ def main():
         print(f"Part 7 — Mixed stack ensemble: {n_mixed_ens_runs} runs "
               f"({len(MIXED_STACK_ENSEMBLE_CONFIGS)} configs x {len(FORECAST_MULTIPLIERS)} multipliers "
               f"x {len(periods)} periods x {N_RUNS} runs)")
+    if args.part == "8":
+        n_sumloss_runs = sum(
+            len(pds) for pds in SUMLOSS_CONVERGENCE_DATASETS.values()
+        ) * len(SUMLOSS_CONVERGENCE_CONFIGS) * SUMLOSS_CONVERGENCE_N_RUNS
+        print(f"Part 8 — sum_losses convergence study ({CONVERGENCE_STUDY_STACKS}-stack, "
+              f"{SUMLOSS_CONVERGENCE_N_RUNS} runs/config, parallel CPU): {n_sumloss_runs} total runs "
+              f"({len(SUMLOSS_CONVERGENCE_CONFIGS)} configs x "
+              f"{sum(len(p) for p in SUMLOSS_CONVERGENCE_DATASETS.values())} dataset-periods x "
+              f"{SUMLOSS_CONVERGENCE_N_RUNS} runs, {args.max_workers} workers)")
+
+    wandb_enabled = args.wandb
+    wandb_project = args.wandb_project
 
     if args.part in ("1", "all"):
-        run_block_benchmark(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
+        run_block_benchmark(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers,
+                            wandb_enabled=wandb_enabled, wandb_project=wandb_project)
 
     if args.part in ("2", "all"):
-        run_ablation_studies(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
+        run_ablation_studies(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers,
+                             wandb_enabled=wandb_enabled, wandb_project=wandb_project)
 
     if args.part in ("3", "all"):
-        run_ensemble_experiment(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
+        run_ensemble_experiment(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers,
+                                wandb_enabled=wandb_enabled, wandb_project=wandb_project)
 
     if args.part == "4":
-        run_wavelet_v2_benchmark(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
+        run_wavelet_v2_benchmark(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers,
+                                 wandb_enabled=wandb_enabled, wandb_project=wandb_project)
 
     if args.part == "5":
-        run_wavelet_v3_benchmark(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
+        run_wavelet_v3_benchmark(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers,
+                                 wandb_enabled=wandb_enabled, wandb_project=wandb_project)
 
     if args.part == "6":
         run_convergence_study(args.max_epochs, args.batch_size, args.accelerator,
                               config_filter=args.convergence_config, num_workers=num_workers,
-                              max_workers=args.max_workers)
+                              max_workers=args.max_workers,
+                              n_threads_override=args.n_threads,
+                              wandb_enabled=wandb_enabled, wandb_project=wandb_project)
 
     if args.part == "7":
-        run_mixed_stack_benchmark(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
-        run_mixed_stack_ensemble(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
+        run_mixed_stack_benchmark(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers,
+                                  wandb_enabled=wandb_enabled, wandb_project=wandb_project)
+        run_mixed_stack_ensemble(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers,
+                                 wandb_enabled=wandb_enabled, wandb_project=wandb_project)
+
+    if args.part == "8":
+        run_sumloss_convergence_study(args.max_epochs, args.batch_size, args.accelerator,
+                                      config_filter=args.convergence_config, num_workers=num_workers,
+                                      max_workers=args.max_workers,
+                                      n_threads_override=args.n_threads,
+                                      wandb_enabled=wandb_enabled, wandb_project=wandb_project)
 
     results_dir = os.path.join(RESULTS_DIR, args.dataset)
     print("\nDone. Results saved to:")
@@ -2059,6 +2346,8 @@ def main():
         print(f"  {os.path.join(results_dir, 'block_benchmark_results.csv')}")
         print(f"  {os.path.join(results_dir, 'ensemble_individual_results.csv')}")
         print(f"  {os.path.join(results_dir, 'ensemble_summary_results.csv')}")
+    if args.part == "8":
+        print(f"  {os.path.join(RESULTS_DIR, 'convergence_study_sumloss_results.csv')}")
 
 
 if __name__ == "__main__":
