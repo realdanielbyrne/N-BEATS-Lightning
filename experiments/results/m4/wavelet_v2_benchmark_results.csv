@@ -60,3 +60,4 @@ wavelet_v2_benchmark,Coif2WaveletV2,['Coif2WaveletV2'],Quarterly,4,8,40,30,1,Tru
 wavelet_v2_benchmark,Coif2WaveletV2,['Coif2WaveletV2'],Quarterly,4,8,40,30,1,True,3,45,10.374017,1.219589,584.208557,1906559.125000,0.915813,26453760,456.08,17,False,False,ReLU,EARLY_STOPPED
 wavelet_v2_benchmark,Coif2WaveletV2,['Coif2WaveletV2'],Quarterly,4,8,40,30,1,True,4,46,10.343392,1.217529,589.562317,1942801.625000,0.913671,26453760,522.45,16,False,False,ReLU,EARLY_STOPPED
 wavelet_v2_benchmark,Symlet3WaveletV2,['Symlet3WaveletV2'],Quarterly,4,8,40,30,1,True,0,42,10.347072,1.227271,590.710999,1985543.875000,0.917391,26453760,689.38,14,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Symlet3WaveletV2,['Symlet3WaveletV2'],Quarterly,4,8,40,30,1,True,1,43,10.435826,1.232204,591.869690,1928438.750000,0.923220,26453760,895.63,17,False,False,ReLU,EARLY_STOPPED

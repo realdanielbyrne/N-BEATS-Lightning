@@ -3,6 +3,7 @@ from torch import nn
 from ..constants import ACTIVATIONS
 import numpy as np
 import pywt
+from pywt import Wavelet as PyWavelet  # type: ignore[attr-defined]
 from scipy.interpolate import interp1d
 
 def squeeze_last_dim(tensor):
@@ -412,7 +413,7 @@ class _AltWaveletGenerator(nn.Module):
   def __init__(self, N, target_length, wavelet_type='db2'):
     super().__init__()
 
-    wavelet = pywt.Wavelet(wavelet_type)
+    wavelet = PyWavelet(wavelet_type)
     phi, psi, x = wavelet.wavefun(level=10)
 
 
@@ -475,7 +476,7 @@ class _WaveletGenerator(nn.Module):
   def __init__(self, basis_dim, wavelet_type='db3'):
     super().__init__()
 
-    wavelet = pywt.Wavelet(wavelet_type)
+    wavelet = PyWavelet(wavelet_type)
     phi, psi, x = wavelet.wavefun(level=10)
 
 
@@ -1121,7 +1122,7 @@ class _WaveletGeneratorV2(nn.Module):
   def __init__(self, basis_dim, wavelet_type='db3'):
     super().__init__()
 
-    wavelet = pywt.Wavelet(wavelet_type)
+    wavelet = PyWavelet(wavelet_type)
     phi, psi, x = wavelet.wavefun(level=10)
 
     interp_phi = interp1d(x, phi, kind='linear')
@@ -1150,7 +1151,7 @@ class _AltWaveletGeneratorV2(nn.Module):
   def __init__(self, N, target_length, wavelet_type='db2'):
     super().__init__()
 
-    wavelet = pywt.Wavelet(wavelet_type)
+    wavelet = PyWavelet(wavelet_type)
     phi, psi, x = wavelet.wavefun(level=10)
 
     interp_phi = interp1d(x, phi, kind='linear')
@@ -1483,7 +1484,7 @@ class _WaveletGeneratorV3(nn.Module):
   def _build_basis(target_length, wavelet_type, max_decomp_level):
     import logging
 
-    wavelet = pywt.Wavelet(wavelet_type)
+    wavelet = PyWavelet(wavelet_type)
     max_level = pywt.dwt_max_level(target_length, wavelet.dec_len)
     level = max(1, min(max_level, max_decomp_level))
 

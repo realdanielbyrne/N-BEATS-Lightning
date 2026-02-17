@@ -829,6 +829,77 @@ The convergence studies across V1, V2, and milk datasets yield the following upd
 
 5. **The accuracy cost of `active_g` is asymmetric across operational contexts.** On large benchmarks, the 0.8–1.4% OWA gap (Table 15) is smaller than the ~3% improvement from median ensembling across seeds (Section 5.2), making `active_g='forecast'` a net positive when combined with multi-seed aggregation. On small univariate datasets, the 53–76% val_loss gap is prohibitive, and no `active_g` mode compensates adequately (d = 2.68 even for the best split mode). For such datasets, practitioners should prefer the baseline with multiple seeds and best-run selection rather than any `active_g` variant.
 
+#### 5.6.10 Discussion on Regularization Effect of Active_g
+
+Part 1: Does ReLU on the backcast "remove" the backcast from the residual?
+Not exactly remove — it's more precise to say it makes the residual chain monotonically decreasing (element-wise), which is a severe constraint that your data already proves is catastrophic.
+
+Here's what happens step by step. Consider a single time step $t$ through the residual chain:
+
+$$x_\ell^{(t)} = x_{\ell-1}^{(t)} - \text{ReLU}(\hat{x}_{\ell-1}^{(t)})$$
+
+Since $\text{ReLU}(\cdot) \geq 0$, we get $x_\ell^{(t)} \leq x_{\ell-1}^{(t)}$ always. The residual can only decrease or stay flat at each block. Now consider what happens when a block overshoots — say block 5 subtracts too much, making $x_6^{(t)}$ negative. Block 6 sees a negative input. It produces some $\hat{x}_6^{(t)}$, which gets ReLU'd to $\geq 0$, so:
+
+$$x_7^{(t)} = x_6^{(t)} - \text{ReLU}(\hat{x}_6^{(t)}) \leq x_6^{(t)} < 0$$
+
+The residual is already negative and can only go more negative. No subsequent block can ever bring it back up. In a 30-block chain, a single over-extraction at any point permanently corrupts that time step's residual for all remaining blocks.
+
+The net effect isn't that the backcast "disappears" — it's that the backcast can only do subtractive decomposition. Real signal decomposition needs to be additive too (blocks saying "the previous block took too much, let me put some back"). Your Table 14 data proves this is the mechanism: active_g='backcast' produces 63% convergence — worse than the unconstrained 70% baseline. It imposes a constraint that actively harms both stability and expressiveness simultaneously.
+
+Part 2: Could BatchNorm on the Forecast Path Replace ReLU?
+This is a genuinely interesting theoretical direction. The core question is: what property of forecast-path ReLU actually provides the convergence benefit? If we can identify that, we can ask whether BatchNorm provides the same property.
+
+What ReLU on forecasts actually does
+The forecast accumulation is:
+
+$$\hat{y} = \sum_{\ell=1}^{30} \hat{y}_\ell$$
+
+With ReLU, each $\hat{y}_\ell \geq 0$. This prevents catastrophic cancellation — the scenario where some blocks produce large positive forecasts and others produce large negative forecasts that nearly cancel, leaving the optimization on a knife's edge. Without ReLU, the loss surface has deep, narrow valleys where slight perturbations to any block's forecast can swing the sum wildly. ReLU removes these valleys by making the sum monotonically increasing with each block's contribution.
+
+The key properties that make this work:
+
+No cancellation — partial forecasts can't subtract from each other
+Bounded gradient — ReLU's gradient is 0 or 1, no amplification
+Sparsity — some blocks' forecasts get zeroed out entirely, reducing effective model complexity
+What BatchNorm would do differently
+BatchNorm on the forecast output would normalize each $\hat{y}_\ell$ to have zero mean and unit variance across the batch:
+
+$$\hat{y}\ell^{BN} = \gamma \cdot \frac{\hat{y}\ell - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}} + \beta$$
+
+This is theoretically interesting because:
+
+Potential benefits:
+
+Scale stabilization — prevents any single block's forecast from dominating the sum with outsized magnitudes, which is a plausible cause of divergence
+Sign preservation — outputs can be positive or negative, so forecast cancellation remains possible (preserving expressiveness)
+Smooth gradients — no dead zones, no gradient clipping
+But there are fundamental problems:
+
+1. It normalizes the wrong thing. The forecast $\hat{y}_\ell$ represents a partial time-series prediction. Forcing it to have mean 0 across the batch means every block's partial forecast sums to zero on average — the block literally cannot contribute a consistent bias/level to the forecast. This is destructive because time series often have non-zero levels (milk production is ~100-200, not centered at zero).
+
+The learned $\beta$ shift parameter partially compensates, but it's a scalar — the same shift for all time steps and all samples. That's a severe constraint for a time-series output.
+
+1. Train/test distribution shift. BatchNorm uses running statistics at inference time. If the test batch has a different distribution of forecast magnitudes (which it will — different time periods, different series), the normalization is wrong. This is a well-known problem with BatchNorm in time series (much of the recent literature has moved to LayerNorm or instance normalization for this reason).
+
+2. It couples samples within a batch. Each sample's forecast now depends on what other samples are in the batch. This introduces noise that doesn't exist in the deterministic residual chain. For a 30-block deep architecture, this stochasticity compounds.
+
+What might actually work
+The core insight from your active_g='forecast' result is that the forecast path needs magnitude control, not necessarily non-negativity or distributional normalization. Some alternatives worth considering theoretically:
+
+LayerNorm — normalizes across the forecast time steps for each sample independently (no batch coupling). This would prevent any single block from producing a forecast with outsized magnitudes while preserving sign and sample independence. It's what your WaveletV2 blocks already use on the hidden representation:
+
+blocks.py
+src/lightningnbeats/blocks
+But applied after the projection to forecast space rather than in hidden space.
+
+Spectral normalization on the forecast weight matrix — constraining the spectral norm of theta_f_fc.weight to be ≤ 1 bounds the maximum output magnitude as a function of input magnitude, preventing runaway growth without any clipping or saturation. This is a hard constraint on the operator norm rather than the output distribution.
+
+Gradient clipping (which you already use implicitly through Lightning's training) — prevents explosions during optimization without modifying the forward pass at all. This regularizes the training dynamics rather than the architecture.
+
+Weight decay on forecast projection weights — shrinks the forecast projection matrix toward zero, bounding output magnitudes on average. Softer than spectral norm, no forward pass modification.
+
+The key theoretical distinction is: ReLU regularizes the output space (constraining the set of representable functions), while these alternatives regularize the weight space or optimization dynamics (constraining how the model gets there without limiting what it can ultimately represent). The latter category could theoretically provide convergence stability without the expressiveness ceiling — but that's a hypothesis that would need empirical validation in the same framework as your existing convergence studies.
+
 ### 5.7 Suggested Additional Metrics
 
 We identify several metrics that could strengthen the analysis in future iterations of this work, organized by whether they are derivable from existing experimental data or require additional code changes.
