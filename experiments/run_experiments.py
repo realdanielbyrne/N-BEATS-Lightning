@@ -451,6 +451,7 @@ CSV_COLUMNS = [
     "smape", "mase", "mae", "mse", "owa", "n_params",
     "training_time_seconds", "epochs_trained",
     "active_g", "sum_losses", "activation",
+    "stopping_reason",
 ]
 
 ENSEMBLE_INDIVIDUAL_COLUMNS = [
@@ -460,6 +461,7 @@ ENSEMBLE_INDIVIDUAL_COLUMNS = [
     "smape", "mase", "mae", "mse", "owa", "n_params",
     "training_time_seconds", "epochs_trained",
     "active_g", "sum_losses", "activation",
+    "stopping_reason",
 ]
 
 ENSEMBLE_SUMMARY_COLUMNS = [
@@ -808,11 +810,13 @@ def run_single_experiment(
         },
     )
 
+    divergence_detector = DivergenceDetector(relative_threshold=3.0, consecutive_epochs=3)
+
     trainer = pl.Trainer(
         accelerator=accelerator,
         devices=1,
         max_epochs=max_epochs,
-        callbacks=[chk_callback, early_stop_callback],
+        callbacks=[chk_callback, early_stop_callback, divergence_detector],
         logger=exp_loggers,
         enable_progress_bar=True,
         deterministic=False,
@@ -835,6 +839,14 @@ def run_single_experiment(
         model = NBeatsNet.load_from_checkpoint(best_path, weights_only=False)
     epochs_trained = trainer.current_epoch
 
+    # Classify stopping reason
+    if divergence_detector.diverged:
+        stopping_reason = "DIVERGED"
+    elif hasattr(early_stop_callback, "stopped_epoch") and early_stop_callback.stopped_epoch > 0:
+        stopping_reason = "EARLY_STOPPED"
+    else:
+        stopping_reason = "MAX_EPOCHS"
+
     # Inference
     preds, targets = run_inference(model, test_dm, device)
 
@@ -847,7 +859,7 @@ def run_single_experiment(
 
     print(f"         sMAPE={smape:.4f}  MASE={mase:.4f}  MAE={mae:.4f}  "
           f"MSE={mse:.4f}  OWA={owa:.4f}  "
-          f"time={training_time:.1f}s  epochs={epochs_trained}")
+          f"time={training_time:.1f}s  epochs={epochs_trained}  [{stopping_reason}]")
 
     # Save result — record unique block types for readability
     unique_types = list(dict.fromkeys(stack_types))  # preserves order, deduplicates
@@ -875,6 +887,7 @@ def run_single_experiment(
         "active_g": active_g,
         "sum_losses": sum_losses,
         "activation": activation,
+        "stopping_reason": stopping_reason,
     }
     append_result(csv_path, row)
     finish_wandb(wandb_enabled)
@@ -1702,10 +1715,12 @@ def run_ensemble_experiment(dataset_name, periods, max_epochs, batch_size, accel
                         },
                     )
 
+                    div_cb = DivergenceDetector(relative_threshold=3.0, consecutive_epochs=3)
+
                     trainer = pl.Trainer(
                         accelerator=accelerator, devices=1,
                         max_epochs=max_epochs,
-                        callbacks=[chk_cb, es_cb],
+                        callbacks=[chk_cb, es_cb, div_cb],
                         logger=ens_loggers,
                         enable_progress_bar=True,
                         deterministic=False,
@@ -1734,6 +1749,14 @@ def run_ensemble_experiment(dataset_name, periods, max_epochs, batch_size, accel
                         )
                     epochs_trained = trainer.current_epoch
 
+                    # Classify stopping reason
+                    if div_cb.diverged:
+                        stopping_reason = "DIVERGED"
+                    elif hasattr(es_cb, "stopped_epoch") and es_cb.stopped_epoch > 0:
+                        stopping_reason = "EARLY_STOPPED"
+                    else:
+                        stopping_reason = "MAX_EPOCHS"
+
                     preds, tgts = run_inference(model, test_dm, device)
                     targets = tgts  # same for all multipliers
 
@@ -1752,7 +1775,7 @@ def run_ensemble_experiment(dataset_name, periods, max_epochs, batch_size, accel
 
                     print(f"         sMAPE={smape:.4f}  MASE={mase:.4f}  "
                           f"OWA={owa:.4f}  time={training_time:.1f}s  "
-                          f"epochs={epochs_trained}")
+                          f"epochs={epochs_trained}  [{stopping_reason}]")
 
                     unique_types = list(dict.fromkeys(stack_types))
                     row = {
@@ -1780,6 +1803,7 @@ def run_ensemble_experiment(dataset_name, periods, max_epochs, batch_size, accel
                         "active_g": False,
                         "sum_losses": False,
                         "activation": "ReLU",
+                        "stopping_reason": stopping_reason,
                     }
                     append_result(
                         individual_csv, row, ENSEMBLE_INDIVIDUAL_COLUMNS,
@@ -2001,10 +2025,12 @@ def run_mixed_stack_ensemble(dataset_name, periods, max_epochs, batch_size, acce
                         },
                     )
 
+                    div_cb = DivergenceDetector(relative_threshold=3.0, consecutive_epochs=3)
+
                     trainer = pl.Trainer(
                         accelerator=accelerator, devices=1,
                         max_epochs=max_epochs,
-                        callbacks=[chk_cb, es_cb],
+                        callbacks=[chk_cb, es_cb, div_cb],
                         logger=mix_loggers,
                         enable_progress_bar=True,
                         deterministic=False,
@@ -2033,6 +2059,14 @@ def run_mixed_stack_ensemble(dataset_name, periods, max_epochs, batch_size, acce
                         )
                     epochs_trained = trainer.current_epoch
 
+                    # Classify stopping reason
+                    if div_cb.diverged:
+                        stopping_reason = "DIVERGED"
+                    elif hasattr(es_cb, "stopped_epoch") and es_cb.stopped_epoch > 0:
+                        stopping_reason = "EARLY_STOPPED"
+                    else:
+                        stopping_reason = "MAX_EPOCHS"
+
                     preds, tgts = run_inference(model, test_dm, device)
                     targets = tgts  # same for all multipliers
 
@@ -2051,7 +2085,7 @@ def run_mixed_stack_ensemble(dataset_name, periods, max_epochs, batch_size, acce
 
                     print(f"         sMAPE={smape:.4f}  MASE={mase:.4f}  "
                           f"OWA={owa:.4f}  time={training_time:.1f}s  "
-                          f"epochs={epochs_trained}")
+                          f"epochs={epochs_trained}  [{stopping_reason}]")
 
                     unique_types = list(dict.fromkeys(stack_types))
                     row = {
@@ -2079,6 +2113,7 @@ def run_mixed_stack_ensemble(dataset_name, periods, max_epochs, batch_size, acce
                         "active_g": False,
                         "sum_losses": False,
                         "activation": "ReLU",
+                        "stopping_reason": stopping_reason,
                     }
                     append_result(
                         individual_csv, row, ENSEMBLE_INDIVIDUAL_COLUMNS,
