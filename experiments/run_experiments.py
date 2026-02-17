@@ -1,9 +1,8 @@
 """
-M4 Benchmark Experiment Script for N-BEATS Lightning
+Benchmark Experiment Script for N-BEATS Lightning
 
-1:1 comparison with the original N-BEATS paper (Oreshkin et al., 2019) using
-paper-faithful hyperparameters (30 stacks, batch=1024, lr=1e-3, early stopping),
-alongside novel extensions from this codebase.
+Supports multiple datasets (M4, Traffic) with a unified experiment framework.
+Use --dataset to select the dataset and --periods to select sub-configs.
 
 Part 1: Block-type benchmark — Paper baselines (N-BEATS-G, N-BEATS-I, N-BEATS-I+G)
         plus novel block types at the same 30-stack scale for fair comparison.
@@ -14,27 +13,30 @@ Part 4: Wavelet V2 benchmark — Numerically stabilized wavelet blocks with spec
         normalization, LayerNorm, Xavier init, and output clamping.
 Part 5: Wavelet V3 benchmark — Orthonormal DWT basis via impulse-response synthesis
         + SVD orthogonalization (condition number = 1.0).
-Part 6: Convergence study — 10-stack Generic with 2x2 factorial (active_g x sum_losses),
-        10 runs per config on Yearly/Quarterly to test convergence reliability/speed.
+Part 6: Convergence study — Multi-dataset (M4-Yearly + Traffic-96), random seeds,
+        10-stack Generic with 2x2 factorial (active_g x sum_losses),
+        50 runs per config to disentangle data distribution vs initialization effects.
 Part 7: Novel mixed stack benchmark + ensemble — I+G compositional pattern with novel
         G-position blocks (GenericAE, BottleneckGeneric, AutoEncoder) plus AE
         interpretable front-end. Benchmark + multi-horizon ensemble for each config.
 
 Usage:
-    python experiments/run_experiments.py --part 1 --periods Yearly --max-epochs 100
-    python experiments/run_experiments.py --part all
-    python experiments/run_experiments.py --part 2 --periods Yearly Monthly --max-epochs 100
-    python experiments/run_experiments.py --part 3 --periods Yearly --max-epochs 100
-    python experiments/run_experiments.py --part 4 --periods Yearly --max-epochs 100
-    python experiments/run_experiments.py --part 5 --periods Yearly --max-epochs 100
-    python experiments/run_experiments.py --part 6 --periods Yearly Quarterly --max-epochs 100
-    python experiments/run_experiments.py --part 7 --periods Yearly --max-epochs 100
+    python experiments/run_experiments.py --dataset m4 --part 1 --periods Yearly --max-epochs 100
+    python experiments/run_experiments.py --dataset traffic --part 1 --periods Traffic-96 --max-epochs 100
+    python experiments/run_experiments.py --dataset m4 --part all
+    python experiments/run_experiments.py --dataset m4 --part 2 --periods Yearly Monthly --max-epochs 100
+    python experiments/run_experiments.py --dataset m4 --part 3 --periods Yearly --max-epochs 100
+    python experiments/run_experiments.py --dataset m4 --part 4 --periods Yearly --max-epochs 100
+    python experiments/run_experiments.py --dataset m4 --part 5 --periods Yearly --max-epochs 100
+    python experiments/run_experiments.py --part 6 --max-epochs 100
+    python experiments/run_experiments.py --dataset m4 --part 7 --periods Yearly --max-epochs 100
 """
 
 import argparse
 import csv
 import gc
 import os
+import random
 import sys
 import time
 
@@ -52,7 +54,7 @@ from lightningnbeats.loaders import (
     ColumnarCollectionTimeSeriesDataModule,
     ColumnarCollectionTimeSeriesTestDataModule,
 )
-from lightningnbeats.data import M4Dataset
+from lightningnbeats.data import M4Dataset, TrafficDataset, WeatherDataset
 
 torch.set_float32_matmul_precision("medium")
 
@@ -69,15 +71,19 @@ M4_PERIODS = {
     "Hourly":    {"frequency": 24, "horizon": 48},
 }
 
-# Naïve2 baseline values from the M4 competition (Makridakis et al., 2020).
-# Used to compute OWA = 0.5 * (sMAPE/sMAPE_Naive2 + MASE/MASE_Naive2).
-NAIVE2_SMAPE = {
-    "Yearly": 16.342, "Quarterly": 11.012, "Monthly": 14.427,
-    "Weekly": 9.161,  "Daily": 3.045,      "Hourly": 18.383,
+TRAFFIC_HORIZONS = {
+    "Traffic-96":  {"frequency": 24, "horizon": 96},
 }
-NAIVE2_MASE = {
-    "Yearly": 3.974, "Quarterly": 1.371, "Monthly": 1.063,
-    "Weekly": 2.777, "Daily": 3.278,     "Hourly": 2.395,
+
+WEATHER_HORIZONS = {
+    "Weather-96":  {"frequency": 144, "horizon": 96},
+}
+
+# Dataset-specific hyperparameter defaults
+DATASET_DEFAULTS = {
+    "m4":      {"loss": "SMAPELoss", "forecast_multiplier": 5},
+    "traffic": {"loss": "SMAPELoss", "forecast_multiplier": 2},
+    "weather": {"loss": "SMAPELoss", "forecast_multiplier": 2},
 }
 
 # Fixed training hyperparameters — matches original paper where applicable
@@ -352,8 +358,13 @@ CONVERGENCE_STUDY_CONFIGS = {
 }
 
 CONVERGENCE_STUDY_STACKS = 10
-CONVERGENCE_STUDY_N_RUNS = 10
-CONVERGENCE_STUDY_PERIODS = ["Yearly", "Quarterly"]
+CONVERGENCE_STUDY_N_RUNS = 50
+
+# Convergence study iterates over multiple datasets internally (Part 6 only)
+CONVERGENCE_STUDY_DATASETS = {
+    "m4":      ["Yearly"],
+    "weather": ["Weather-96"],
+}
 
 # ---------------------------------------------------------------------------
 # Ensemble Configs (Part 3) — paper's key architectures at multiple horizons
@@ -384,7 +395,7 @@ CSV_COLUMNS = [
     "experiment", "config_name", "stack_types", "period", "frequency",
     "forecast_length", "backcast_length", "n_stacks", "n_blocks_per_stack",
     "share_weights", "run", "seed",
-    "smape", "mase", "owa", "n_params",
+    "smape", "mase", "mae", "mse", "owa", "n_params",
     "training_time_seconds", "epochs_trained",
     "active_g", "sum_losses", "activation",
 ]
@@ -393,7 +404,7 @@ ENSEMBLE_INDIVIDUAL_COLUMNS = [
     "experiment", "config_name", "stack_types", "period", "frequency",
     "forecast_length", "backcast_length", "forecast_multiplier",
     "n_stacks", "n_blocks_per_stack", "share_weights", "run", "seed",
-    "smape", "mase", "owa", "n_params",
+    "smape", "mase", "mae", "mse", "owa", "n_params",
     "training_time_seconds", "epochs_trained",
     "active_g", "sum_losses", "activation",
 ]
@@ -401,7 +412,8 @@ ENSEMBLE_INDIVIDUAL_COLUMNS = [
 ENSEMBLE_SUMMARY_COLUMNS = [
     "config_name", "period", "frequency", "forecast_length",
     "n_models", "multipliers", "n_runs_per_multiplier",
-    "ensemble_smape", "ensemble_mase", "ensemble_owa",
+    "ensemble_smape", "ensemble_mase", "ensemble_mae", "ensemble_mse",
+    "ensemble_owa",
 ]
 
 
@@ -462,28 +474,54 @@ def compute_m4_mase(y_pred, y_true, train_series_list, frequency):
     return float(np.mean(mase_values))
 
 
-def compute_owa(smape, mase, period):
-    """OWA (Overall Weighted Average) as defined in the M4 competition.
+def compute_mae(y_pred, y_true):
+    """Mean Absolute Error."""
+    return float(np.mean(np.abs(y_true - y_pred)))
 
-    OWA = 0.5 * (sMAPE / sMAPE_Naive2 + MASE / MASE_Naive2)
 
-    A seasonally-adjusted naïve forecast obtains OWA = 1.0. Lower is better.
+def compute_mse(y_pred, y_true):
+    """Mean Squared Error."""
+    return float(np.mean((y_true - y_pred) ** 2))
+
+
+def load_dataset(dataset_name, period):
+    """Factory function to load the appropriate benchmark dataset."""
+    if dataset_name == "m4":
+        return M4Dataset(period, "All")
+    elif dataset_name == "traffic":
+        horizon = TRAFFIC_HORIZONS[period]["horizon"]
+        return TrafficDataset(horizon=horizon)
+    elif dataset_name == "weather":
+        horizon = WEATHER_HORIZONS[period]["horizon"]
+        return WeatherDataset(horizon=horizon)
+    else:
+        raise ValueError(f"Unknown dataset: {dataset_name}")
+
+
+def get_forecast_multiplier(dataset_name):
+    """Return the dataset-specific forecast multiplier for single-model runs."""
+    return DATASET_DEFAULTS[dataset_name]["forecast_multiplier"]
+
+
+def resolve_accelerator(accelerator_override):
+    """Resolve accelerator and device from override string.
+
+    'auto' uses CUDA > MPS > CPU detection; any other value forces that accelerator.
     """
-    return 0.5 * (smape / NAIVE2_SMAPE[period] + mase / NAIVE2_MASE[period])
-
-
-def get_training_series(m4_dataset):
-    """Extract per-column training arrays (NaN removed) from M4Dataset.
-
-    m4_dataset.train_data is a DataFrame where columns are series and rows
-    are time steps (NaN-padded at top for shorter series).
-    """
-    series_list = []
-    train_df = m4_dataset.train_data
-    for col in train_df.columns:
-        vals = train_df[col].dropna().values.astype(np.float64)
-        series_list.append(vals)
-    return series_list
+    if accelerator_override == "auto":
+        if torch.cuda.is_available():
+            accelerator = "cuda"
+            device = torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            accelerator = "mps"
+            device = torch.device("mps")
+        else:
+            accelerator = "cpu"
+            device = torch.device("cpu")
+    else:
+        accelerator = accelerator_override
+        device = torch.device(accelerator if accelerator != "cuda" else "cuda")
+    return accelerator, device
 
 
 def run_inference(model, test_dm, device):
@@ -518,6 +556,7 @@ def run_inference(model, test_dm, device):
 def init_csv(path, columns=None):
     """Create CSV with header if it doesn't exist."""
     columns = columns or CSV_COLUMNS
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     if not os.path.exists(path):
         with open(path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=columns)
@@ -570,7 +609,7 @@ def run_single_experiment(
     stack_types,
     period,
     run_idx,
-    m4,
+    dataset,
     train_series_list,
     csv_path,
     n_blocks_per_stack=1,
@@ -579,6 +618,11 @@ def run_single_experiment(
     sum_losses=False,
     activation="ReLU",
     max_epochs=100,
+    batch_size=1024,
+    accelerator_override="auto",
+    forecast_multiplier=None,
+    seed_override=None,
+    num_workers=0,
 ):
     """Run a single training + evaluation experiment and save results to CSV."""
 
@@ -587,25 +631,18 @@ def run_single_experiment(
         print(f"  [SKIP] {config_name} / {period} / run {run_idx} — already exists")
         return
 
-    seed = BASE_SEED + run_idx
+    seed = seed_override if seed_override is not None else BASE_SEED + run_idx
     set_seed(seed)
 
-    forecast_length = m4.forecast_length
-    frequency = m4.frequency
-    backcast_length = forecast_length * FORECAST_MULTIPLIER
+    forecast_length = dataset.forecast_length
+    frequency = dataset.frequency
+    if forecast_multiplier is None:
+        forecast_multiplier = FORECAST_MULTIPLIER
+    backcast_length = forecast_length * forecast_multiplier
 
     n_stacks = len(stack_types)
 
-    # Detect accelerator
-    if torch.cuda.is_available():
-        accelerator = "cuda"
-        device = torch.device("cuda")
-    elif torch.backends.mps.is_available():
-        accelerator = "mps"
-        device = torch.device("mps")
-    else:
-        accelerator = "cpu"
-        device = torch.device("cpu")
+    accelerator, device = resolve_accelerator(accelerator_override)
 
     # Create model
     model = NBeatsNet(
@@ -628,15 +665,18 @@ def run_single_experiment(
     n_params = count_parameters(model)
 
     # Data modules
-    train_data = m4.train_data
-    test_data = m4.test_data
+    train_data = dataset.train_data
+    test_data = dataset.test_data
 
+    pin_memory = num_workers > 0
     dm = ColumnarCollectionTimeSeriesDataModule(
         train_data,
         backcast_length=backcast_length,
         forecast_length=forecast_length,
-        batch_size=BATCH_SIZE,
+        batch_size=batch_size,
         no_val=False,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
     )
 
     test_dm = ColumnarCollectionTimeSeriesTestDataModule(
@@ -644,7 +684,9 @@ def run_single_experiment(
         test_data,
         backcast_length=backcast_length,
         forecast_length=forecast_length,
-        batch_size=BATCH_SIZE,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
     )
 
     # Trainer — paper uses early stopping on validation loss
@@ -675,6 +717,7 @@ def run_single_experiment(
         logger=[tb_logger],
         enable_progress_bar=True,
         deterministic=False,
+        log_every_n_steps=50,
     )
 
     # Train
@@ -699,9 +742,12 @@ def run_single_experiment(
     # Metrics
     smape = compute_smape(preds, targets)
     mase = compute_m4_mase(preds, targets, train_series_list, frequency)
-    owa = compute_owa(smape, mase, period)
+    mae = compute_mae(preds, targets)
+    mse = compute_mse(preds, targets)
+    owa = dataset.compute_owa(smape, mase)
 
-    print(f"         sMAPE={smape:.4f}  MASE={mase:.4f}  OWA={owa:.4f}  "
+    print(f"         sMAPE={smape:.4f}  MASE={mase:.4f}  MAE={mae:.4f}  "
+          f"MSE={mse:.4f}  OWA={owa:.4f}  "
           f"time={training_time:.1f}s  epochs={epochs_trained}")
 
     # Save result — record unique block types for readability
@@ -721,6 +767,8 @@ def run_single_experiment(
         "seed": seed,
         "smape": f"{smape:.6f}",
         "mase": f"{mase:.6f}",
+        "mae": f"{mae:.6f}",
+        "mse": f"{mse:.6f}",
         "owa": f"{owa:.6f}",
         "n_params": n_params,
         "training_time_seconds": f"{training_time:.2f}",
@@ -742,18 +790,20 @@ def run_single_experiment(
 # Runner Functions
 # ---------------------------------------------------------------------------
 
-def run_block_benchmark(periods, max_epochs):
-    """Part 1: Block-type benchmark across M4 periods."""
-    csv_path = os.path.join(RESULTS_DIR, "block_benchmark_results.csv")
+def run_block_benchmark(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
+    """Part 1: Block-type benchmark across periods."""
+    results_dir = os.path.join(RESULTS_DIR, dataset_name)
+    csv_path = os.path.join(results_dir, "block_benchmark_results.csv")
     init_csv(csv_path)
+    fm = get_forecast_multiplier(dataset_name)
 
     for period in periods:
         print(f"\n{'='*60}")
         print(f"Block Benchmark — {period}")
         print(f"{'='*60}")
 
-        m4 = M4Dataset(period, "All")
-        train_series_list = get_training_series(m4)
+        dataset = load_dataset(dataset_name, period)
+        train_series_list = dataset.get_training_series()
 
         for config_name, cfg in BLOCK_CONFIGS.items():
             for run_idx in range(N_RUNS):
@@ -763,7 +813,7 @@ def run_block_benchmark(periods, max_epochs):
                     stack_types=cfg["stack_types"],
                     period=period,
                     run_idx=run_idx,
-                    m4=m4,
+                    dataset=dataset,
                     train_series_list=train_series_list,
                     csv_path=csv_path,
                     n_blocks_per_stack=cfg["n_blocks_per_stack"],
@@ -772,21 +822,27 @@ def run_block_benchmark(periods, max_epochs):
                     sum_losses=False,
                     activation="ReLU",
                     max_epochs=max_epochs,
+                    batch_size=batch_size,
+                    accelerator_override=accelerator_override,
+                    forecast_multiplier=fm,
+                    num_workers=num_workers,
                 )
 
 
-def run_wavelet_v2_benchmark(periods, max_epochs):
-    """Part 4: Numerically stabilized wavelet V2 benchmark across M4 periods."""
-    csv_path = os.path.join(RESULTS_DIR, "wavelet_v2_benchmark_results.csv")
+def run_wavelet_v2_benchmark(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
+    """Part 4: Numerically stabilized wavelet V2 benchmark."""
+    results_dir = os.path.join(RESULTS_DIR, dataset_name)
+    csv_path = os.path.join(results_dir, "wavelet_v2_benchmark_results.csv")
     init_csv(csv_path)
+    fm = get_forecast_multiplier(dataset_name)
 
     for period in periods:
         print(f"\n{'='*60}")
         print(f"Wavelet V2 Benchmark — {period}")
         print(f"{'='*60}")
 
-        m4 = M4Dataset(period, "All")
-        train_series_list = get_training_series(m4)
+        dataset = load_dataset(dataset_name, period)
+        train_series_list = dataset.get_training_series()
 
         for config_name, cfg in WAVELET_V2_CONFIGS.items():
             for run_idx in range(N_RUNS):
@@ -796,7 +852,7 @@ def run_wavelet_v2_benchmark(periods, max_epochs):
                     stack_types=cfg["stack_types"],
                     period=period,
                     run_idx=run_idx,
-                    m4=m4,
+                    dataset=dataset,
                     train_series_list=train_series_list,
                     csv_path=csv_path,
                     n_blocks_per_stack=cfg["n_blocks_per_stack"],
@@ -805,21 +861,27 @@ def run_wavelet_v2_benchmark(periods, max_epochs):
                     sum_losses=False,
                     activation="ReLU",
                     max_epochs=max_epochs,
+                    batch_size=batch_size,
+                    accelerator_override=accelerator_override,
+                    forecast_multiplier=fm,
+                    num_workers=num_workers,
                 )
 
 
-def run_wavelet_v3_benchmark(periods, max_epochs):
-    """Part 5: Orthonormal DWT wavelet V3 benchmark across M4 periods."""
-    csv_path = os.path.join(RESULTS_DIR, "wavelet_v3_benchmark_results.csv")
+def run_wavelet_v3_benchmark(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
+    """Part 5: Orthonormal DWT wavelet V3 benchmark."""
+    results_dir = os.path.join(RESULTS_DIR, dataset_name)
+    csv_path = os.path.join(results_dir, "wavelet_v3_benchmark_results.csv")
     init_csv(csv_path)
+    fm = get_forecast_multiplier(dataset_name)
 
     for period in periods:
         print(f"\n{'='*60}")
         print(f"Wavelet V3 Benchmark — {period}")
         print(f"{'='*60}")
 
-        m4 = M4Dataset(period, "All")
-        train_series_list = get_training_series(m4)
+        dataset = load_dataset(dataset_name, period)
+        train_series_list = dataset.get_training_series()
 
         # Standalone V3 block configs
         for config_name, cfg in WAVELET_V3_CONFIGS.items():
@@ -830,7 +892,7 @@ def run_wavelet_v3_benchmark(periods, max_epochs):
                     stack_types=cfg["stack_types"],
                     period=period,
                     run_idx=run_idx,
-                    m4=m4,
+                    dataset=dataset,
                     train_series_list=train_series_list,
                     csv_path=csv_path,
                     n_blocks_per_stack=cfg["n_blocks_per_stack"],
@@ -839,6 +901,10 @@ def run_wavelet_v3_benchmark(periods, max_epochs):
                     sum_losses=False,
                     activation="ReLU",
                     max_epochs=max_epochs,
+                    batch_size=batch_size,
+                    accelerator_override=accelerator_override,
+                    forecast_multiplier=fm,
+                    num_workers=num_workers,
                 )
 
         # V3 ablation configs (on 30-stack DB3WaveletV3)
@@ -851,7 +917,7 @@ def run_wavelet_v3_benchmark(periods, max_epochs):
                     stack_types=v3_ablation_stack,
                     period=period,
                     run_idx=run_idx,
-                    m4=m4,
+                    dataset=dataset,
                     train_series_list=train_series_list,
                     csv_path=csv_path,
                     n_blocks_per_stack=1,
@@ -860,58 +926,83 @@ def run_wavelet_v3_benchmark(periods, max_epochs):
                     sum_losses=ablation["sum_losses"],
                     activation=ablation["activation"],
                     max_epochs=max_epochs,
+                    batch_size=batch_size,
+                    accelerator_override=accelerator_override,
+                    forecast_multiplier=fm,
+                    num_workers=num_workers,
                 )
 
 
-def run_convergence_study(periods, max_epochs):
-    """Part 6: Convergence study — active_g/sum_losses on 10-stack Generic.
+def run_convergence_study(max_epochs, batch_size, accelerator_override,
+                          config_filter=None, num_workers=0):
+    """Part 6: Convergence study — multi-dataset, random seeds.
 
-    Tests the stabilizing effect of active_g and sum_losses on convergence
-    reliability, speed, and final metric quality. Uses 10 runs per config
-    (seeds 42-51) on Yearly and Quarterly periods only.
+    Tests active_g/sum_losses stabilization across datasets to
+    disentangle data distribution effects from initialization effects.
+    Uses random seeds (tracked in CSV) instead of fixed seeds.
+
+    Args:
+        config_filter: Optional config name to run only that config (for parallel execution).
     """
-    csv_path = os.path.join(RESULTS_DIR, "convergence_study_results.csv")
-    init_csv(csv_path)
-
     stack_types = ["Generic"] * CONVERGENCE_STUDY_STACKS
 
-    for period in periods:
-        if period not in CONVERGENCE_STUDY_PERIODS:
-            print(f"  [SKIP] {period} — convergence study only runs on "
-                  f"{CONVERGENCE_STUDY_PERIODS}")
-            continue
+    # Filter configs if requested
+    configs = CONVERGENCE_STUDY_CONFIGS
+    if config_filter:
+        if config_filter not in configs:
+            print(f"Unknown convergence config: {config_filter}")
+            print(f"Available: {list(configs.keys())}")
+            return
+        configs = {config_filter: configs[config_filter]}
 
-        print(f"\n{'='*60}")
-        print(f"Convergence Study — {period}")
-        print(f"{'='*60}")
+    for dataset_name, periods in CONVERGENCE_STUDY_DATASETS.items():
+        results_dir = os.path.join(RESULTS_DIR, dataset_name)
+        csv_path = os.path.join(results_dir, "convergence_study_results.csv")
+        init_csv(csv_path)
+        fm = get_forecast_multiplier(dataset_name)
 
-        m4 = M4Dataset(period, "All")
-        train_series_list = get_training_series(m4)
+        for period in periods:
+            print(f"\n{'='*60}")
+            print(f"Convergence Study — {dataset_name} / {period}")
+            print(f"{'='*60}")
 
-        for config_name, cfg in CONVERGENCE_STUDY_CONFIGS.items():
-            for run_idx in range(CONVERGENCE_STUDY_N_RUNS):
-                run_single_experiment(
-                    experiment_name="convergence_study",
-                    config_name=config_name,
-                    stack_types=stack_types,
-                    period=period,
-                    run_idx=run_idx,
-                    m4=m4,
-                    train_series_list=train_series_list,
-                    csv_path=csv_path,
-                    n_blocks_per_stack=1,
-                    share_weights=True,
-                    active_g=cfg["active_g"],
-                    sum_losses=cfg["sum_losses"],
-                    activation=cfg["activation"],
-                    max_epochs=max_epochs,
-                )
+            dataset = load_dataset(dataset_name, period)
+            train_series_list = dataset.get_training_series()
+
+            for config_name, cfg in configs.items():
+                for run_idx in range(CONVERGENCE_STUDY_N_RUNS):
+                    # Random seed — tracked in CSV for reproducibility
+                    seed = random.randint(0, 2**31 - 1)
+
+                    run_single_experiment(
+                        experiment_name="convergence_study",
+                        config_name=config_name,
+                        stack_types=stack_types,
+                        period=period,
+                        run_idx=run_idx,
+                        dataset=dataset,
+                        train_series_list=train_series_list,
+                        csv_path=csv_path,
+                        n_blocks_per_stack=1,
+                        share_weights=True,
+                        active_g=cfg["active_g"],
+                        sum_losses=cfg["sum_losses"],
+                        activation=cfg["activation"],
+                        max_epochs=max_epochs,
+                        batch_size=batch_size,
+                        accelerator_override=accelerator_override,
+                        forecast_multiplier=fm,
+                        seed_override=seed,
+                        num_workers=num_workers,
+                    )
 
 
-def run_ablation_studies(periods, max_epochs):
-    """Part 2: Ablation studies on 30-stack Generic across M4 periods."""
-    csv_path = os.path.join(RESULTS_DIR, "ablation_results.csv")
+def run_ablation_studies(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
+    """Part 2: Ablation studies on 30-stack Generic."""
+    results_dir = os.path.join(RESULTS_DIR, dataset_name)
+    csv_path = os.path.join(results_dir, "ablation_results.csv")
     init_csv(csv_path)
+    fm = get_forecast_multiplier(dataset_name)
 
     # Ablation baseline: 30-stack Generic with shared weights (paper config)
     ablation_stack_types = ["Generic"] * TOTAL_STACKS
@@ -921,8 +1012,8 @@ def run_ablation_studies(periods, max_epochs):
         print(f"Ablation Studies — {period}")
         print(f"{'='*60}")
 
-        m4 = M4Dataset(period, "All")
-        train_series_list = get_training_series(m4)
+        dataset = load_dataset(dataset_name, period)
+        train_series_list = dataset.get_training_series()
 
         for config_name, ablation in ABLATION_CONFIGS.items():
             for run_idx in range(N_RUNS):
@@ -932,7 +1023,7 @@ def run_ablation_studies(periods, max_epochs):
                     stack_types=ablation_stack_types,
                     period=period,
                     run_idx=run_idx,
-                    m4=m4,
+                    dataset=dataset,
                     train_series_list=train_series_list,
                     csv_path=csv_path,
                     n_blocks_per_stack=1,
@@ -941,20 +1032,25 @@ def run_ablation_studies(periods, max_epochs):
                     sum_losses=ablation["sum_losses"],
                     activation=ablation["activation"],
                     max_epochs=max_epochs,
+                    batch_size=batch_size,
+                    accelerator_override=accelerator_override,
+                    forecast_multiplier=fm,
+                    num_workers=num_workers,
                 )
 
 
-def run_ensemble_experiment(periods, max_epochs):
+def run_ensemble_experiment(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
     """Part 3: Multi-horizon ensemble following the original N-BEATS paper.
 
-    For each architecture (G, I, I+G) and each M4 period:
+    For each architecture (G, I, I+G) and each period:
       - Train models at 6 backcast multipliers (2H-7H) x N_RUNS seeds
       - Take element-wise median of all forecasts (paper's ensemble strategy)
       - Report per-model and ensemble sMAPE, MASE, OWA
     """
-    individual_csv = os.path.join(RESULTS_DIR, "ensemble_individual_results.csv")
-    summary_csv = os.path.join(RESULTS_DIR, "ensemble_summary_results.csv")
-    preds_dir = os.path.join(RESULTS_DIR, "ensemble_predictions")
+    results_dir = os.path.join(RESULTS_DIR, dataset_name)
+    individual_csv = os.path.join(results_dir, "ensemble_individual_results.csv")
+    summary_csv = os.path.join(results_dir, "ensemble_summary_results.csv")
+    preds_dir = os.path.join(results_dir, "ensemble_predictions")
     os.makedirs(preds_dir, exist_ok=True)
 
     init_csv(individual_csv, ENSEMBLE_INDIVIDUAL_COLUMNS)
@@ -965,10 +1061,10 @@ def run_ensemble_experiment(periods, max_epochs):
         print(f"Ensemble Experiment — {period}")
         print(f"{'='*60}")
 
-        m4 = M4Dataset(period, "All")
-        train_series_list = get_training_series(m4)
-        forecast_length = m4.forecast_length
-        frequency = m4.frequency
+        dataset = load_dataset(dataset_name, period)
+        train_series_list = dataset.get_training_series()
+        forecast_length = dataset.forecast_length
+        frequency = dataset.frequency
 
         for config_name, cfg in ENSEMBLE_CONFIGS.items():
             # Skip if ensemble summary already computed
@@ -1006,13 +1102,7 @@ def run_ensemble_experiment(periods, max_epochs):
 
                     set_seed(seed)
 
-                    # Detect accelerator
-                    if torch.cuda.is_available():
-                        accelerator, device = "cuda", torch.device("cuda")
-                    elif torch.backends.mps.is_available():
-                        accelerator, device = "mps", torch.device("mps")
-                    else:
-                        accelerator, device = "cpu", torch.device("cpu")
+                    accelerator, device = resolve_accelerator(accelerator_override)
 
                     model = NBeatsNet(
                         backcast_length=backcast_length,
@@ -1032,21 +1122,26 @@ def run_ensemble_experiment(periods, max_epochs):
                     )
 
                     n_params = count_parameters(model)
-                    train_data = m4.train_data
-                    test_data = m4.test_data
+                    train_data = dataset.train_data
+                    test_data = dataset.test_data
 
+                    pin_memory = num_workers > 0
                     dm = ColumnarCollectionTimeSeriesDataModule(
                         train_data,
                         backcast_length=backcast_length,
                         forecast_length=forecast_length,
-                        batch_size=BATCH_SIZE,
+                        batch_size=batch_size,
                         no_val=False,
+                        num_workers=num_workers,
+                        pin_memory=pin_memory,
                     )
                     test_dm = ColumnarCollectionTimeSeriesTestDataModule(
                         train_data, test_data,
                         backcast_length=backcast_length,
                         forecast_length=forecast_length,
-                        batch_size=BATCH_SIZE,
+                        batch_size=batch_size,
+                        num_workers=num_workers,
+                        pin_memory=pin_memory,
                     )
 
                     log_dir = os.path.join(RESULTS_DIR, "lightning_logs")
@@ -1073,6 +1168,7 @@ def run_ensemble_experiment(periods, max_epochs):
                         logger=[tb_logger],
                         enable_progress_bar=True,
                         deterministic=False,
+                        log_every_n_steps=50,
                     )
 
                     stack_summary = (
@@ -1108,7 +1204,9 @@ def run_ensemble_experiment(periods, max_epochs):
                     mase = compute_m4_mase(
                         preds, targets, train_series_list, frequency,
                     )
-                    owa = compute_owa(smape, mase, period)
+                    mae = compute_mae(preds, targets)
+                    mse = compute_mse(preds, targets)
+                    owa = dataset.compute_owa(smape, mase)
 
                     print(f"         sMAPE={smape:.4f}  MASE={mase:.4f}  "
                           f"OWA={owa:.4f}  time={training_time:.1f}s  "
@@ -1131,6 +1229,8 @@ def run_ensemble_experiment(periods, max_epochs):
                         "seed": seed,
                         "smape": f"{smape:.6f}",
                         "mase": f"{mase:.6f}",
+                        "mae": f"{mae:.6f}",
+                        "mse": f"{mse:.6f}",
                         "owa": f"{owa:.6f}",
                         "n_params": n_params,
                         "training_time_seconds": f"{training_time:.2f}",
@@ -1159,7 +1259,9 @@ def run_ensemble_experiment(periods, max_epochs):
             ens_mase = compute_m4_mase(
                 ensemble_preds, targets, train_series_list, frequency,
             )
-            ens_owa = compute_owa(ens_smape, ens_mase, period)
+            ens_mae = compute_mae(ensemble_preds, targets)
+            ens_mse = compute_mse(ensemble_preds, targets)
+            ens_owa = dataset.compute_owa(ens_smape, ens_mase)
 
             print(f"  [ENS]  {config_name} / {period} — "
                   f"{n_models} models → median ensemble")
@@ -1176,23 +1278,27 @@ def run_ensemble_experiment(periods, max_epochs):
                 "n_runs_per_multiplier": N_RUNS,
                 "ensemble_smape": f"{ens_smape:.6f}",
                 "ensemble_mase": f"{ens_mase:.6f}",
+                "ensemble_mae": f"{ens_mae:.6f}",
+                "ensemble_mse": f"{ens_mse:.6f}",
                 "ensemble_owa": f"{ens_owa:.6f}",
             }
             append_result(summary_csv, summary_row, ENSEMBLE_SUMMARY_COLUMNS)
 
 
-def run_mixed_stack_benchmark(periods, max_epochs):
+def run_mixed_stack_benchmark(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
     """Part 7a: Mixed stack benchmark — I+G pattern with novel G blocks."""
-    csv_path = os.path.join(RESULTS_DIR, "block_benchmark_results.csv")
+    results_dir = os.path.join(RESULTS_DIR, dataset_name)
+    csv_path = os.path.join(results_dir, "block_benchmark_results.csv")
     init_csv(csv_path)
+    fm = get_forecast_multiplier(dataset_name)
 
     for period in periods:
         print(f"\n{'='*60}")
         print(f"Mixed Stack Benchmark — {period}")
         print(f"{'='*60}")
 
-        m4 = M4Dataset(period, "All")
-        train_series_list = get_training_series(m4)
+        dataset = load_dataset(dataset_name, period)
+        train_series_list = dataset.get_training_series()
 
         for config_name, cfg in MIXED_STACK_CONFIGS.items():
             for run_idx in range(N_RUNS):
@@ -1202,7 +1308,7 @@ def run_mixed_stack_benchmark(periods, max_epochs):
                     stack_types=cfg["stack_types"],
                     period=period,
                     run_idx=run_idx,
-                    m4=m4,
+                    dataset=dataset,
                     train_series_list=train_series_list,
                     csv_path=csv_path,
                     n_blocks_per_stack=cfg["n_blocks_per_stack"],
@@ -1211,18 +1317,23 @@ def run_mixed_stack_benchmark(periods, max_epochs):
                     sum_losses=False,
                     activation="ReLU",
                     max_epochs=max_epochs,
+                    batch_size=batch_size,
+                    accelerator_override=accelerator_override,
+                    forecast_multiplier=fm,
+                    num_workers=num_workers,
                 )
 
 
-def run_mixed_stack_ensemble(periods, max_epochs):
+def run_mixed_stack_ensemble(dataset_name, periods, max_epochs, batch_size, accelerator_override, num_workers=0):
     """Part 7b: Multi-horizon ensemble for mixed stack configs.
 
     Same strategy as Part 3: train at 6 backcast multipliers (2H-7H) x N_RUNS
     seeds, take element-wise median forecast across all models.
     """
-    individual_csv = os.path.join(RESULTS_DIR, "ensemble_individual_results.csv")
-    summary_csv = os.path.join(RESULTS_DIR, "ensemble_summary_results.csv")
-    preds_dir = os.path.join(RESULTS_DIR, "ensemble_predictions")
+    results_dir = os.path.join(RESULTS_DIR, dataset_name)
+    individual_csv = os.path.join(results_dir, "ensemble_individual_results.csv")
+    summary_csv = os.path.join(results_dir, "ensemble_summary_results.csv")
+    preds_dir = os.path.join(results_dir, "ensemble_predictions")
     os.makedirs(preds_dir, exist_ok=True)
 
     init_csv(individual_csv, ENSEMBLE_INDIVIDUAL_COLUMNS)
@@ -1233,10 +1344,10 @@ def run_mixed_stack_ensemble(periods, max_epochs):
         print(f"Mixed Stack Ensemble — {period}")
         print(f"{'='*60}")
 
-        m4 = M4Dataset(period, "All")
-        train_series_list = get_training_series(m4)
-        forecast_length = m4.forecast_length
-        frequency = m4.frequency
+        dataset = load_dataset(dataset_name, period)
+        train_series_list = dataset.get_training_series()
+        forecast_length = dataset.forecast_length
+        frequency = dataset.frequency
 
         for config_name, cfg in MIXED_STACK_ENSEMBLE_CONFIGS.items():
             # Skip if ensemble summary already computed
@@ -1274,13 +1385,7 @@ def run_mixed_stack_ensemble(periods, max_epochs):
 
                     set_seed(seed)
 
-                    # Detect accelerator
-                    if torch.cuda.is_available():
-                        accelerator, device = "cuda", torch.device("cuda")
-                    elif torch.backends.mps.is_available():
-                        accelerator, device = "mps", torch.device("mps")
-                    else:
-                        accelerator, device = "cpu", torch.device("cpu")
+                    accelerator, device = resolve_accelerator(accelerator_override)
 
                     model = NBeatsNet(
                         backcast_length=backcast_length,
@@ -1300,21 +1405,26 @@ def run_mixed_stack_ensemble(periods, max_epochs):
                     )
 
                     n_params = count_parameters(model)
-                    train_data = m4.train_data
-                    test_data = m4.test_data
+                    train_data = dataset.train_data
+                    test_data = dataset.test_data
 
+                    pin_memory = num_workers > 0
                     dm = ColumnarCollectionTimeSeriesDataModule(
                         train_data,
                         backcast_length=backcast_length,
                         forecast_length=forecast_length,
-                        batch_size=BATCH_SIZE,
+                        batch_size=batch_size,
                         no_val=False,
+                        num_workers=num_workers,
+                        pin_memory=pin_memory,
                     )
                     test_dm = ColumnarCollectionTimeSeriesTestDataModule(
                         train_data, test_data,
                         backcast_length=backcast_length,
                         forecast_length=forecast_length,
-                        batch_size=BATCH_SIZE,
+                        batch_size=batch_size,
+                        num_workers=num_workers,
+                        pin_memory=pin_memory,
                     )
 
                     log_dir = os.path.join(RESULTS_DIR, "lightning_logs")
@@ -1341,6 +1451,7 @@ def run_mixed_stack_ensemble(periods, max_epochs):
                         logger=[tb_logger],
                         enable_progress_bar=True,
                         deterministic=False,
+                        log_every_n_steps=50,
                     )
 
                     stack_summary = (
@@ -1376,7 +1487,9 @@ def run_mixed_stack_ensemble(periods, max_epochs):
                     mase = compute_m4_mase(
                         preds, targets, train_series_list, frequency,
                     )
-                    owa = compute_owa(smape, mase, period)
+                    mae = compute_mae(preds, targets)
+                    mse = compute_mse(preds, targets)
+                    owa = dataset.compute_owa(smape, mase)
 
                     print(f"         sMAPE={smape:.4f}  MASE={mase:.4f}  "
                           f"OWA={owa:.4f}  time={training_time:.1f}s  "
@@ -1399,6 +1512,8 @@ def run_mixed_stack_ensemble(periods, max_epochs):
                         "seed": seed,
                         "smape": f"{smape:.6f}",
                         "mase": f"{mase:.6f}",
+                        "mae": f"{mae:.6f}",
+                        "mse": f"{mse:.6f}",
                         "owa": f"{owa:.6f}",
                         "n_params": n_params,
                         "training_time_seconds": f"{training_time:.2f}",
@@ -1427,7 +1542,9 @@ def run_mixed_stack_ensemble(periods, max_epochs):
             ens_mase = compute_m4_mase(
                 ensemble_preds, targets, train_series_list, frequency,
             )
-            ens_owa = compute_owa(ens_smape, ens_mase, period)
+            ens_mae = compute_mae(ensemble_preds, targets)
+            ens_mse = compute_mse(ensemble_preds, targets)
+            ens_owa = dataset.compute_owa(ens_smape, ens_mase)
 
             print(f"  [ENS]  {config_name} / {period} — "
                   f"{n_models} models → median ensemble")
@@ -1444,6 +1561,8 @@ def run_mixed_stack_ensemble(periods, max_epochs):
                 "n_runs_per_multiplier": N_RUNS,
                 "ensemble_smape": f"{ens_smape:.6f}",
                 "ensemble_mase": f"{ens_mase:.6f}",
+                "ensemble_mae": f"{ens_mae:.6f}",
+                "ensemble_mse": f"{ens_mse:.6f}",
                 "ensemble_owa": f"{ens_owa:.6f}",
             }
             append_result(summary_csv, summary_row, ENSEMBLE_SUMMARY_COLUMNS)
@@ -1455,122 +1574,169 @@ def run_mixed_stack_ensemble(periods, max_epochs):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="M4 Benchmark — 1:1 N-BEATS paper comparison + novel extensions"
+        description="Benchmark — N-BEATS paper comparison + novel extensions"
+    )
+    parser.add_argument(
+        "--dataset", choices=["m4", "traffic", "weather"], default="m4",
+        help="Dataset to benchmark (default: m4). Part 6 ignores this flag.",
     )
     parser.add_argument(
         "--part", choices=["1", "2", "3", "4", "5", "6", "7", "all"], default="all",
         help=("Which experiments to run: 1=block benchmark, 2=ablation, "
               "3=multi-horizon ensemble, 4=wavelet V2 benchmark, "
-              "5=wavelet V3 benchmark, 6=convergence study, "
+              "5=wavelet V3 benchmark, 6=convergence study (multi-dataset), "
               "7=mixed stack benchmark+ensemble, "
               "all=1-3 (use 4/5/6/7 explicitly)"),
     )
     parser.add_argument(
-        "--periods", nargs="+",
-        default=["Yearly", "Quarterly", "Monthly", "Weekly", "Daily", "Hourly"],
-        help="M4 periods to benchmark (default: all 6)",
+        "--periods", nargs="+", default=None,
+        help=("Periods/horizons to benchmark. Defaults: all for the chosen dataset. "
+              "M4: Yearly Quarterly Monthly Weekly Daily Hourly. "
+              "Traffic: Traffic-96."),
     )
     parser.add_argument(
         "--max-epochs", type=int, default=100,
         help="Maximum training epochs per run (default: 100, early stopping may end sooner)",
     )
+    parser.add_argument(
+        "--batch-size", type=int, default=1024,
+        help="Training batch size (default: 1024, paper: 1024)",
+    )
+    parser.add_argument(
+        "--accelerator", choices=["auto", "cpu", "cuda", "mps"], default="auto",
+        help="Accelerator to use (default: auto = CUDA > MPS > CPU detection)",
+    )
+    parser.add_argument(
+        "--num-workers", type=int, default=0,
+        help="Number of DataLoader worker processes (default: 4). Set 0 for single-threaded loading.",
+    )
+    parser.add_argument(
+        "--convergence-config", default=None,
+        choices=list(CONVERGENCE_STUDY_CONFIGS.keys()),
+        help="Run only this convergence config (Part 6). Enables parallel execution.",
+    )
 
     args = parser.parse_args()
 
-    # Validate periods
-    for p in args.periods:
-        if p not in M4_PERIODS:
-            parser.error(f"Unknown period '{p}'. Choose from: {list(M4_PERIODS.keys())}")
+    # Resolve periods based on dataset
+    if args.dataset == "m4":
+        all_periods = list(M4_PERIODS.keys())
+        valid_periods = M4_PERIODS
+    elif args.dataset == "traffic":
+        all_periods = list(TRAFFIC_HORIZONS.keys())
+        valid_periods = TRAFFIC_HORIZONS
+    elif args.dataset == "weather":
+        all_periods = list(WEATHER_HORIZONS.keys())
+        valid_periods = WEATHER_HORIZONS
+
+    periods = args.periods or all_periods
+
+    # Validate periods against the chosen dataset
+    for p in periods:
+        if p not in valid_periods:
+            parser.error(
+                f"Unknown period '{p}' for dataset '{args.dataset}'. "
+                f"Choose from: {list(valid_periods.keys())}"
+            )
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
     # Summary
-    n_block_runs = len(BLOCK_CONFIGS) * len(args.periods) * N_RUNS
-    n_ablation_runs = len(ABLATION_CONFIGS) * len(args.periods) * N_RUNS
-    n_ensemble_runs = (len(ENSEMBLE_CONFIGS) * len(FORECAST_MULTIPLIERS)
-                       * len(args.periods) * N_RUNS)
-    n_wavelet_v2_runs = len(WAVELET_V2_CONFIGS) * len(args.periods) * N_RUNS
-    n_wavelet_v3_runs = (len(WAVELET_V3_CONFIGS) + len(V3_ABLATION_CONFIGS)) * len(args.periods) * N_RUNS
-    n_convergence_periods = sum(1 for p in args.periods if p in CONVERGENCE_STUDY_PERIODS)
-    n_convergence_runs = len(CONVERGENCE_STUDY_CONFIGS) * n_convergence_periods * CONVERGENCE_STUDY_N_RUNS
+    resolved_accel, _ = resolve_accelerator(args.accelerator)
+    device_name = resolved_accel.upper()
 
-    device_name = "CUDA" if torch.cuda.is_available() else (
-        "MPS" if torch.backends.mps.is_available() else "CPU"
-    )
+    num_workers = args.num_workers
 
+    print(f"Dataset: {args.dataset}")
     print(f"Device: {device_name}")
-    print(f"Periods: {args.periods}")
+    print(f"Batch size: {args.batch_size}")
+    print(f"Num workers: {num_workers}")
+    print(f"Periods: {periods}")
     print(f"Max epochs: {args.max_epochs}")
 
     if args.part in ("1", "all"):
+        n_block_runs = len(BLOCK_CONFIGS) * len(periods) * N_RUNS
         print(f"Part 1 — Block benchmark: {n_block_runs} runs "
-              f"({len(BLOCK_CONFIGS)} configs x {len(args.periods)} periods x {N_RUNS} runs)")
+              f"({len(BLOCK_CONFIGS)} configs x {len(periods)} periods x {N_RUNS} runs)")
     if args.part in ("2", "all"):
+        n_ablation_runs = len(ABLATION_CONFIGS) * len(periods) * N_RUNS
         print(f"Part 2 — Ablation studies: {n_ablation_runs} runs "
-              f"({len(ABLATION_CONFIGS)} configs x {len(args.periods)} periods x {N_RUNS} runs)")
+              f"({len(ABLATION_CONFIGS)} configs x {len(periods)} periods x {N_RUNS} runs)")
     if args.part in ("3", "all"):
+        n_ensemble_runs = (len(ENSEMBLE_CONFIGS) * len(FORECAST_MULTIPLIERS)
+                           * len(periods) * N_RUNS)
         print(f"Part 3 — Multi-horizon ensemble: {n_ensemble_runs} runs "
               f"({len(ENSEMBLE_CONFIGS)} configs x {len(FORECAST_MULTIPLIERS)} multipliers "
-              f"x {len(args.periods)} periods x {N_RUNS} runs)")
+              f"x {len(periods)} periods x {N_RUNS} runs)")
     if args.part == "4":
+        n_wavelet_v2_runs = len(WAVELET_V2_CONFIGS) * len(periods) * N_RUNS
         print(f"Part 4 — Wavelet V2 benchmark: {n_wavelet_v2_runs} runs "
-              f"({len(WAVELET_V2_CONFIGS)} configs x {len(args.periods)} periods x {N_RUNS} runs)")
+              f"({len(WAVELET_V2_CONFIGS)} configs x {len(periods)} periods x {N_RUNS} runs)")
     if args.part == "5":
+        n_wavelet_v3_runs = (len(WAVELET_V3_CONFIGS) + len(V3_ABLATION_CONFIGS)) * len(periods) * N_RUNS
         print(f"Part 5 — Wavelet V3 benchmark: {n_wavelet_v3_runs} runs "
-              f"({len(WAVELET_V3_CONFIGS)}+{len(V3_ABLATION_CONFIGS)} configs x {len(args.periods)} periods x {N_RUNS} runs)")
+              f"({len(WAVELET_V3_CONFIGS)}+{len(V3_ABLATION_CONFIGS)} configs x {len(periods)} periods x {N_RUNS} runs)")
     if args.part == "6":
-        print(f"Part 6 — Convergence study: {n_convergence_runs} runs "
-              f"({len(CONVERGENCE_STUDY_CONFIGS)} configs x {n_convergence_periods} periods x {CONVERGENCE_STUDY_N_RUNS} runs)")
+        n_conv_runs = sum(
+            len(pds) for pds in CONVERGENCE_STUDY_DATASETS.values()
+        ) * len(CONVERGENCE_STUDY_CONFIGS) * CONVERGENCE_STUDY_N_RUNS
+        print(f"Part 6 — Convergence study (multi-dataset, random seeds): {n_conv_runs} runs "
+              f"({len(CONVERGENCE_STUDY_CONFIGS)} configs x "
+              f"{sum(len(p) for p in CONVERGENCE_STUDY_DATASETS.values())} dataset-periods x "
+              f"{CONVERGENCE_STUDY_N_RUNS} runs)")
     if args.part == "7":
-        n_mixed_bench_runs = len(MIXED_STACK_CONFIGS) * len(args.periods) * N_RUNS
+        n_mixed_bench_runs = len(MIXED_STACK_CONFIGS) * len(periods) * N_RUNS
         n_mixed_ens_runs = (len(MIXED_STACK_ENSEMBLE_CONFIGS) * len(FORECAST_MULTIPLIERS)
-                            * len(args.periods) * N_RUNS)
+                            * len(periods) * N_RUNS)
         print(f"Part 7 — Mixed stack benchmark: {n_mixed_bench_runs} runs "
-              f"({len(MIXED_STACK_CONFIGS)} configs x {len(args.periods)} periods x {N_RUNS} runs)")
+              f"({len(MIXED_STACK_CONFIGS)} configs x {len(periods)} periods x {N_RUNS} runs)")
         print(f"Part 7 — Mixed stack ensemble: {n_mixed_ens_runs} runs "
               f"({len(MIXED_STACK_ENSEMBLE_CONFIGS)} configs x {len(FORECAST_MULTIPLIERS)} multipliers "
-              f"x {len(args.periods)} periods x {N_RUNS} runs)")
+              f"x {len(periods)} periods x {N_RUNS} runs)")
 
     if args.part in ("1", "all"):
-        run_block_benchmark(args.periods, args.max_epochs)
+        run_block_benchmark(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
 
     if args.part in ("2", "all"):
-        run_ablation_studies(args.periods, args.max_epochs)
+        run_ablation_studies(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
 
     if args.part in ("3", "all"):
-        run_ensemble_experiment(args.periods, args.max_epochs)
+        run_ensemble_experiment(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
 
     if args.part == "4":
-        run_wavelet_v2_benchmark(args.periods, args.max_epochs)
+        run_wavelet_v2_benchmark(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
 
     if args.part == "5":
-        run_wavelet_v3_benchmark(args.periods, args.max_epochs)
+        run_wavelet_v3_benchmark(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
 
     if args.part == "6":
-        run_convergence_study(args.periods, args.max_epochs)
+        run_convergence_study(args.max_epochs, args.batch_size, args.accelerator,
+                              config_filter=args.convergence_config, num_workers=num_workers)
 
     if args.part == "7":
-        run_mixed_stack_benchmark(args.periods, args.max_epochs)
-        run_mixed_stack_ensemble(args.periods, args.max_epochs)
+        run_mixed_stack_benchmark(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
+        run_mixed_stack_ensemble(args.dataset, periods, args.max_epochs, args.batch_size, args.accelerator, num_workers)
 
+    results_dir = os.path.join(RESULTS_DIR, args.dataset)
     print("\nDone. Results saved to:")
     if args.part in ("1", "all"):
-        print(f"  {os.path.join(RESULTS_DIR, 'block_benchmark_results.csv')}")
+        print(f"  {os.path.join(results_dir, 'block_benchmark_results.csv')}")
     if args.part in ("2", "all"):
-        print(f"  {os.path.join(RESULTS_DIR, 'ablation_results.csv')}")
+        print(f"  {os.path.join(results_dir, 'ablation_results.csv')}")
     if args.part in ("3", "all"):
-        print(f"  {os.path.join(RESULTS_DIR, 'ensemble_individual_results.csv')}")
-        print(f"  {os.path.join(RESULTS_DIR, 'ensemble_summary_results.csv')}")
+        print(f"  {os.path.join(results_dir, 'ensemble_individual_results.csv')}")
+        print(f"  {os.path.join(results_dir, 'ensemble_summary_results.csv')}")
     if args.part == "4":
-        print(f"  {os.path.join(RESULTS_DIR, 'wavelet_v2_benchmark_results.csv')}")
+        print(f"  {os.path.join(results_dir, 'wavelet_v2_benchmark_results.csv')}")
     if args.part == "5":
-        print(f"  {os.path.join(RESULTS_DIR, 'wavelet_v3_benchmark_results.csv')}")
+        print(f"  {os.path.join(results_dir, 'wavelet_v3_benchmark_results.csv')}")
     if args.part == "6":
-        print(f"  {os.path.join(RESULTS_DIR, 'convergence_study_results.csv')}")
+        for ds_name in CONVERGENCE_STUDY_DATASETS:
+            print(f"  {os.path.join(RESULTS_DIR, ds_name, 'convergence_study_results.csv')}")
     if args.part == "7":
-        print(f"  {os.path.join(RESULTS_DIR, 'block_benchmark_results.csv')}")
-        print(f"  {os.path.join(RESULTS_DIR, 'ensemble_individual_results.csv')}")
-        print(f"  {os.path.join(RESULTS_DIR, 'ensemble_summary_results.csv')}")
+        print(f"  {os.path.join(results_dir, 'block_benchmark_results.csv')}")
+        print(f"  {os.path.join(results_dir, 'ensemble_individual_results.csv')}")
+        print(f"  {os.path.join(results_dir, 'ensemble_summary_results.csv')}")
 
 
 if __name__ == "__main__":

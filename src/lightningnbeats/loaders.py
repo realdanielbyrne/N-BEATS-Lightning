@@ -50,16 +50,18 @@ class RowCollectionTimeSeriesDataset(Dataset):
     x = self.data[row, col:col+self.backcast_length]
     y = self.data[row, col+self.backcast_length:col+self.backcast_length+self.forecast_length]
     
-    return torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
+    return torch.from_numpy(x.copy()).float(), torch.from_numpy(y.copy()).float()
 
 class RowCollectionTimeSeriesDataModule(pl.LightningDataModule):
-  def __init__(self, 
-                data, 
-                backcast_length, 
-                forecast_length, 
-                batch_size=1024, 
+  def __init__(self,
+                data,
+                backcast_length,
+                forecast_length,
+                batch_size=1024,
                 split_ratio=0.8,
-                fill_short_ts=True):
+                fill_short_ts=True,
+                num_workers=0,
+                pin_memory=False):
     """The RowCollectionTimeSeriesDataModule class is a PyTorch Lightning DataModule
     is used for training a time series model with a dataset that is a collection of time series
     organized into rows where each row represents a time series, and each column represents
@@ -89,14 +91,16 @@ class RowCollectionTimeSeriesDataModule(pl.LightningDataModule):
     self.batch_size = batch_size
     self.split_ratio = split_ratio
     self.fill_short_ts = fill_short_ts
+    self.num_workers = num_workers
+    self.pin_memory = pin_memory
 
   def setup(self, stage:str=None):
-    shuffled = self.data.sample(frac=1, axis = 0).reset_index(drop=True)        
+    shuffled = self.data.sample(frac=1, axis = 0).reset_index(drop=True)
     total_len = self.backcast_length + self.forecast_length
-    
+
     # Split the original data into training and validation sets
-    self.train_data = shuffled.iloc[:, :-self.forecast_length].values
-    self.val_data = shuffled.iloc[:, -self.backcast_length-self.forecast_length:].values
+    self.train_data = shuffled.iloc[:, :-self.forecast_length].values.astype(np.float32)
+    self.val_data = shuffled.iloc[:, -self.backcast_length-self.forecast_length:].values.astype(np.float32)
 
         
     if self.fill_short_ts:
@@ -117,45 +121,53 @@ class RowCollectionTimeSeriesDataModule(pl.LightningDataModule):
     self.val_dataset = RowCollectionTimeSeriesDataset(self.val_data, self.backcast_length, self.forecast_length)
 
   def train_dataloader(self):
-    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True,
+                      num_workers=self.num_workers, pin_memory=self.pin_memory,
+                      persistent_workers=self.num_workers > 0)
 
   def val_dataloader(self):
-    return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
+    return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False,
+                      num_workers=self.num_workers, pin_memory=self.pin_memory,
+                      persistent_workers=self.num_workers > 0)
 
 class RowCollectionTimeSeriesTestModule(pl.LightningDataModule):
   def __init__(self, 
                 train_data,
                 test_data,
-                backcast_length, 
-                forecast_length, 
+                backcast_length,
+                forecast_length,
                 batch_size=1024,
-                fill_short_ts:bool=True):
-    
+                fill_short_ts:bool=True,
+                num_workers=0,
+                pin_memory=False):
+
     """The RowCollectionTimeSeriesTestModule class is a PyTorch Lightning DataModule
     used for testing a time series model whose input is a collection of time series.
     The final `backcast` samples of each time series in `train_data` are concatenated
-    with the first `forecast` samples of the corresponding time series in `test_data`. 
+    with the first `forecast` samples of the corresponding time series in `test_data`.
     If a time series in `train_data` is shorter than `backcast`, the missing values are
-    imputed with the median of the training row. 
-    
+    imputed with the median of the training row.
+
     Parameters
     ----------
-      backcast_length (int, optional): 
+      backcast_length (int, optional):
         The length of the historical data.
-      forecast_length (int, optional): 
+      forecast_length (int, optional):
         The length of the future data to predict.
-      batch_size (int, optional): 
+      batch_size (int, optional):
         The batch size. Defaults to 1024.
     """
 
     super(RowCollectionTimeSeriesTestModule, self).__init__()
-    self.train_data = train_data    
+    self.train_data = train_data
     self.test_data_raw = test_data
-    
+
     self.backcast_length = backcast_length
     self.forecast_length = forecast_length
     self.batch_size = batch_size
     self.fill_short_ts = fill_short_ts
+    self.num_workers = num_workers
+    self.pin_memory = pin_memory
 
   def setup(self, stage:str=None):      
     # Create test data by concatenating last `backcast` samples from 
@@ -189,7 +201,9 @@ class RowCollectionTimeSeriesTestModule(pl.LightningDataModule):
     self.test_dataset = RowCollectionTimeSeriesDataset(self.test_data, self.backcast_length, self.forecast_length)  
     
   def test_dataloader(self):
-    return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle = False, num_workers=0)
+    return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False,
+                      num_workers=self.num_workers, pin_memory=self.pin_memory,
+                      persistent_workers=self.num_workers > 0)
 
 class TimeSeriesDataset(Dataset):
   def __init__(self, data, backcast_length, forecast_length):
@@ -215,10 +229,11 @@ class TimeSeriesDataset(Dataset):
     end_idx = index + self.total_length
     x = self.data[start_idx:end_idx - self.forecast_length]
     y = self.data[start_idx + self.backcast_length:end_idx]
-    return torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
+    return torch.from_numpy(x.copy()).float(), torch.from_numpy(y.copy()).float()
 
 class TimeSeriesDataModule(pl.LightningDataModule):
-  def __init__(self, data, batch_size, backcast_length, forecast_length):
+  def __init__(self, data, batch_size, backcast_length, forecast_length,
+               num_workers=0, pin_memory=False):
     """
     The TimeSeriesDataModule class is a PyTorch Lightning DataModule that takes a univariate
     time series as input and returns batches of samples of the time series. 
@@ -235,18 +250,24 @@ class TimeSeriesDataModule(pl.LightningDataModule):
     self.batch_size = batch_size
     self.backcast_length = backcast_length
     self.forecast_length = forecast_length
+    self.num_workers = num_workers
+    self.pin_memory = pin_memory
 
   def setup(self, stage=None):
-    dataset = TimeSeriesDataset(self.data, self.backcast_length, self.forecast_length)   
+    dataset = TimeSeriesDataset(self.data, self.backcast_length, self.forecast_length)
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
     self.train_dataset, self.val_dataset = random_split(dataset, [train_size, val_size])
 
   def train_dataloader(self):
-    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True,
+                      num_workers=self.num_workers, pin_memory=self.pin_memory,
+                      persistent_workers=self.num_workers > 0)
 
   def val_dataloader(self):
-    return DataLoader(self.val_dataset, batch_size=self.batch_size)
+    return DataLoader(self.val_dataset, batch_size=self.batch_size,
+                      num_workers=self.num_workers, pin_memory=self.pin_memory,
+                      persistent_workers=self.num_workers > 0)
 
 class ForecastingDataset(Dataset):
   def __init__(self, historical_data):
@@ -274,7 +295,7 @@ class ColumnarTimeSeriesDataset(Dataset):
     self.min_length = backcast_length + forecast_length
 
     # Drop columns with insufficient data and convert to dictionary of NumPy arrays
-    self.data_dict = {col: self.pad_series(dataframe[col].dropna().values) for col in dataframe.columns }
+    self.data_dict = {col: self.pad_series(dataframe[col].dropna().values).astype(np.float32) for col in dataframe.columns }
 
     # Precompute column indices and starting positions
     self.col_indices = [(col, idx) for col, series in self.data_dict.items() for idx in range(len(series) - self.min_length + 1)]
@@ -297,21 +318,23 @@ class ColumnarTimeSeriesDataset(Dataset):
   def __getitem__(self, idx):
     col, start_idx = self.col_indices[idx]
     series = self.data_dict[col]
-    x = torch.from_numpy(series[start_idx:start_idx + self.backcast_length]).float()
-    y = torch.from_numpy(series[start_idx + self.backcast_length:start_idx + self.min_length]).float()
+    x = torch.from_numpy(series[start_idx:start_idx + self.backcast_length].copy())
+    y = torch.from_numpy(series[start_idx + self.backcast_length:start_idx + self.min_length].copy())
     return x, y
     
 class ColumnarCollectionTimeSeriesDataModule(pl.LightningDataModule):
   def __init__(self, 
                dataframe,
-               backcast_length, 
-               forecast_length, 
-               batch_size=1024, 
-               no_val = False):
+               backcast_length,
+               forecast_length,
+               batch_size=1024,
+               no_val = False,
+               num_workers=0,
+               pin_memory=False):
     """
-    The ColumnarCollectionTimeSeriesDataModule class is a PyTorch Datamodule that takes a 
-    collection of time series as input and returns a single sample of the time 
-    series. The input dataset is a collection of time series organized such that columns 
+    The ColumnarCollectionTimeSeriesDataModule class is a PyTorch Datamodule that takes a
+    collection of time series as input and returns a single sample of the time
+    series. The input dataset is a collection of time series organized such that columns
     represent individual time series and rows represent subsequent observations. This is how
     the Tourism dataset is organized.
 
@@ -326,7 +349,9 @@ class ColumnarCollectionTimeSeriesDataModule(pl.LightningDataModule):
     self.forecast_length = forecast_length
     self.batch_size = batch_size
     self.no_val = no_val
-  
+    self.num_workers = num_workers
+    self.pin_memory = pin_memory
+
     self.total_length = backcast_length + forecast_length
     self.dataframe = dataframe
 
@@ -342,23 +367,29 @@ class ColumnarCollectionTimeSeriesDataModule(pl.LightningDataModule):
     self.train_dataset = ColumnarTimeSeriesDataset(train_data, self.backcast_length, self.forecast_length)
 
   def train_dataloader(self):
-    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+    return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True,
+                      num_workers=self.num_workers, pin_memory=self.pin_memory,
+                      persistent_workers=self.num_workers > 0)
 
   def val_dataloader(self):
-    return DataLoader(self.val_dataset, batch_size=self.batch_size)
+    return DataLoader(self.val_dataset, batch_size=self.batch_size,
+                      num_workers=self.num_workers, pin_memory=self.pin_memory,
+                      persistent_workers=self.num_workers > 0)
 
 class ColumnarCollectionTimeSeriesTestDataModule(pl.LightningDataModule):
   def __init__(self, 
                 train_data,
                 test_data,
-                backcast_length, 
-                forecast_length, 
-                batch_size=1024):
+                backcast_length,
+                forecast_length,
+                batch_size=1024,
+                num_workers=0,
+                pin_memory=False):
     """Takes two collections of time series organized into columns
     where each row represents a time step and each column represents
     an individual time series. The module combines the training data
     with the holdout data to create a single test dataset.
-    
+
     Args:
         train_data (pd.Dataframe): The training data.
         test_data (pd.Dataframe): The holdout test data.
@@ -367,7 +398,6 @@ class ColumnarCollectionTimeSeriesTestDataModule(pl.LightningDataModule):
         batch_size (int, optional): The batch size. Defaults to 1024.
     """
     super(ColumnarCollectionTimeSeriesTestDataModule, self).__init__()
-    
 
     if backcast_length > len(train_data):
       raise ValueError(f"backcast_length ({backcast_length}) cannot exceed training data length ({len(train_data)})")
@@ -376,9 +406,13 @@ class ColumnarCollectionTimeSeriesTestDataModule(pl.LightningDataModule):
     self.backcast_length = backcast_length
     self.forecast_length = forecast_length
     self.batch_size = batch_size
+    self.num_workers = num_workers
+    self.pin_memory = pin_memory
 
   def setup(self, stage:str=None):
     self.test_dataset = ColumnarTimeSeriesDataset(self.test_data, self.backcast_length, self.forecast_length) 
 
   def test_dataloader(self):
-    return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle = False)
+    return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False,
+                      num_workers=self.num_workers, pin_memory=self.pin_memory,
+                      persistent_workers=self.num_workers > 0)
