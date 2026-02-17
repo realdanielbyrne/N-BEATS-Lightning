@@ -34,7 +34,7 @@ class NBeatsNet(pl.LightningModule):
       optimizer_name:str = 'Adam', # 'Adam', 'SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'AdamW'
       activation:str = 'ReLU', # 'ReLU', 'RReLU', 'PReLU', 'ELU', 'Softplus', 'Tanh', 'SELU', 'LeakyReLU', 'Sigmoid', 'GELU'
       frequency:int = 1, 
-      active_g:bool = False,
+      active_g = False,
       latent_dim:int = 5,
       sum_losses:bool = False,
       basis_dim:int = 32
@@ -106,11 +106,11 @@ class NBeatsNet(pl.LightningModule):
         Default : 'ReLU'.
     frequency : int, optional
         The frequency of the data.  Used only when MASELoss is used as teh loss funtion. Default 1.
-    activate_g : bool, optional
-        If True, the function implemented by the waveform generators in the forecast anb backcast blocks has n activation function applied to the output.  
-        This feature is not defined in the original design of N-BEATS.  However, since both the Trend and Seasonality blocks apply non-linear functions
-        to the waveform parameters generated in he preceeding layer, applying an activation function here mirrors that structure.  I've found that this
-        approch improved convergence of GENERIC models.  Default : False.
+    active_g : bool or str, optional
+        Controls whether activation is applied after basis expansion.
+        False: no activation (paper-faithful). True: activation on both backcast and forecast.
+        'backcast': activation on backcast path only. 'forecast': activation on forecast path only.
+        Default : False.
     sum_losses : bool, optional
         If True, the total loss is defined as forecast_loss + 1/4 Backcast_loss.  This is an experimental feature. Default False.
     latent_dim : int, optional
@@ -149,6 +149,8 @@ class NBeatsNet(pl.LightningModule):
     self.loss = loss
     self.activation = activation
     self.active_g = active_g
+    if isinstance(active_g, str) and active_g not in ('backcast', 'forecast'):
+      raise ValueError(f"active_g must be True, False, 'backcast', or 'forecast', got '{active_g}'")
     self.sum_losses = sum_losses
     self.latent_dim = latent_dim
     self.basis_dim = basis_dim

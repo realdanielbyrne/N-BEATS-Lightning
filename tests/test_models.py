@@ -241,3 +241,49 @@ class TestBottleneckGenericWidthSelection:
         block = model.stacks[0][0]
         assert block.units == 64
 
+
+# --- active_g split mode model-level tests ---
+
+class TestActiveGSplitModesModel:
+    """Verify string active_g modes are accepted and passed to blocks."""
+
+    def test_active_g_backcast_accepted(self):
+        model = _make_model(["Generic"], active_g='backcast', g_width=32)
+        assert model.active_g == 'backcast'
+        block = model.stacks[0][0]
+        assert block.active_g == 'backcast'
+
+    def test_active_g_forecast_accepted(self):
+        model = _make_model(["Generic"], active_g='forecast', g_width=32)
+        assert model.active_g == 'forecast'
+        block = model.stacks[0][0]
+        assert block.active_g == 'forecast'
+
+    def test_active_g_true_still_works(self):
+        model = _make_model(["Generic"], active_g=True, g_width=32)
+        assert model.active_g is True
+        block = model.stacks[0][0]
+        assert block.active_g is True
+
+    def test_active_g_false_still_works(self):
+        model = _make_model(["Generic"], active_g=False, g_width=32)
+        assert model.active_g is False
+
+    def test_active_g_invalid_string_raises(self):
+        with pytest.raises(ValueError, match="active_g must be"):
+            _make_model(["Generic"], active_g='invalid')
+
+    def test_active_g_backcast_forward_pass(self):
+        model = _make_model(["Generic"], active_g='backcast', g_width=32)
+        x = torch.randn(4, 20)
+        backcast, forecast = model(x)
+        assert backcast.shape == (4, 20)
+        assert forecast.shape == (4, 5)
+
+    def test_active_g_forecast_forward_pass(self):
+        model = _make_model(["Generic"], active_g='forecast', g_width=32)
+        x = torch.randn(4, 20)
+        backcast, forecast = model(x)
+        assert backcast.shape == (4, 20)
+        assert forecast.shape == (4, 5)
+

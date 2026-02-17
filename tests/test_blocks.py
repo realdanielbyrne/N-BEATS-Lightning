@@ -621,3 +621,78 @@ class TestWaveletV3Properties:
         assert not torch.isnan(forecast).any(), f"{block_name} forecast contains NaN"
         assert not torch.isinf(backcast).any(), f"{block_name} backcast contains Inf"
         assert not torch.isinf(forecast).any(), f"{block_name} forecast contains Inf"
+
+
+# --- active_g split mode tests ---
+
+ACTIVE_G_BLOCK_CONFIGS = [
+    ("Generic", {"units": UNITS, "backcast_length": BACKCAST_LENGTH,
+                 "forecast_length": FORECAST_LENGTH, "thetas_dim": THETAS_DIM}),
+    ("BottleneckGeneric", {"units": UNITS, "backcast_length": BACKCAST_LENGTH,
+                           "forecast_length": FORECAST_LENGTH, "thetas_dim": THETAS_DIM}),
+    ("GenericAE", {"units": UNITS, "backcast_length": BACKCAST_LENGTH,
+                   "forecast_length": FORECAST_LENGTH, "thetas_dim": THETAS_DIM,
+                   "latent_dim": LATENT_DIM}),
+    ("AutoEncoder", {"units": UNITS, "backcast_length": BACKCAST_LENGTH,
+                     "forecast_length": FORECAST_LENGTH, "thetas_dim": THETAS_DIM,
+                     "share_weights": False}),
+    ("WaveletV3", {"units": UNITS, "backcast_length": BACKCAST_LENGTH,
+                   "forecast_length": FORECAST_LENGTH, "basis_dim": BASIS_DIM}),
+]
+
+
+class TestActiveGSplitModes:
+    """Verify active_g='backcast' and active_g='forecast' split modes."""
+
+    @pytest.mark.parametrize("block_name,kwargs", ACTIVE_G_BLOCK_CONFIGS)
+    def test_active_g_true_both_nonnegative(self, block_name, kwargs):
+        """active_g=True should produce non-negative backcast and forecast (ReLU)."""
+        block = getattr(b, block_name)(active_g=True, **kwargs)
+        torch.manual_seed(0)
+        x = torch.randn(8, BACKCAST_LENGTH)
+        backcast, forecast = block(x)
+        assert (backcast >= 0).all(), f"{block_name} backcast has negatives with active_g=True"
+        assert (forecast >= 0).all(), f"{block_name} forecast has negatives with active_g=True"
+
+    @pytest.mark.parametrize("block_name,kwargs", ACTIVE_G_BLOCK_CONFIGS)
+    def test_active_g_backcast_only(self, block_name, kwargs):
+        """active_g='backcast' should produce non-negative backcast but allow negative forecast."""
+        block = getattr(b, block_name)(active_g='backcast', **kwargs)
+        torch.manual_seed(0)
+        x = torch.randn(8, BACKCAST_LENGTH)
+        backcast, forecast = block(x)
+        assert (backcast >= 0).all(), f"{block_name} backcast has negatives with active_g='backcast'"
+        # forecast should allow negatives (not activated)
+
+    @pytest.mark.parametrize("block_name,kwargs", ACTIVE_G_BLOCK_CONFIGS)
+    def test_active_g_forecast_only(self, block_name, kwargs):
+        """active_g='forecast' should produce non-negative forecast but allow negative backcast."""
+        block = getattr(b, block_name)(active_g='forecast', **kwargs)
+        torch.manual_seed(0)
+        x = torch.randn(8, BACKCAST_LENGTH)
+        backcast, forecast = block(x)
+        assert (forecast >= 0).all(), f"{block_name} forecast has negatives with active_g='forecast'"
+        # backcast should allow negatives (not activated)
+
+    @pytest.mark.parametrize("block_name,kwargs", ACTIVE_G_BLOCK_CONFIGS)
+    def test_active_g_false_allows_negatives(self, block_name, kwargs):
+        """active_g=False should allow negative values in both outputs."""
+        block = getattr(b, block_name)(active_g=False, **kwargs)
+        torch.manual_seed(0)
+        x = torch.randn(32, BACKCAST_LENGTH)
+        backcast, forecast = block(x)
+        # With random init and enough samples, we expect some negatives
+        has_negative = (backcast < 0).any() or (forecast < 0).any()
+        assert has_negative, f"{block_name} produced no negatives with active_g=False (unlikely)"
+
+    @pytest.mark.parametrize("block_name,kwargs", ACTIVE_G_BLOCK_CONFIGS)
+    def test_active_g_output_shapes_unchanged(self, block_name, kwargs):
+        """Split modes should not change output shapes."""
+        for mode in [False, True, 'backcast', 'forecast']:
+            block = getattr(b, block_name)(active_g=mode, **kwargs)
+            x = torch.randn(4, BACKCAST_LENGTH)
+            backcast, forecast = block(x)
+            assert backcast.shape == (4, BACKCAST_LENGTH), \
+                f"{block_name} backcast shape wrong with active_g={mode}"
+            assert forecast.shape == (4, FORECAST_LENGTH), \
+                f"{block_name} forecast shape wrong with active_g={mode}"

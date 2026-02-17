@@ -108,8 +108,10 @@ class AutoEncoder(RootBlock):
 
       # N-BEATS paper does not apply activation here, but Generic models will not converge sometimes without it
       if self.active_g:
-        b = self.activation(b)
-        f = self.activation(f)
+        if self.active_g != 'forecast':
+          b = self.activation(b)
+        if self.active_g != 'backcast':
+          f = self.activation(f)
 
       return b,f
 
@@ -163,8 +165,10 @@ class Generic(RootBlock):
     forecast = self.theta_f_fc(x)
 
     if self.active_g:
-      backcast = self.activation(backcast)
-      forecast = self.activation(forecast)
+      if self.active_g != 'forecast':
+        backcast = self.activation(backcast)
+      if self.active_g != 'backcast':
+        forecast = self.activation(forecast)
 
     return backcast, forecast
 
@@ -228,8 +232,10 @@ class BottleneckGeneric(RootBlock):
     forecast = self.forecast_g(theta_f)
 
     if self.active_g:
-      backcast = self.activation(backcast)
-      forecast = self.activation(forecast)
+      if self.active_g != 'forecast':
+        backcast = self.activation(backcast)
+      if self.active_g != 'backcast':
+        forecast = self.activation(forecast)
 
     return backcast, forecast
 
@@ -272,8 +278,10 @@ class GenericAEBackcast(RootBlock):
 
     # N-BEATS paper does not apply activation here, but Generic models will not converge sometimes without it
     if self.active_g:
-      b = self.activation(b)
-      f = self.activation(f)
+      if self.active_g != 'forecast':
+        b = self.activation(b)
+      if self.active_g != 'backcast':
+        f = self.activation(f)
     return b, f
 
 class _SeasonalityGenerator(nn.Module):
@@ -861,8 +869,10 @@ class GenericAEBackcastAE(AERootBlock):
     # N-BEATS paper does not apply activation here;
     # however Generic models will not always converge without it
     if self.active_g:
-      b = self.activation(b)
-      f = self.activation(f)
+      if self.active_g != 'forecast':
+        b = self.activation(b)
+      if self.active_g != 'backcast':
+        f = self.activation(f)
     return b,f
 
 class AutoEncoderAE(AERootBlock):
@@ -935,8 +945,10 @@ class AutoEncoderAE(AERootBlock):
 
     # N-BEATS paper does not apply activation here, but Generic models will not converge sometimes without it
     if self.active_g:
-      b = self.activation(b)
-      f = self.activation(f)
+      if self.active_g != 'forecast':
+        b = self.activation(b)
+      if self.active_g != 'backcast':
+        f = self.activation(f)
 
     return b,f
 
@@ -981,8 +993,10 @@ class GenericAE(AERootBlock):
     forecast = self.theta_f_fc(x)
 
     if self.active_g:
-      backcast = self.activation(backcast)
-      forecast = self.activation(forecast)
+      if self.active_g != 'forecast':
+        backcast = self.activation(backcast)
+      if self.active_g != 'backcast':
+        forecast = self.activation(forecast)
 
     return backcast, forecast
 
@@ -1033,8 +1047,10 @@ class BottleneckGenericAE(AERootBlock):
     forecast = self.forecast_g(theta_f)
 
     if self.active_g:
-      backcast = self.activation(backcast)
-      forecast = self.activation(forecast)
+      if self.active_g != 'forecast':
+        backcast = self.activation(backcast)
+      if self.active_g != 'backcast':
+        forecast = self.activation(forecast)
 
     return backcast, forecast
 
@@ -1527,8 +1543,10 @@ class WaveletV3(RootBlock):
     backcast = self.backcast_g(backcast_thetas)
     forecast = self.forecast_g(forecast_thetas)
     if self.active_g:
-      backcast = self.activation(backcast)
-      forecast = self.activation(forecast)
+      if self.active_g != 'forecast':
+        backcast = self.activation(backcast)
+      if self.active_g != 'backcast':
+        forecast = self.activation(forecast)
     return backcast, forecast
 
 
