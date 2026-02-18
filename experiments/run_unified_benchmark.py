@@ -691,8 +691,14 @@ def run_single_experiment(
 
     accelerator, device = resolve_accelerator(accelerator_override)
 
-    # Mixed precision on CUDA
-    precision = "16-mixed" if accelerator == "cuda" else "32-true"
+    # Mixed precision on CUDA — prefer bf16 (same exponent range as fp32,
+    # avoids the fp16 overflow that kills 30-stack N-BEATS on M4).
+    if accelerator == "cuda" and torch.cuda.is_bf16_supported():
+        precision = "bf16-mixed"
+    elif accelerator == "cuda":
+        precision = "32-true"           # fp16 overflows; fall back to fp32
+    else:
+        precision = "32-true"
 
     # Create model
     model = NBeatsNet(
@@ -784,6 +790,7 @@ def run_single_experiment(
         devices=1,
         max_epochs=max_epochs,
         precision=precision,
+        gradient_clip_val=1.0,
         callbacks=[chk_callback, early_stop_callback, divergence_detector, convergence_tracker],
         logger=exp_loggers,
         enable_progress_bar=True,
