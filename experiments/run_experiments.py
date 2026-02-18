@@ -1,5 +1,5 @@
 """
-Benchmark Experiment Script for N-BEATS Lightning
+Benchmark Experiment Script for N-BEATS Lightning (deprecated in favor of run_unified_benchmark.py)
 
 Supports multiple datasets (M4, Traffic) with a unified experiment framework.
 Use --dataset to select the dataset and --periods to select sub-configs.

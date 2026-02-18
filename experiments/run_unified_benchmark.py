@@ -20,6 +20,7 @@ Usage:
     python experiments/run_unified_benchmark.py --dataset m4 --periods Yearly --max-epochs 100
     python experiments/run_unified_benchmark.py --dataset tourism --max-epochs 100
     python experiments/run_unified_benchmark.py --dataset milk --max-epochs 500
+    python experiments/run_unified_benchmark.py --dataset all
     python experiments/run_unified_benchmark.py --dataset m4 --max-epochs 100 --wandb
 """
 
@@ -1031,9 +1032,19 @@ def _gpu_worker(gpu_id, job_queue, shutdown_event, worker_args):
 # Main Orchestrator
 # ---------------------------------------------------------------------------
 
-def _resolve_benchmark_params(args):
-    """Resolve common benchmark parameters from CLI args."""
-    dataset_name = args.dataset
+def _resolve_benchmark_params(args, dataset_override=None):
+    """Resolve common benchmark parameters from CLI args.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments.
+    dataset_override : str or None
+        If provided, use this dataset name instead of ``args.dataset``.
+        Used by the ``--dataset all`` path to iterate over datasets while
+        keeping the rest of the CLI args intact.
+    """
+    dataset_name = dataset_override or args.dataset
     is_milk = dataset_name == "milk"
 
     # Resolve periods
@@ -1241,14 +1252,11 @@ def _run_parallel(args, params, n_gpus):
     _shutdown_event = None
 
 
-def run_unified_benchmark(args):
-    """Main orchestrator: resolve params and dispatch to sequential or parallel."""
-    params = _resolve_benchmark_params(args)
-    if params is None:
-        return
-
-    n_gpus = resolve_n_gpus(args)
-
+def _run_dataset_benchmark(args, params, n_gpus):
+    """Print header, dispatch to sequential or parallel, and print footer
+    for a single dataset.  Extracted so ``run_unified_benchmark`` can call
+    it in a loop for ``--dataset all`` without duplicating logic.
+    """
     dataset_name = params["dataset_name"]
     periods = params["periods"]
     n_runs = params["n_runs"]
@@ -1281,6 +1289,56 @@ def run_unified_benchmark(args):
     print(f"{'='*70}")
 
 
+def run_unified_benchmark(args):
+    """Main orchestrator: resolve params and dispatch to sequential or parallel.
+
+    When ``args.dataset == "all"``, iterates through every dataset defined in
+    ``DATASET_PERIODS`` (M4 → Tourism → Milk), resolving dataset-specific
+    defaults for each and running them sequentially.
+    """
+    n_gpus = resolve_n_gpus(args)
+
+    # --dataset all: run each dataset in turn
+    if args.dataset == "all":
+        all_dataset_names = list(DATASET_PERIODS.keys())
+
+        print(f"\n{'#'*70}")
+        print(f"Unified Benchmark — ALL DATASETS")
+        print(f"  Datasets: {[d.upper() for d in all_dataset_names]}")
+        if n_gpus >= 2:
+            print(f"  GPUs: {n_gpus} (parallel execution per dataset)")
+        else:
+            print(f"  Mode: sequential")
+        print(f"{'#'*70}")
+
+        for ds_idx, dataset_name in enumerate(all_dataset_names, 1):
+            if _shutdown_requested:
+                print("[SHUTDOWN] Exiting before next dataset.")
+                return
+
+            print(f"\n  >>> Dataset {ds_idx}/{len(all_dataset_names)}: "
+                  f"{dataset_name.upper()} <<<")
+
+            params = _resolve_benchmark_params(args, dataset_override=dataset_name)
+            if params is None:
+                print(f"  Skipping {dataset_name} (no matching periods).")
+                continue
+
+            _run_dataset_benchmark(args, params, n_gpus)
+
+        print(f"\n{'#'*70}")
+        print(f"Unified Benchmark COMPLETE — ALL DATASETS")
+        print(f"{'#'*70}")
+        return
+
+    # Single-dataset path (original behaviour)
+    params = _resolve_benchmark_params(args)
+    if params is None:
+        return
+
+    _run_dataset_benchmark(args, params, n_gpus)
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -1290,8 +1348,8 @@ def main():
         description="Unified Benchmark for N-BEATS Lightning paper experiments"
     )
     parser.add_argument(
-        "--dataset", required=True, choices=["m4", "tourism", "milk"],
-        help="Dataset to benchmark"
+        "--dataset", required=True, choices=["m4", "tourism", "milk", "all"],
+        help="Dataset to benchmark (use 'all' to run M4, Tourism, and Milk sequentially)"
     )
     parser.add_argument(
         "--periods", nargs="+", default=None,
