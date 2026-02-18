@@ -639,13 +639,61 @@ def run_inference(model, test_dm, device):
 # ---------------------------------------------------------------------------
 
 def init_csv(path, columns=None):
-    """Create CSV with header if it doesn't exist."""
+    """Create CSV with header if it doesn't exist, or migrate header if schema changed."""
     columns = columns or CSV_COLUMNS
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if not os.path.exists(path):
         with open(path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=columns)
             writer.writeheader()
+        return
+
+    # Check if existing header matches expected columns; migrate if not
+    with open(path, "r", newline="") as f:
+        reader = csv.reader(f)
+        try:
+            existing_header = next(reader)
+        except StopIteration:
+            existing_header = []
+    if existing_header == columns:
+        return  # schema matches, nothing to do
+
+    # Schema mismatch — migrate the file
+    print(f"  [MIGRATE] {os.path.basename(path)}: "
+          f"header {len(existing_header)} cols → {len(columns)} cols")
+    with open(path, "r", newline="") as f:
+        reader = csv.reader(f)
+        old_header = next(reader)
+        raw_rows = list(reader)
+
+    # Build positional mapping from old header to column names
+    migrated = []
+    for raw in raw_rows:
+        row_dict = {}
+        # Map fields that exist in the old header by position
+        for i, col_name in enumerate(old_header):
+            if col_name in columns and i < len(raw):
+                row_dict[col_name] = raw[i]
+        # Handle extra fields beyond old header (from previous schema mismatches)
+        # These would be new columns written positionally past the old header
+        if len(raw) > len(old_header):
+            # Find which current columns are missing from old header
+            missing_cols = [c for c in columns if c not in old_header]
+            extra_values = raw[len(old_header):]
+            for j, col_name in enumerate(missing_cols):
+                if j < len(extra_values):
+                    row_dict[col_name] = extra_values[j]
+        # Fill any remaining missing columns with empty string
+        for col in columns:
+            if col not in row_dict:
+                row_dict[col] = ""
+        migrated.append(row_dict)
+
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=columns)
+        writer.writeheader()
+        writer.writerows(migrated)
+    print(f"  [MIGRATE] {os.path.basename(path)}: migrated {len(migrated)} rows")
 
 
 def append_result(path, row_dict, columns=None):
@@ -821,7 +869,7 @@ def run_single_experiment(
         logger=exp_loggers,
         enable_progress_bar=True,
         deterministic=False,
-        log_every_n_steps=50,
+        log_every_n_steps=1,
     )
 
     # Train
@@ -1071,6 +1119,8 @@ class ConvergenceTracker(pl.Callback):
         self.train_losses = []
 
     def on_validation_epoch_end(self, trainer, pl_module):
+        if trainer.sanity_checking:
+            return
         v = trainer.callback_metrics.get("val_loss")
         if v is not None:
             self.val_losses.append(float(v))
@@ -1093,6 +1143,11 @@ class DivergenceDetector(pl.Callback):
         self.diverged = False
 
     def on_validation_epoch_end(self, trainer, pl_module):
+        # Skip sanity check — random weights + AMP often produce NaN val_loss
+        # before any training has occurred.
+        if trainer.sanity_checking:
+            return
+
         v = trainer.callback_metrics.get("val_loss")
         if v is None:
             return
@@ -1234,7 +1289,7 @@ def run_single_convergence_experiment(
         logger=exp_loggers,
         enable_progress_bar=False,
         deterministic=False,
-        log_every_n_steps=50,
+        log_every_n_steps=1,
     )
 
     t0 = time.time()
@@ -1274,7 +1329,7 @@ def run_single_convergence_experiment(
 
     # Loss ratio and divergence flag
     loss_ratio = final_val_loss / best_val_loss if best_val_loss > 0 and math.isfinite(best_val_loss) else float("nan")
-    diverged = divergence_detector.diverged or not math.isfinite(smape) or smape >= 200.0
+    diverged = divergence_detector.diverged or not math.isfinite(smape)
 
     result = {
         "experiment": "convergence_study",
@@ -1725,7 +1780,7 @@ def run_ensemble_experiment(dataset_name, periods, max_epochs, batch_size, accel
                         logger=ens_loggers,
                         enable_progress_bar=True,
                         deterministic=False,
-                        log_every_n_steps=50,
+                        log_every_n_steps=1,
                     )
 
                     stack_summary = (
@@ -2035,7 +2090,7 @@ def run_mixed_stack_ensemble(dataset_name, periods, max_epochs, batch_size, acce
                         logger=mix_loggers,
                         enable_progress_bar=True,
                         deterministic=False,
-                        log_every_n_steps=50,
+                        log_every_n_steps=1,
                     )
 
                     stack_summary = (

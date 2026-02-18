@@ -622,6 +622,34 @@ class TestWaveletV3Properties:
         assert not torch.isinf(backcast).any(), f"{block_name} backcast contains Inf"
         assert not torch.isinf(forecast).any(), f"{block_name} forecast contains Inf"
 
+    @pytest.mark.parametrize("block_name", V3_WAVELET_BLOCKS)
+    def test_share_weights_with_different_lengths(self, block_name):
+        """Verify share_weights=True works when backcast_length != forecast_length.
+
+        Regression test: V3 orthonormal basis is (target_length x target_length),
+        so backcast and forecast linear projections must have different output sizes.
+        Sharing them caused a shape mismatch in matmul.
+        """
+        block_class = getattr(b, block_name)
+        # Use M4-Yearly dimensions: backcast=30, forecast=6
+        block = block_class(
+            units=UNITS, backcast_length=30, forecast_length=6,
+            basis_dim=BASIS_DIM, share_weights=True,
+        )
+
+        # Forward pass must succeed
+        x = torch.randn(8, 30)
+        backcast, forecast = block(x)
+        assert backcast.shape == (8, 30), f"{block_name} backcast shape incorrect"
+        assert forecast.shape == (8, 6), f"{block_name} forecast shape incorrect"
+
+        # Linear layers must NOT be shared (different output sizes)
+        assert block.backcast_linear is not block.forecast_linear, (
+            f"{block_name} should use separate linear projections"
+        )
+        assert block.backcast_linear.out_features == 30
+        assert block.forecast_linear.out_features == 6
+
 
 # --- active_g split mode tests ---
 

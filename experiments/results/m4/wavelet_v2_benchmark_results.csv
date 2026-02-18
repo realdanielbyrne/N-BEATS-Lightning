@@ -1,15 +1,15 @@
-experiment,config_name,stack_types,period,frequency,forecast_length,backcast_length,n_stacks,n_blocks_per_stack,share_weights,run,seed,smape,mase,mae,mse,owa,n_params,training_time_seconds,epochs_trained,active_g,sum_losses,activation
-wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Yearly,1,6,30,30,1,True,0,42,14.362749,3.369509,946.404358,4995843.500000,0.863387,26254080,119.37,26,False,False,ReLU
-wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Yearly,1,6,30,30,1,True,1,43,14.478876,3.414492,973.753601,5389316.000000,0.872600,26254080,103.80,22,False,False,ReLU
-wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Yearly,1,6,30,30,1,True,2,44,14.474013,3.418598,964.999207,5271077.500000,0.872968,26254080,101.51,22,False,False,ReLU
-wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Yearly,1,6,30,30,1,True,3,45,14.232081,3.351017,923.105652,4778033.000000,0.857063,26254080,149.62,33,False,False,ReLU
-wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Yearly,1,6,30,30,1,True,4,46,14.322537,3.386764,944.590942,5021379.000000,0.864328,26254080,139.74,30,False,False,ReLU
-wavelet_v2_benchmark,DB3WaveletV2,['DB3WaveletV2'],Yearly,1,6,30,30,1,True,0,42,14.522674,3.435341,967.253296,5253763.500000,0.876563,26254080,106.21,23,False,False,ReLU
-wavelet_v2_benchmark,DB3WaveletV2,['DB3WaveletV2'],Yearly,1,6,30,30,1,True,1,43,14.312559,3.370172,912.671631,4566902.500000,0.861935,26254080,175.58,44,False,False,ReLU
-wavelet_v2_benchmark,DB3WaveletV2,['DB3WaveletV2'],Yearly,1,6,30,30,1,True,2,44,14.516804,3.436442,968.961731,5219884.500000,0.876522,26254080,96.32,23,False,False,ReLU
-wavelet_v2_benchmark,DB3WaveletV2,['DB3WaveletV2'],Yearly,1,6,30,30,1,True,3,45,14.664979,3.501304,989.918030,5517477.500000,0.889216,26254080,73.39,18,False,False,ReLU
-wavelet_v2_benchmark,DB3WaveletV2,['DB3WaveletV2'],Yearly,1,6,30,30,1,True,4,46,14.192764,3.354350,938.300598,5027261.000000,0.856279,26254080,97.23,23,False,False,ReLU
-wavelet_v2_benchmark,DB3AltWaveletV2,['DB3AltWaveletV2'],Yearly,1,6,30,30,1,True,0,42,15.798086,3.827565,1064.466675,5976949.000000,0.964934,26115840,152.10,44,False,False,ReLU
+experiment,config_name,stack_types,period,frequency,forecast_length,backcast_length,n_stacks,n_blocks_per_stack,share_weights,run,seed,smape,mase,mae,mse,owa,n_params,training_time_seconds,epochs_trained,active_g,sum_losses,activation,stopping_reason
+wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Yearly,1,6,30,30,1,True,0,42,14.362749,3.369509,946.404358,4995843.500000,0.863387,26254080,119.37,26,False,False,ReLU,
+wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Yearly,1,6,30,30,1,True,1,43,14.478876,3.414492,973.753601,5389316.000000,0.872600,26254080,103.80,22,False,False,ReLU,
+wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Yearly,1,6,30,30,1,True,2,44,14.474013,3.418598,964.999207,5271077.500000,0.872968,26254080,101.51,22,False,False,ReLU,
+wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Yearly,1,6,30,30,1,True,3,45,14.232081,3.351017,923.105652,4778033.000000,0.857063,26254080,149.62,33,False,False,ReLU,
+wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Yearly,1,6,30,30,1,True,4,46,14.322537,3.386764,944.590942,5021379.000000,0.864328,26254080,139.74,30,False,False,ReLU,
+wavelet_v2_benchmark,DB3WaveletV2,['DB3WaveletV2'],Yearly,1,6,30,30,1,True,0,42,14.522674,3.435341,967.253296,5253763.500000,0.876563,26254080,106.21,23,False,False,ReLU,
+wavelet_v2_benchmark,DB3WaveletV2,['DB3WaveletV2'],Yearly,1,6,30,30,1,True,1,43,14.312559,3.370172,912.671631,4566902.500000,0.861935,26254080,175.58,44,False,False,ReLU,
+wavelet_v2_benchmark,DB3WaveletV2,['DB3WaveletV2'],Yearly,1,6,30,30,1,True,2,44,14.516804,3.436442,968.961731,5219884.500000,0.876522,26254080,96.32,23,False,False,ReLU,
+wavelet_v2_benchmark,DB3WaveletV2,['DB3WaveletV2'],Yearly,1,6,30,30,1,True,3,45,14.664979,3.501304,989.918030,5517477.500000,0.889216,26254080,73.39,18,False,False,ReLU,
+wavelet_v2_benchmark,DB3WaveletV2,['DB3WaveletV2'],Yearly,1,6,30,30,1,True,4,46,14.192764,3.354350,938.300598,5027261.000000,0.856279,26254080,97.23,23,False,False,ReLU,
+wavelet_v2_benchmark,DB3AltWaveletV2,['DB3AltWaveletV2'],Yearly,1,6,30,30,1,True,0,42,15.798086,3.827565,1064.466675,5976949.000000,0.964934,26115840,152.10,44,False,False,ReLU,
 wavelet_v2_benchmark,DB3AltWaveletV2,['DB3AltWaveletV2'],Yearly,1,6,30,30,1,True,1,43,15.501086,3.688102,1034.680420,5765315.500000,0.938300,26115840,144.18,48,False,False,ReLU,EARLY_STOPPED
 wavelet_v2_benchmark,DB3AltWaveletV2,['DB3AltWaveletV2'],Yearly,1,6,30,30,1,True,2,44,15.730275,3.778416,1058.481689,5962348.500000,0.956676,26115840,154.65,44,False,False,ReLU,EARLY_STOPPED
 wavelet_v2_benchmark,DB3AltWaveletV2,['DB3AltWaveletV2'],Yearly,1,6,30,30,1,True,3,45,15.745811,3.779348,1054.917603,5939168.500000,0.957268,26115840,166.19,46,False,False,ReLU,EARLY_STOPPED
@@ -61,3 +61,27 @@ wavelet_v2_benchmark,Coif2WaveletV2,['Coif2WaveletV2'],Quarterly,4,8,40,30,1,Tru
 wavelet_v2_benchmark,Coif2WaveletV2,['Coif2WaveletV2'],Quarterly,4,8,40,30,1,True,4,46,10.343392,1.217529,589.562317,1942801.625000,0.913671,26453760,522.45,16,False,False,ReLU,EARLY_STOPPED
 wavelet_v2_benchmark,Symlet3WaveletV2,['Symlet3WaveletV2'],Quarterly,4,8,40,30,1,True,0,42,10.347072,1.227271,590.710999,1985543.875000,0.917391,26453760,689.38,14,False,False,ReLU,EARLY_STOPPED
 wavelet_v2_benchmark,Symlet3WaveletV2,['Symlet3WaveletV2'],Quarterly,4,8,40,30,1,True,1,43,10.435826,1.232204,591.869690,1928438.750000,0.923220,26453760,895.63,17,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Symlet3WaveletV2,['Symlet3WaveletV2'],Quarterly,4,8,40,30,1,True,2,44,10.324295,1.213926,590.695251,2000613.500000,0.911490,26453760,733.08,14,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Symlet3WaveletV2,['Symlet3WaveletV2'],Quarterly,4,8,40,30,1,True,3,45,10.349930,1.204669,580.982849,1883074.250000,0.909278,26453760,891.14,17,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Symlet3WaveletV2,['Symlet3WaveletV2'],Quarterly,4,8,40,30,1,True,4,46,10.369776,1.224081,594.453857,1964955.000000,0.917259,26453760,839.74,16,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Trend+HaarWaveletV2,"['Trend', 'HaarWaveletV2']",Quarterly,4,8,40,30,1,True,0,42,10.210152,1.183401,567.494202,1777541.750000,0.895175,16364235,702.98,15,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Trend+HaarWaveletV2,"['Trend', 'HaarWaveletV2']",Quarterly,4,8,40,30,1,True,1,43,10.232224,1.185162,568.644897,1755173.875000,0.896820,16364235,667.70,14,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Trend+HaarWaveletV2,"['Trend', 'HaarWaveletV2']",Quarterly,4,8,40,30,1,True,2,44,10.392432,1.204978,574.566650,1780670.500000,0.911321,16364235,763.93,16,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Trend+HaarWaveletV2,"['Trend', 'HaarWaveletV2']",Quarterly,4,8,40,30,1,True,3,45,10.263359,1.192744,572.265564,1781368.500000,0.900999,16364235,662.47,14,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Trend+HaarWaveletV2,"['Trend', 'HaarWaveletV2']",Quarterly,4,8,40,30,1,True,4,46,10.459536,1.230158,583.913940,1817090.250000,0.923551,16364235,750.03,16,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Trend+DB3WaveletV2,"['Trend', 'DB3WaveletV2']",Quarterly,4,8,40,30,1,True,0,42,10.181770,1.180319,567.521851,1772325.750000,0.892763,16364235,704.56,15,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Trend+DB3WaveletV2,"['Trend', 'DB3WaveletV2']",Quarterly,4,8,40,30,1,True,1,43,10.343435,1.195730,574.767944,1784243.500000,0.905723,16364235,803.51,17,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Trend+DB3WaveletV2,"['Trend', 'DB3WaveletV2']",Quarterly,4,8,40,30,1,True,2,44,10.370286,1.205283,574.851562,1777663.000000,0.910426,16364235,758.98,16,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Trend+DB3WaveletV2,"['Trend', 'DB3WaveletV2']",Quarterly,4,8,40,30,1,True,3,45,10.230727,1.185818,568.556030,1770849.500000,0.896991,16364235,656.89,14,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Trend+DB3WaveletV2,"['Trend', 'DB3WaveletV2']",Quarterly,4,8,40,30,1,True,4,46,10.287971,1.182490,570.331360,1774741.125000,0.898376,16364235,808.80,17,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Generic+DB3WaveletV2,"['Generic', 'DB3WaveletV2']",Quarterly,4,8,40,30,1,True,0,42,10.188131,1.195828,563.278564,1732970.125000,0.898708,25729920,595.09,13,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Generic+DB3WaveletV2,"['Generic', 'DB3WaveletV2']",Quarterly,4,8,40,30,1,True,1,43,10.320666,1.229239,571.606262,1791347.375000,0.916910,25729920,503.96,11,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Generic+DB3WaveletV2,"['Generic', 'DB3WaveletV2']",Quarterly,4,8,40,30,1,True,2,44,10.262522,1.185933,568.951111,1776747.375000,0.898476,25729920,732.68,16,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Generic+DB3WaveletV2,"['Generic', 'DB3WaveletV2']",Quarterly,4,8,40,30,1,True,3,45,10.294561,1.215278,571.158936,1757816.125000,0.910633,25729920,550.31,12,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,Generic+DB3WaveletV2,"['Generic', 'DB3WaveletV2']",Quarterly,4,8,40,30,1,True,4,46,10.395364,1.207407,574.347229,1808226.125000,0.912340,25729920,817.62,18,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Monthly,12,18,90,30,1,True,0,42,13.644351,0.982927,574.504761,1993163.375000,0.935212,27452160,3203.34,12,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Monthly,12,18,90,30,1,True,1,43,13.794515,0.977687,584.767700,2042493.125000,0.937951,27452160,1926.14,13,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Monthly,12,18,90,30,1,True,2,44,13.266683,0.973701,571.289307,2053913.375000,0.917783,27452160,1952.63,13,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Monthly,12,18,90,30,1,True,3,45,13.597221,0.976389,575.134583,2027187.875000,0.930503,27452160,1802.45,12,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,HaarWaveletV2,['HaarWaveletV2'],Monthly,12,18,90,30,1,True,4,46,13.459099,0.979180,568.675415,1973183.375000,0.927029,27452160,2116.85,14,False,False,ReLU,EARLY_STOPPED
+wavelet_v2_benchmark,DB3WaveletV2,['DB3WaveletV2'],Monthly,12,18,90,30,1,True,0,42,13.322512,0.971948,569.503357,1985110.875000,0.918894,27452160,1807.21,12,False,False,ReLU,EARLY_STOPPED

@@ -1527,12 +1527,12 @@ class WaveletV3(RootBlock):
     self.share_weights = share_weights
     self.active_g = active_g
 
-    # Linear to target_length coefficients (like Seasonality's n_harmonics)
-    if share_weights:
-      self.backcast_linear = self.forecast_linear = nn.Linear(units, backcast_length, bias=False)
-    else:
-      self.backcast_linear = nn.Linear(units, backcast_length, bias=False)
-      self.forecast_linear = nn.Linear(units, forecast_length, bias=False)
+    # Always use separate linear projections because the orthonormal basis is
+    # (target_length x target_length), so backcast and forecast projections
+    # must output different sizes when backcast_length != forecast_length.
+    # This matches how Seasonality handles its Fourier projections.
+    self.backcast_linear = nn.Linear(units, backcast_length, bias=False)
+    self.forecast_linear = nn.Linear(units, forecast_length, bias=False)
 
     self.backcast_g = _WaveletGeneratorV3(backcast_length, wavelet_type=wavelet_type)
     self.forecast_g = _WaveletGeneratorV3(forecast_length, wavelet_type=wavelet_type)

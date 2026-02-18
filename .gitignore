@@ -6,7 +6,7 @@ pip-wheel-metadata/
 lightning_logs/
 .vscode/
 logs/
-
+*.npz
 # experiment artifacts (contains local paths)
 experiments/results/experiment_log.txt
 experiments/results/**/ensemble_predictions/*.npz
