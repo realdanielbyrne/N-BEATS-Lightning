@@ -79,7 +79,7 @@ class TestWidthSelection:
         assert block.units == 96
 
     def test_wavelet_uses_g_width_fallback(self):
-        model = _make_model(["HaarWavelet"], g_width=64, s_width=128, t_width=32, ae_width=96)
+        model = _make_model(["HaarWaveletV3"], g_width=64, s_width=128, t_width=32, ae_width=96)
         block = model.stacks[0][0]
         assert block.units == 64
 
@@ -286,4 +286,3 @@ class TestActiveGSplitModesModel:
         backcast, forecast = model(x)
         assert backcast.shape == (4, 20)
         assert forecast.shape == (4, 5)
-

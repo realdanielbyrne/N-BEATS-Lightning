@@ -102,40 +102,6 @@ class TestSeasonalityAE:
         assert forecast.shape == (4, FORECAST_LENGTH)
 
 
-# --- Wavelet share_weights attribute name ---
-
-class TestWaveletAttributes:
-    """Verify Wavelet classes use correct attribute name (not typo)."""
-
-    def test_wavelet_has_share_weights(self):
-        block = b.Wavelet(
-            units=UNITS, backcast_length=BACKCAST_LENGTH,
-            forecast_length=FORECAST_LENGTH, basis_dim=BASIS_DIM,
-            share_weights=False, activation="ReLU")
-        assert hasattr(block, "share_weights")
-        assert not hasattr(block, "sharre_weights")
-        assert block.share_weights is False
-
-    def test_alt_wavelet_has_share_weights(self):
-        block = b.AltWavelet(
-            units=UNITS, backcast_length=BACKCAST_LENGTH,
-            forecast_length=FORECAST_LENGTH, basis_dim=BASIS_DIM,
-            share_weights=True, activation="ReLU")
-        assert hasattr(block, "share_weights")
-        assert not hasattr(block, "sharre_weights")
-        assert block.share_weights is True
-
-    def test_haar_wavelet_forward(self):
-        block = b.HaarWavelet(
-            units=UNITS, backcast_length=BACKCAST_LENGTH,
-            forecast_length=FORECAST_LENGTH, basis_dim=BASIS_DIM,
-            share_weights=False, activation="ReLU")
-        x = torch.randn(4, BACKCAST_LENGTH)
-        backcast, forecast = block(x)
-        assert backcast.shape == (4, BACKCAST_LENGTH)
-        assert forecast.shape == (4, FORECAST_LENGTH)
-
-
 # --- Generic vs BottleneckGeneric architecture tests ---
 
 class TestGenericArchitecture:
@@ -407,29 +373,6 @@ class TestAllBlocksOutputShapes:
         "GenericAEBackcast", "GenericAEBackcastAE",
         "Trend", "TrendAE", "Seasonality", "SeasonalityAE",
         "AutoEncoder", "AutoEncoderAE",
-        "HaarWavelet", "HaarAltWavelet",
-        "DB2Wavelet", "DB2AltWavelet",
-        "DB3Wavelet", "DB3AltWavelet",
-        "DB4Wavelet", "DB4AltWavelet",
-        "DB10Wavelet", "DB10AltWavelet", "DB20AltWavelet",
-        "Coif1Wavelet", "Coif1AltWavelet",
-        "Coif2Wavelet", "Coif2AltWavelet",
-        "Coif3Wavelet", "Coif3AltWavelet",
-        "Coif10Wavelet", "Coif10AltWavelet",
-        "Symlet2Wavelet", "Symlet2AltWavelet",
-        "Symlet3Wavelet", "Symlet10Wavelet", "Symlet20Wavelet",
-        # V2 Wavelet blocks (numerically stabilized)
-        "HaarWaveletV2", "HaarAltWaveletV2",
-        "DB2WaveletV2", "DB2AltWaveletV2",
-        "DB3WaveletV2", "DB3AltWaveletV2",
-        "DB4WaveletV2", "DB4AltWaveletV2",
-        "DB10WaveletV2", "DB10AltWaveletV2", "DB20AltWaveletV2",
-        "Coif1WaveletV2", "Coif1AltWaveletV2",
-        "Coif2WaveletV2", "Coif2AltWaveletV2",
-        "Coif3WaveletV2", "Coif3AltWaveletV2",
-        "Coif10WaveletV2", "Coif10AltWaveletV2",
-        "Symlet2WaveletV2", "Symlet2AltWaveletV2",
-        "Symlet3WaveletV2", "Symlet10WaveletV2", "Symlet20WaveletV2",
         # V3 Wavelet blocks (orthonormal DWT basis)
         "HaarWaveletV3", "DB2WaveletV3", "DB3WaveletV3", "DB4WaveletV3",
         "DB10WaveletV3", "DB20WaveletV3",
@@ -468,56 +411,6 @@ class TestAllBlocksOutputShapes:
 
         assert backcast.shape == (4, BACKCAST_LENGTH), f"{block_name} backcast shape incorrect"
         assert forecast.shape == (4, FORECAST_LENGTH), f"{block_name} forecast shape incorrect"
-
-
-
-# --- V2 Wavelet numerical stability tests ---
-
-V2_WAVELET_BLOCKS = [
-    "HaarWaveletV2", "HaarAltWaveletV2",
-    "DB2WaveletV2", "DB2AltWaveletV2",
-    "DB3WaveletV2", "DB3AltWaveletV2",
-    "DB4WaveletV2", "DB4AltWaveletV2",
-    "DB10WaveletV2", "DB10AltWaveletV2", "DB20AltWaveletV2",
-    "Coif1WaveletV2", "Coif1AltWaveletV2",
-    "Coif2WaveletV2", "Coif2AltWaveletV2",
-    "Coif3WaveletV2", "Coif3AltWaveletV2",
-    "Coif10WaveletV2", "Coif10AltWaveletV2",
-    "Symlet2WaveletV2", "Symlet2AltWaveletV2",
-    "Symlet3WaveletV2", "Symlet10WaveletV2", "Symlet20WaveletV2",
-]
-
-class TestWaveletV2Stability:
-    """Verify V2 wavelet blocks produce finite outputs and have normalized bases."""
-
-    @pytest.mark.parametrize("block_name", V2_WAVELET_BLOCKS)
-    def test_no_nan_output(self, block_name):
-        block_class = getattr(b, block_name)
-        block = block_class(
-            units=UNITS, backcast_length=BACKCAST_LENGTH,
-            forecast_length=FORECAST_LENGTH, basis_dim=BASIS_DIM,
-        )
-        x = torch.randn(8, BACKCAST_LENGTH)
-        backcast, forecast = block(x)
-        assert not torch.isnan(backcast).any(), f"{block_name} backcast contains NaN"
-        assert not torch.isnan(forecast).any(), f"{block_name} forecast contains NaN"
-        assert not torch.isinf(backcast).any(), f"{block_name} backcast contains Inf"
-        assert not torch.isinf(forecast).any(), f"{block_name} forecast contains Inf"
-
-    @pytest.mark.parametrize("block_name", V2_WAVELET_BLOCKS)
-    def test_basis_spectral_norm(self, block_name):
-        block_class = getattr(b, block_name)
-        block = block_class(
-            units=UNITS, backcast_length=BACKCAST_LENGTH,
-            forecast_length=FORECAST_LENGTH, basis_dim=BASIS_DIM,
-        )
-        for name, param in block.named_parameters():
-            if "basis" in name and not param.requires_grad:
-                sv = torch.linalg.svdvals(param.data)
-                max_sv = sv[0].item()
-                assert max_sv <= 1.01, (
-                    f"{block_name}.{name} spectral norm {max_sv:.4f} > 1.01"
-                )
 
 
 # --- V3 Wavelet property tests ---
@@ -604,8 +497,10 @@ class TestWaveletV3Properties:
             if "basis" in name and not param.requires_grad:
                 target_length = param.shape[1]
                 rank = param.shape[0]
-                assert rank == target_length, (
-                    f"{wavelet_class}.{name}: rank {rank} != target_length {target_length}"
+                expected_dim = min(BASIS_DIM, target_length)
+                assert rank == expected_dim, (
+                    f"{wavelet_class}.{name}: rank {rank} != expected {expected_dim} "
+                    f"(min(BASIS_DIM={BASIS_DIM}, target_length={target_length}))"
                 )
 
     @pytest.mark.parametrize("block_name", V3_WAVELET_BLOCKS)
@@ -643,12 +538,13 @@ class TestWaveletV3Properties:
         assert backcast.shape == (8, 30), f"{block_name} backcast shape incorrect"
         assert forecast.shape == (8, 6), f"{block_name} forecast shape incorrect"
 
-        # Linear layers must NOT be shared (different output sizes)
+        # Linear layers must NOT be shared (different output sizes).
+        # out_features == min(basis_dim, target_length) after truncation.
         assert block.backcast_linear is not block.forecast_linear, (
             f"{block_name} should use separate linear projections"
         )
-        assert block.backcast_linear.out_features == 30
-        assert block.forecast_linear.out_features == 6
+        assert block.backcast_linear.out_features == min(BASIS_DIM, 30)
+        assert block.forecast_linear.out_features == min(BASIS_DIM, 6)
 
 
 # --- active_g split mode tests ---
