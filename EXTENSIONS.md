@@ -171,7 +171,9 @@ Forecast (Generic path):
 
 **Paper difference:** The paper defines only polynomial and Fourier bases.
 
-### Architecture Variant 1: `Wavelet` (Square Basis + Learned Downsampling)
+**Status update:** V1 wavelet blocks were removed due to instability (NaN failures, MASE explosion) documented in `NBEATS-Explorations/paper.md` Section 5.1.3. Use V2 (numerically stabilized) or V3 (orthonormal DWT) variants.
+
+### Architecture Variant 1: `WaveletV2` (Square Basis + Learned Downsampling + Stabilization)
 
 ```
 theta_b = W_b * h_4                     [linear: units -> basis_dim]
@@ -179,9 +181,9 @@ z_b = theta_b * Phi                     [Phi in R^{basis_dim x basis_dim}, fixed
 x_hat = V_b * z_b                       [linear: basis_dim -> B, bias=False, learned]
 ```
 
-Where `Phi` is constructed from the wavelet's scaling (phi) and mother (psi) functions resampled to `basis_dim` points, with columns being circular shifts.
+Where `Phi` is constructed from the wavelet's scaling (phi) and mother (psi) functions resampled to `basis_dim` points, with columns being circular shifts. V2 adds spectral normalization, layer normalization, and output clamping.
 
-### Architecture Variant 2: `AltWavelet` (Rectangular Basis, Direct Output)
+### Architecture Variant 2: `AltWaveletV2` (Rectangular Basis, Direct Output + Stabilization)
 
 ```
 theta_b = W_b * h_4                     [linear: units -> basis_dim]
@@ -190,14 +192,18 @@ x_hat = theta_b * Psi                   [Psi in R^{basis_dim x B}, fixed wavelet
 
 No learned downsampling — the rectangular basis directly maps to target length.
 
+### Architecture Variant 3: `WaveletV3` (Orthonormal DWT Basis)
+
+V3 constructs orthonormal wavelet bases via DWT impulse-response synthesis and SVD orthogonalization, eliminating the ill-conditioning issues present in V1.
+
 ### Wavelet Families Supported
 
 | Family | Classes | Wavelet Type |
 |--------|---------|-------------|
-| Haar | `HaarWavelet`, `HaarAltWavelet` | `haar` |
-| Daubechies | `DB2Wavelet`/`AltWavelet`, `DB3...`, `DB4...`, `DB10...`, `DB20AltWavelet` | `db2`-`db20` |
-| Coiflets | `Coif1Wavelet`/`AltWavelet`, `Coif2...`, `Coif3...`, `Coif10...` | `coif1`-`coif10` |
-| Symlets | `Symlet2Wavelet`/`AltWavelet`, `Symlet3Wavelet`, `Symlet10Wavelet`, `Symlet20Wavelet` | `sym2`-`sym20` |
+| Haar | `HaarWaveletV2`, `HaarAltWaveletV2`, `HaarWaveletV3` | `haar` |
+| Daubechies | `DB2/3/4/10WaveletV2`, `DB2/3/4/10AltWaveletV2`, `DB20AltWaveletV2`, `DB2/3/4/10/20WaveletV3` | `db2`-`db20` |
+| Coiflets | `Coif1/2/3/10WaveletV2`, `Coif1/2/3/10AltWaveletV2`, `Coif1/2/3/10WaveletV3` | `coif1`-`coif10` |
+| Symlets | `Symlet2/3/10/20WaveletV2`, `Symlet2AltWaveletV2`, `Symlet2/3/10/20WaveletV3` | `sym2`-`sym20` |
 
 ### Motivation
 
@@ -206,7 +212,7 @@ No learned downsampling — the rectangular basis directly maps to target length
 3. **Non-trainable basis preserves interpretability:** Like Trend and Seasonality blocks, the wavelet basis is fixed (non-learnable), maintaining interpretability of the theta parameters.
 4. **Different wavelet families suit different data characteristics:** Haar for piecewise constant signals, Daubechies for smooth signals, Coiflets for near-symmetric wavelets, Symlets for symmetric wavelets.
 
-**Code:** `blocks/blocks.py` — lines 357-678
+**Code:** `blocks/blocks.py` — V2/V3 wavelet sections
 
 **Parameter:** `basis_dim: int = 32`
 
@@ -253,8 +259,8 @@ ND = sum(|y_hat - y|) / sum(|y|)
 
 This implementation allows arbitrary combinations such as:
 ```python
-stack_types = ["Trend", "DB3Wavelet", "Generic", "AutoEncoder"]
-stack_types = ["BottleneckGeneric", "Seasonality", "HaarWavelet"]
+stack_types = ["Trend", "DB3WaveletV2", "Generic", "AutoEncoder"]
+stack_types = ["BottleneckGeneric", "Seasonality", "HaarWaveletV3"]
 stack_types = ["GenericAE", "TrendAE", "SeasonalityAE"]
 ```
 

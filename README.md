@@ -96,30 +96,44 @@ Define the model by defining the architecture in the `stack_types` parameter.  T
 - SeasonalityAE
 - AutoEncoder
 - AutoEncoderAE
-- HaarWavelet
-- HaarAltWavelet
-- DB2Wavelet
-- DB2AltWavelet
-- DB3Wavelet
-- DB3AltWavelet
-- DB4Wavelet
-- DB4AltWavelet
-- DB10Wavelet
-- DB10AltWavelet
-- DB20AltWavelet
-- Coif1Wavelet
-- Coif1AltWavelet
-- Coif2Wavelet
-- Coif2AltWavelet
-- Coif3Wavelet
-- Coif3AltWavelet
-- Coif10Wavelet
-- Coif10AltWavelet
-- Symlet2Wavelet
-- Symlet2AltWavelet
-- Symlet3Wavelet
-- Symlet10Wavelet
-- Symlet20Wavelet
+- HaarWaveletV2
+- HaarAltWaveletV2
+- DB2WaveletV2
+- DB2AltWaveletV2
+- DB3WaveletV2
+- DB3AltWaveletV2
+- DB4WaveletV2
+- DB4AltWaveletV2
+- DB10WaveletV2
+- DB10AltWaveletV2
+- DB20AltWaveletV2
+- Coif1WaveletV2
+- Coif1AltWaveletV2
+- Coif2WaveletV2
+- Coif2AltWaveletV2
+- Coif3WaveletV2
+- Coif3AltWaveletV2
+- Coif10WaveletV2
+- Coif10AltWaveletV2
+- Symlet2WaveletV2
+- Symlet2AltWaveletV2
+- Symlet3WaveletV2
+- Symlet10WaveletV2
+- Symlet20WaveletV2
+- HaarWaveletV3
+- DB2WaveletV3
+- DB3WaveletV3
+- DB4WaveletV3
+- DB10WaveletV3
+- DB20WaveletV3
+- Coif1WaveletV3
+- Coif2WaveletV3
+- Coif3WaveletV3
+- Coif10WaveletV3
+- Symlet2WaveletV3
+- Symlet3WaveletV3
+- Symlet10WaveletV3
+- Symlet20WaveletV3
 
 This implementation extends the design original paper with several additional block types and by allowing any combination blocks in any order simply by specifying the block types in the stack_types parameter.
 
@@ -287,41 +301,55 @@ This repository contains a number of experimental Wavelet Basis Expansion Blocks
 
 This method is particularly useful for analyzing functions or signals that contain features at multiple scales.  The multi-resolution analysis capability of wavelets is particularly suited to capturing the essence of time series data then, which can have complex, hierarchical structures due to the presence of trends, seasonal effects, cycles, and irregular fluctuations.
 
-Wavelet blocks can be used in isolation or in combination with other blocks freely. For instance
+Wavelet blocks can be used in isolation or in combination with other blocks freely. V1 wavelet blocks were removed due to instability (NaN failures and MASE explosion). Use V2 (numerically stabilized) or V3 (orthonormal DWT) variants. For instance:
 
 ```python
 n_stacks = 5
-stack_types = ['DB3Wavelet'] * n_stacks # 5 stacks of DB3Wavelet blocks
-stack_types = ['Trend','DB3Wavelet'] * n_stacks # 5 stacks of 1 Trend and 1 DB3Wavelet
-stack_types = ['DB3Wavelet','Generic'] # 5 stacks of 1 DB3Wavelet followed by 1 Generic
+stack_types = ['DB3WaveletV2'] * n_stacks # 5 stacks of DB3WaveletV2 blocks
+stack_types = ['Trend','DB3WaveletV3'] * n_stacks # 5 stacks of 1 Trend and 1 DB3WaveletV3
+stack_types = ['DB3WaveletV2','Generic'] # 5 stacks of 1 DB3WaveletV2 followed by 1 Generic
 ```
 
 The Wavelet blocks available in this repository are as follows:
 
-- HaarWavelet
-- HaarAltWavelet
-- DB2Wavelet
-- DB2AltWavelet
-- DB3Wavelet
-- DB3AltWavelet
-- DB4Wavelet
-- DB4AltWavelet
-- DB10Wavelet
-- DB10AltWavelet
-- DB20AltWavelet
-- Coif1Wavelet
-- Coif1AltWavelet
-- Coif2Wavelet
-- Coif2AltWavelet
-- Coif3Wavelet
-- Coif3AltWavelet
-- Coif10Wavelet
-- Coif10AltWavelet
-- Symlet2Wavelet
-- Symlet2AltWavelet
-- Symlet3Wavelet
-- Symlet10Wavelet
-- Symlet20Wavelet
+- HaarWaveletV2
+- HaarAltWaveletV2
+- DB2WaveletV2
+- DB2AltWaveletV2
+- DB3WaveletV2
+- DB3AltWaveletV2
+- DB4WaveletV2
+- DB4AltWaveletV2
+- DB10WaveletV2
+- DB10AltWaveletV2
+- DB20AltWaveletV2
+- Coif1WaveletV2
+- Coif1AltWaveletV2
+- Coif2WaveletV2
+- Coif2AltWaveletV2
+- Coif3WaveletV2
+- Coif3AltWaveletV2
+- Coif10WaveletV2
+- Coif10AltWaveletV2
+- Symlet2WaveletV2
+- Symlet2AltWaveletV2
+- Symlet3WaveletV2
+- Symlet10WaveletV2
+- Symlet20WaveletV2
+- HaarWaveletV3
+- DB2WaveletV3
+- DB3WaveletV3
+- DB4WaveletV3
+- DB10WaveletV3
+- DB20WaveletV3
+- Coif1WaveletV3
+- Coif2WaveletV3
+- Coif3WaveletV3
+- Coif10WaveletV3
+- Symlet2WaveletV3
+- Symlet3WaveletV3
+- Symlet10WaveletV3
+- Symlet20WaveletV3
 
 ### AutoEncoder Block
 

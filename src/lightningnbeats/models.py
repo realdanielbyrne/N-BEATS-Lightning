@@ -37,7 +37,8 @@ class NBeatsNet(pl.LightningModule):
       active_g = False,
       latent_dim:int = 5,
       sum_losses:bool = False,
-      basis_dim:int = 32
+      basis_dim:int = 32,
+      basis_offset:int = 0
     ):
 
     """A PyTorch Lightning module for the N-BEATS network for time series forecasting.
@@ -117,6 +118,10 @@ class NBeatsNet(pl.LightningModule):
         The dimensionality of the latent space in the AutoEncoder blocks. Default 5.
     basis_dim : int, optional
         The dimensionality of the basis space in the Wavelet blocks. Default 32.
+    basis_offset : int, optional
+        Row offset into the SVD-ordered basis for WaveletV3 blocks, selecting which
+        frequency band is used (0 = lowest/smoothest, higher values shift toward
+        higher frequencies). Default 0.
     
     Inputs
     ------
@@ -154,6 +159,7 @@ class NBeatsNet(pl.LightningModule):
     self.sum_losses = sum_losses
     self.latent_dim = latent_dim
     self.basis_dim = basis_dim
+    self.basis_offset = basis_offset
     self.loss_fn = self.configure_loss()    
     
     
@@ -201,9 +207,14 @@ class NBeatsNet(pl.LightningModule):
                 units, self.backcast_length, self.forecast_length, self.thetas_dim, 
                 self.share_weights, self.activation, self.active_g, self.latent_dim)
           elif "Wavelet" in stack_type:
-            block = getattr(b,stack_type)(
-                units, self.backcast_length, self.forecast_length, self.basis_dim, 
-                self.share_weights, self.activation, self.active_g)
+            if "V3" in stack_type:
+              block = getattr(b, stack_type)(
+                  units, self.backcast_length, self.forecast_length, self.basis_dim,
+                  self.basis_offset, self.share_weights, self.activation, self.active_g)
+            else:
+              block = getattr(b, stack_type)(
+                  units, self.backcast_length, self.forecast_length, self.basis_dim,
+                  self.share_weights, self.activation, self.active_g)
           else:
             block = getattr(b,stack_type)(
                 units, self.backcast_length, self.forecast_length, self.thetas_dim, 

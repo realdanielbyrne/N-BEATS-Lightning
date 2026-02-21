@@ -67,10 +67,11 @@ Test files: `test_blocks.py` (block shapes, attributes, registries), `test_loade
 
 - **`models.py`** — `NBeatsNet(pl.LightningModule)`: the main model class. Accepts a `stack_types` list of strings to define architecture. Handles forward pass with backward/forward residual connections, training/validation/test steps, loss configuration, and optimizer setup.
 - **`blocks/blocks.py`** — All block implementations (~1086 lines, the largest file). Two parallel inheritance hierarchies:
-  - `RootBlock(nn.Module)` — Standard backbone: 4 FC layers with activation. Parent of `Generic`, `BottleneckGeneric`, `Seasonality`, `Trend`, `AutoEncoder`, `GenericAEBackcast`, `Wavelet`, `AltWavelet`, and all concrete wavelet subclasses.
+  - `RootBlock(nn.Module)` — Standard backbone: 4 FC layers with activation. Parent of `Generic`, `BottleneckGeneric`, `Seasonality`, `Trend`, `AutoEncoder`, `GenericAEBackcast`, `WaveletV2`, `AltWaveletV2`, `WaveletV3`, and concrete wavelet subclasses.
   - `AERootBlock(nn.Module)` — Autoencoder backbone: encoder (units → units/2 → latent_dim) then decoder (latent_dim → units/2 → units). Parent of `GenericAE`, `BottleneckGenericAE`, `TrendAE`, `SeasonalityAE`, `AutoEncoderAE`, `GenericAEBackcastAE`.
-  - Wavelet blocks (`HaarWavelet`, `DB2Wavelet`, etc.) are thin subclasses that only set the wavelet type string. `Wavelet` uses a square basis with learned downsampling; `AltWavelet` uses a rectangular basis with direct output.
-  - Basis generators (`_SeasonalityGenerator`, `_TrendGenerator`, `_WaveletGenerator`, `_AltWaveletGenerator`) produce non-trainable basis matrices registered as buffers.
+  - Wavelet blocks (`HaarWaveletV2`, `DB2WaveletV2`, `HaarWaveletV3`, etc.) are thin subclasses that only set the wavelet type string. `WaveletV2` uses a square basis with learned downsampling and numerical stabilization; `AltWaveletV2` uses a rectangular basis with direct output and stabilization; `WaveletV3` uses orthonormal DWT bases.
+  - Basis generators (`_SeasonalityGenerator`, `_TrendGenerator`, `_WaveletGeneratorV2`, `_AltWaveletGeneratorV2`, `_WaveletGeneratorV3`) produce non-trainable basis matrices registered as buffers.
+  - V1 wavelet blocks were removed due to instability (NaN failures and MASE blow-ups) documented in `NBEATS-Explorations/paper.md` Section 5.1.3. Use V2 or V3 wavelet variants.
 - **`loaders.py`** — PyTorch Lightning DataModules and Datasets. Two data layout conventions:
   - **Row-oriented** (M4 format): rows = series, cols = time observations. `RowCollectionTimeSeriesDataModule` splits by time dimension; validation = last `backcast + forecast` columns.
   - **Columnar** (Tourism format): cols = series, rows = time observations. `ColumnarCollectionTimeSeriesDataModule` supports `no_val` mode. Short series are padded with zeros.

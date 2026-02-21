@@ -203,21 +203,6 @@ BLOCK_CONFIGS = {
         "share_weights": True,
     },
     # ===== Mixed Stacks (30 total — novel compositions) =====
-    "Trend+HaarWavelet": {
-        "stack_types": ["Trend", "HaarWavelet"] * 15,
-        "n_blocks_per_stack": 1,
-        "share_weights": True,
-    },
-    "Trend+DB3Wavelet": {
-        "stack_types": ["Trend", "DB3Wavelet"] * 15,
-        "n_blocks_per_stack": 1,
-        "share_weights": True,
-    },
-    "Generic+DB3Wavelet": {
-        "stack_types": ["Generic", "DB3Wavelet"] * 15,
-        "n_blocks_per_stack": 1,
-        "share_weights": True,
-    },
 }
 
 # ---------------------------------------------------------------------------
