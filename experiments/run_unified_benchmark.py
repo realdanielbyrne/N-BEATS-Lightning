@@ -153,7 +153,13 @@ N_RUNS_DEFAULT = 10
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 CLAIMS_DIR = os.path.join(RESULTS_DIR, ".claims")
-STALE_CLAIM_SECONDS = 14400  # 2 hours — assume crashed worker
+# A claim older than this is assumed to belong to a crashed worker and may be
+# re-taken. It MUST exceed the longest legitimate single-run wall time: the
+# result_exists guards all run before training, never before append_result, so a
+# prematurely stolen claim makes two workers train the same job and BOTH write a
+# row — silently inflating the per-cell run count. Long-horizon sliding-window
+# runs (Traffic/Weather at L=480) take 3-6h, well past the previous 4h value.
+STALE_CLAIM_SECONDS = 86400  # 24 hours
 
 # ---------------------------------------------------------------------------
 # Dataset Periods
@@ -508,33 +514,103 @@ def compute_smape(y_pred, y_true):
     return np.mean(numerator / denominator) * 100.0
 
 
-def compute_m4_mase(y_pred, y_true, train_series_list, frequency):
-    """M4-faithful MASE using full training history for naive seasonal denominator."""
-    n_series = y_pred.shape[0]
-    mase_values = []
+def build_series_index_map(col_indices, train_data_df):
+    """Map each test prediction row to its source series index.
 
-    for i in range(n_series):
-        train_i = train_series_list[i]
-        pred_i = y_pred[i]
-        true_i = y_true[i]
+    ``ColumnarTimeSeriesDataset.col_indices`` is a list of ``(column, start_idx)``
+    in dataloader order (``shuffle=False`` for test), so entry ``i`` identifies the
+    series behind prediction row ``i``. This converts those column names into
+    positional indices into ``train_data_df.columns`` — the same ordering used by
+    ``BenchmarkDataset.get_training_series()``.
 
-        forecast_mae = np.mean(np.abs(true_i - pred_i))
+    Returns
+    -------
+    np.ndarray of int64, shape (len(col_indices),)
+    """
+    pos = {col: i for i, col in enumerate(train_data_df.columns)}
+    return np.fromiter(
+        (pos[col] for col, _ in col_indices),
+        dtype=np.int64,
+        count=len(col_indices),
+    )
 
-        m = max(1, frequency)
-        if len(train_i) <= m:
+
+def _row_error_means(y_pred, y_true, chunk=200_000):
+    """Row-wise mean |error| and mean error², computed in chunks to bound memory.
+
+    The rolling-window test sets (Traffic/Weather) produce millions of rows, so a
+    whole-array temporary would cost gigabytes.
+    """
+    n = y_pred.shape[0]
+    row_mae = np.empty(n, dtype=np.float64)
+    row_mse = np.empty(n, dtype=np.float64)
+    for s in range(0, n, chunk):
+        e = y_true[s : s + chunk].astype(np.float64) - y_pred[s : s + chunk]
+        row_mae[s : s + chunk] = np.mean(np.abs(e), axis=1)
+        row_mse[s : s + chunk] = np.mean(e * e, axis=1)
+    return row_mae, row_mse
+
+
+def compute_m4_mase(y_pred, y_true, train_series_list, frequency, series_idx=None):
+    """M4-faithful MASE using full training history for naive seasonal denominator.
+
+    Parameters
+    ----------
+    y_pred, y_true : np.ndarray, shape (n_rows, forecast_length)
+        Predictions and ground truth, one row per test window.
+    train_series_list : list of 1-D np.ndarray
+        Full training history per series, in ``train_data.columns`` order
+        (i.e. ``BenchmarkDataset.get_training_series()``).
+    frequency : int
+        Seasonal period used for the naive denominator.
+    series_idx : array-like of int, optional
+        ``series_idx[i]`` gives the index into ``train_series_list`` for prediction
+        row ``i``. **Required whenever the test set yields more than one window per
+        series** — the rolling-window layout Traffic and Weather have used since
+        commit 41888b4. ``None`` keeps the M4/Tourism convention that row ``i`` *is*
+        series ``i``, which holds only when there is exactly one window per series.
+    """
+    n_rows = y_pred.shape[0]
+    m = max(1, frequency)
+
+    if series_idx is None:
+        if n_rows > len(train_series_list):
+            raise ValueError(
+                f"compute_m4_mase received {n_rows} prediction rows but only "
+                f"{len(train_series_list)} training series. This test set yields "
+                "more than one window per series; pass series_idx (see "
+                "build_series_index_map) to map rows onto series."
+            )
+        idx = np.arange(n_rows, dtype=np.int64)
+    else:
+        idx = np.asarray(series_idx, dtype=np.int64)
+        if idx.shape[0] != n_rows:
+            raise ValueError(
+                f"series_idx has {idx.shape[0]} entries but y_pred has {n_rows} rows."
+            )
+        if idx.size and (idx.max() >= len(train_series_list) or idx.min() < 0):
+            raise ValueError(
+                f"series_idx out of range for {len(train_series_list)} training series."
+            )
+
+    # Naive seasonal denominator, computed ONCE per series rather than per row.
+    # NaN marks a series that the original implementation skipped via `continue`.
+    denom = np.full(len(train_series_list), np.nan, dtype=np.float64)
+    for s in np.unique(idx):
+        train_s = train_series_list[s]
+        if len(train_s) <= m:
             continue
-
-        naive_errors = np.abs(train_i[m:] - train_i[:-m])
-        naive_mae = np.mean(naive_errors)
-
+        naive_mae = float(np.mean(np.abs(train_s[m:] - train_s[:-m])))
         if naive_mae < 1e-10:
             continue
+        denom[s] = naive_mae
 
-        mase_values.append(forecast_mae / naive_mae)
-
-    if len(mase_values) == 0:
+    forecast_mae, _ = _row_error_means(y_pred, y_true)
+    row_denom = denom[idx]
+    keep = np.isfinite(row_denom)
+    if not keep.any():
         return float("nan")
-    return float(np.mean(mase_values))
+    return float(np.mean(forecast_mae[keep] / row_denom[keep]))
 
 
 def compute_mae(y_pred, y_true):
@@ -545,20 +621,26 @@ def compute_mse(y_pred, y_true):
     return float(np.mean((y_true - y_pred) ** 2))
 
 
-def compute_normalized_mae_mse(preds, targets, train_data_df):
+def compute_normalized_mae_mse(preds, targets, train_data_df, series_idx=None):
     """Compute Z-score normalized MAE and MSE for comparison with published benchmarks.
 
-    Normalizes per-series using per-column mean and std from the training data,
-    matching the methodology of N-HiTS, PatchTST, and related long-horizon papers.
+    Normalizes per-series using per-column std from the training data, matching the
+    methodology of N-HiTS, PatchTST, and related long-horizon papers. (The per-column
+    mean cancels in the error difference, so only sigma is needed.)
 
     Parameters
     ----------
-    preds : np.ndarray, shape (n_series, forecast_length)
-        Model predictions. Row i corresponds to column i of train_data_df.
-    targets : np.ndarray, shape (n_series, forecast_length)
+    preds : np.ndarray, shape (n_rows, forecast_length)
+        Model predictions, one row per test window.
+    targets : np.ndarray, shape (n_rows, forecast_length)
         Ground-truth values.
     train_data_df : pd.DataFrame, shape (n_timesteps, n_series)
         Columnar training data used to compute per-series normalization statistics.
+    series_idx : array-like of int, optional
+        ``series_idx[i]`` gives the column position in ``train_data_df`` for
+        prediction row ``i``. Required when the test set yields more than one window
+        per series (Traffic/Weather rolling-window layout). ``None`` keeps the
+        one-row-per-series convention used by M4 and Tourism.
 
     Returns
     -------
@@ -567,29 +649,43 @@ def compute_normalized_mae_mse(preds, targets, train_data_df):
     """
     eps = 1e-8
     cols = train_data_df.columns
-    n_series = preds.shape[0]
+    n_rows = preds.shape[0]
 
-    norm_abs_errors = []
-    norm_sq_errors = []
+    if series_idx is None:
+        if n_rows > len(cols):
+            raise ValueError(
+                f"compute_normalized_mae_mse received {n_rows} prediction rows but "
+                f"only {len(cols)} series. This test set yields more than one window "
+                "per series; pass series_idx (see build_series_index_map)."
+            )
+        idx = np.arange(n_rows, dtype=np.int64)
+    else:
+        idx = np.asarray(series_idx, dtype=np.int64)
+        if idx.shape[0] != n_rows:
+            raise ValueError(
+                f"series_idx has {idx.shape[0]} entries but preds has {n_rows} rows."
+            )
+        if idx.size and (idx.max() >= len(cols) or idx.min() < 0):
+            raise ValueError(f"series_idx out of range for {len(cols)} series.")
 
-    for i in range(n_series):
-        col = cols[i] if i < len(cols) else cols[-1]
-        series_vals = train_data_df[col].dropna().values
+    # Per-series sigma, computed once. NaN marks an all-empty column, which the
+    # original implementation skipped via `continue`.
+    sigma = np.full(len(cols), np.nan, dtype=np.float64)
+    for s in np.unique(idx):
+        series_vals = train_data_df[cols[s]].dropna().values
         if len(series_vals) == 0:
             continue
+        sd = float(np.std(series_vals))
+        sigma[s] = 1.0 if sd < eps else sd
 
-        mu = float(np.mean(series_vals))
-        sigma = float(np.std(series_vals))
-        if sigma < eps:
-            sigma = 1.0
+    row_mae, row_mse = _row_error_means(preds, targets)
+    row_sigma = sigma[idx]
+    keep = np.isfinite(row_sigma)
+    if not keep.any():
+        return float("nan"), float("nan")
 
-        norm_pred = (preds[i] - mu) / sigma
-        norm_true = (targets[i] - mu) / sigma
-        norm_abs_errors.append(np.mean(np.abs(norm_pred - norm_true)))
-        norm_sq_errors.append(np.mean((norm_pred - norm_true) ** 2))
-
-    norm_mae = float(np.mean(norm_abs_errors)) if norm_abs_errors else float("nan")
-    norm_mse = float(np.mean(norm_sq_errors)) if norm_sq_errors else float("nan")
+    norm_mae = float(np.mean(row_mae[keep] / row_sigma[keep]))
+    norm_mse = float(np.mean(row_mse[keep] / row_sigma[keep] ** 2))
     return norm_mae, norm_mse
 
 
@@ -1347,9 +1443,20 @@ def run_single_experiment(
         # Inference
         preds, targets = run_inference(model, test_dm, device)
 
+        # Map each prediction row onto its source series. M4/Tourism emit exactly
+        # one window per series, but the Traffic/Weather rolling-window test sets
+        # emit thousands per series, so the per-series metrics below need an
+        # explicit row -> series mapping rather than assuming row i == series i.
+        series_idx = None
+        test_ds = getattr(test_dm, "test_dataset", None)
+        if test_ds is not None and hasattr(test_ds, "col_indices"):
+            series_idx = build_series_index_map(test_ds.col_indices, train_data)
+
         # Metrics
         smape = compute_smape(preds, targets)
-        mase = compute_m4_mase(preds, targets, train_series_list, frequency)
+        mase = compute_m4_mase(
+            preds, targets, train_series_list, frequency, series_idx=series_idx
+        )
         mae = compute_mae(preds, targets)
         mse = compute_mse(preds, targets)
         owa = dataset.compute_owa(smape, mase)
@@ -1357,7 +1464,9 @@ def run_single_experiment(
         # matching the evaluation protocol in N-HiTS, PatchTST, etc. for
         # Traffic and Weather datasets.  For M4, sMAPE/OWA remain primary;
         # norm_mae/norm_mse are still recorded for completeness.
-        norm_mae, norm_mse = compute_normalized_mae_mse(preds, targets, train_data)
+        norm_mae, norm_mse = compute_normalized_mae_mse(
+            preds, targets, train_data, series_idx=series_idx
+        )
 
         # Update diverged flag — only for genuinely non-finite metrics.
         # The smape >= 200 threshold was removed: a high sMAPE from a model that
