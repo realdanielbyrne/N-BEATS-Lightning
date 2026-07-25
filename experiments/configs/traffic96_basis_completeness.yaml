@@ -1,0 +1,186 @@
+# ============================================================
+# Traffic-96 Backcast Basis-Completeness Screen (Stage 1, lean)
+#
+# Every Traffic-96 run in this repo has a COMPLETE forecast basis and a
+# BADLY TRUNCATED backcast one. At forecast_multiplier=5 (L=480, H=96):
+#
+#   basis_dim=96  (eq_fcast, the repo default) -> backcast  96/480 =  20%
+#   basis_dim=192 (2*eq_fcast)                 -> backcast 192/480 =  40%
+#   basis_dim=480 (complete, NEVER RUN)        -> backcast 480/480 = 100%
+#
+# forecast rows are min(forecast_basis_dim, 96) = 96 = 100% in every arm,
+# so ALL variation here is on the backcast path.
+#
+# Motivated by ../pellm/docs/wavelet_width_expressiveness.md:
+#   * S3.3  expected captured energy = d/m, linear in basis width
+#   * S9.4  width is dominant while d/m < 1 (eta^2 .79-.97), inert once complete
+#   * S8.5  item 1: set basis_dim = backcast_length AND
+#           forecast_basis_dim = forecast_length (both complete, neither overcomplete)
+#   * C13/C14: wavelet family and filter length are well-powered nulls
+#           -> family is FIXED at coif2 and is NOT swept.
+#
+# Do NOT add a `forecast_basis_dim: 480` arm: it is numerically identical to
+# forecast_basis_dim=96 (silently clamped to forecast_length). Verified.
+#
+# ── READ BEFORE COMPARING TO OLD TRAFFIC NUMBERS ─────────────────────────────
+# Commit 41888b4 (2026-04-13) changed the Traffic test set from a single
+# horizon-length block (df.iloc[n_train : n_train+H] -> ONE prediction row per
+# series) to the final 20% of rows (-> 3,415 rolling windows per series).
+# Every existing Traffic CSV in this repo predates that change (provable: all
+# 635 rows carry a valid MASE, and post-41888b4 Traffic runs crashed in
+# compute_m4_mase until that was fixed). So absolute smape/mae/mse from the old
+# corpus are NOT comparable to anything run today -- the test set is different.
+# The bd96_fd96 arm re-anchors the incumbent configuration under the current
+# rolling-window protocol; read this study against that arm, not against 0.000601.
+#
+# Usage:
+#   python experiments/run_from_yaml.py experiments/configs/traffic96_basis_completeness.yaml --dry-run
+#   python experiments/run_from_yaml.py experiments/configs/traffic96_basis_completeness.yaml
+# ============================================================
+
+experiment_name: traffic96_basis_completeness
+category: basis_completeness
+description: >
+  Backcast basis-completeness ladder on Traffic-96 at fixed wavelet family (coif2).
+  forecast_basis_dim pinned to 96 (complete) in every arm, so all variation is on the
+  backcast path. basis_dim 96/192/480 = 20%/40%/100% of backcast_length=480.
+  Wavelet family and filter length are NOT swept (well-powered nulls, C13/C14).
+
+dataset: traffic
+periods: [Traffic-96]
+
+# ── Sliding-window protocol, matching the existing Traffic corpus ─────────────
+# Every Traffic study in this repo uses sampling_style=sliding (enumerate all
+# windows, shuffle, full passes), as does the LTSF literature. The recipe below
+# mirrors Traffic-AsymWavelet-Diagnostic, which is the ONLY existing study that
+# runs this exact architecture (8x [TrendAELG, WaveletV3AELG], coif2, ld=4, td=3)
+# at bd=fbd=96 -- i.e. the bd96_fd96 arm re-measures its best cell.
+protocol:
+  datamodule: columnar
+  sampling_style: sliding
+  normalize: false              # PeMS occupancy is already 0-1
+  train_ratio: 0.7
+  val_ratio: 0.1
+  include_target: true
+
+training:
+  active_g: false
+  sum_losses: false
+  activation: ReLU
+  max_epochs: 100
+  patience: 10                  # in EPOCH units under sliding (one epoch = one
+                                # full pass over ~10.08M windows)
+  n_blocks_per_stack: 1
+  share_weights: true
+  loss: MSELoss                 # Traffic's reported metric; used by every L=480
+                                # Traffic study in the repo
+  optimizer: Adam
+  learning_rate: 0.001
+  forecast_multiplier: 5        # L = 480 = 5H; MANDATORY on Traffic
+                                # (L=2H gives 86-100% divergence)
+  batch_size: 1024              # ~9,845 steps/epoch at 10.08M windows.
+                                # NOT tuned: the apparent 256-vs-131072 gap in the
+                                # old corpus is confounded with architecture AND
+                                # train extent, so no batch size is demonstrated
+                                # optimal here. 1024 keeps the 40-52M paper
+                                # baselines affordable at n=5 while still giving
+                                # far more updates than the comprehensive sweep.
+
+# Constant LR, matching the AsymWavelet reference cell (no lr_scheduler block).
+lr_scheduler: null
+
+block_params:
+  wavelet_type: coif2           # FIXED, not swept (C13/C14 nulls)
+  basis_offset: 0               # every non-zero offset is worse on Traffic;
+                                # at bd=480 an offset would only SHRINK the basis
+  forecast_basis_dim: 96        # complete forecast basis, pinned in every arm.
+                                # Must be an int: this key bypasses _resolve_basis_dim,
+                                # so "eq_fcast" here would TypeError inside the block.
+  latent_dim: 4
+  thetas_dim: 5
+  trend_thetas_dim: 3
+
+runs:
+  n_runs: 5
+  seed_mode: sequential
+  base_seed: 42
+
+extra_csv_columns:
+  - basis_dim_cfg
+  - forecast_basis_dim_cfg
+  - backcast_coverage_pct
+  - wavelet_family
+
+configs:
+  - name: bd96_fd96
+    stacks: {type: alternating, blocks: [TrendAELG, WaveletV3AELG], repeats: 4}
+    block_params: {basis_dim: 96}
+    extra_fields:
+      basis_dim_cfg: 96
+      forecast_basis_dim_cfg: 96
+      backcast_coverage_pct: 20
+      wavelet_family: coif2
+
+  - name: bd192_fd96
+    stacks: {type: alternating, blocks: [TrendAELG, WaveletV3AELG], repeats: 4}
+    block_params: {basis_dim: 192}
+    extra_fields:
+      basis_dim_cfg: 192
+      forecast_basis_dim_cfg: 96
+      backcast_coverage_pct: 40
+      wavelet_family: coif2
+
+  - name: bd480_fd96
+    stacks: {type: alternating, blocks: [TrendAELG, WaveletV3AELG], repeats: 4}
+    block_params: {basis_dim: 480}
+    extra_fields:
+      basis_dim_cfg: 480
+      forecast_basis_dim_cfg: 96
+      backcast_coverage_pct: 100
+      wavelet_family: coif2
+
+  # ── Paper N-BEATS baselines (Oreshkin et al. 2020) ──────────────────────────
+  # Measured on the SAME rolling-window test set as the arms above, which is the
+  # only way to compare: the old-corpus baseline numbers are on the pre-41888b4
+  # single-window protocol. Both are `ag0` (active_g=False) and therefore
+  # paper-faithful; `builtin` supplies 30 stacks x 1 block with share_weights.
+  # These ignore basis_dim / wavelet_type entirely (Generic/Trend/Seasonality
+  # blocks never receive them), so they are clean architecture comparators.
+  # trend_thetas_dim=3 from the top-level block_params reproduces the parameter
+  # counts recorded in comprehensive_sweep_traffic_results.csv exactly.
+  - builtin: NBEATS-G
+    name: NBEATS-G_30s_ag0
+    category: paper_baseline
+    extra_fields:
+      basis_dim_cfg: ""
+      forecast_basis_dim_cfg: ""
+      backcast_coverage_pct: ""
+      wavelet_family: none
+
+  - builtin: NBEATS-I+G
+    name: NBEATS-IG_30s_ag0
+    category: paper_baseline
+    extra_fields:
+      basis_dim_cfg: ""
+      forecast_basis_dim_cfg: ""
+      backcast_coverage_pct: ""
+      wavelet_family: none
+
+output:
+  results_dir: experiments/results
+  csv_filename: traffic96_basis_completeness_results.csv
+  save_predictions: false
+
+logging:
+  wandb:
+    enabled: false
+    project: nbeats-lightning
+  tensorboard: false
+
+hardware:
+  accelerator: auto
+  num_workers: 0
+
+analysis:
+  enabled: true
+  ranking: true
