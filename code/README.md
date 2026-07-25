@@ -6,6 +6,10 @@ Python packages, each with its own dependency set, experiment launcher,
 configurations, and pytest suite. The split keeps the time-series
 environment free of HuggingFace `transformers` and vice versa.
 
+## Abstract
+
+A 0.48M-parameter model matches N-BEATS on the M4 forecasting benchmark using up to 95% fewer parameters. Applied inside a Transformer, the same structural change produces a Llama-3.2-1B variant that beats its unmodified base on perplexity. We replace the Fourier-style basis in N-BEATS with discrete wavelet transforms, which localize features in time and frequency, and route the block trunk through a learnable-gate autoencoder bottleneck. Together these cut N-BEATS parameter counts by **60–95%** while *matching or beating* its published M4 sMAPEs without ensembling. A single **0.48M-parameter** TrendWavelet model (`TWAELG_10s_ld32_db3`) lands top-5 on M4-Yearly, M4-Daily, and M4-Hourly under the paper-sample protocol, giving **12–80× compression at near-zero accuracy cost** versus 19M–43M-parameter baselines. The blocks transfer cleanly to other architectures. On NHiTS the parameter savings carry over to Weather and Traffic. In Transformer LLMs the effect sharpens. A from-scratch SmolLM2-135M-class model with wavelet and AE replacements for its SwiGLU MLPs and attention projections runs at **half the parameters** (67.2M vs 134.5M) and Pareto-dominates a pure-AE baseline. In a separate experiment, replacing one MLP block in Llama-3.2-1B with the same AE-LG bottleneck and recovering accuracy through autoencoder pretraining and knowledge-distillation fine-tuning shrinks that block by **~90%** and lowers whole-model perplexity to **18.81**, beating the unmodified Llama-3.2-1B baseline of **19.45** (−3.3%). What looks like a forecasting-specific compression trick is a general structural prior. The freed parameter budget can be redeposited into deeper stacks, richer composite bases, or wider models.
+
 ## Layout
 
 ```text

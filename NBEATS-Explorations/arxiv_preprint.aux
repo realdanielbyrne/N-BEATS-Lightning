@@ -1,0 +1,257 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{oreshkin2020nbeats}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction and Prior Work}{1}{section.1}\protected@file@percent }
+\newlabel{sec:intro}{{1}{1}{Introduction and Prior Work}{section.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.1}Introduction}{1}{subsection.1.1}\protected@file@percent }
+\citation{mallat1989wavelet,daubechies1992ten}
+\citation{zhou2025wavets}
+\citation{deznabi2023multiwave}
+\citation{sasal2022wtransformers}
+\citation{pramanick2024fusion}
+\citation{hinton2006reducing}
+\citation{vincent2008denoising}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.2}Wavelets}{2}{subsection.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.3}Autoencoders}{2}{subsection.1.3}\protected@file@percent }
+\citation{oreshkin2020nbeats}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Model Description}{3}{section.2}\protected@file@percent }
+\newlabel{sec:method}{{2}{3}{Model Description}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Backbone Blocks}{3}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.1}RootBlock}{3}{subsubsection.2.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.2}AERootBlock}{3}{subsubsection.2.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.3}AERootBlockLG}{3}{subsubsection.2.1.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Backbone architecture comparison.}}{4}{table.1}\protected@file@percent }
+\newlabel{tab:backbones}{{1}{4}{Backbone architecture comparison}{table.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Backbone parameter counts at default widths ($L = 480$).}}{4}{table.2}\protected@file@percent }
+\newlabel{tab:param-counts}{{2}{4}{Backbone parameter counts at default widths ($L = 480$)}{table.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.4}Parameter efficiency}{4}{subsubsection.2.1.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Single-trunk vs.\ branch-specific AE designs.}}{5}{table.3}\protected@file@percent }
+\newlabel{tab:branch-ae}{{3}{5}{Single-trunk vs.\ branch-specific AE designs}{table.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Branch-specific encoder-decoder designs}{5}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Wavelet Family Blocks}{5}{subsection.2.3}\protected@file@percent }
+\newlabel{sec:wavelet}{{2.3}{5}{Wavelet Family Blocks}{subsection.2.3}{}}
+\citation{makridakis2020m4}
+\citation{oreshkin2020nbeats}
+\citation{oreshkin2020nbeats}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.1}Composition blocks: TrendWavelet and TrendWaveletGeneric}{6}{subsubsection.2.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.2}Asymmetric and tiered wavelet bases}{6}{subsubsection.2.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Asymmetric wavelet families.}{6}{section*.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Tiered basis offset.}{6}{section*.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Experimental Setup}{6}{section.3}\protected@file@percent }
+\newlabel{sec:experimental_setup}{{3}{6}{Experimental Setup}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Datasets}{6}{subsection.3.1}\protected@file@percent }
+\citation{oreshkin2020nbeats}
+\citation{challu2023nhits}
+\citation{allal2025smollm2}
+\citation{penedo2024fineweb}
+\citation{oreshkin2020nbeats}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Datasets and evaluation parameters. The paper-sample protocol enforces the in-sample constraint $L_h \cdot H$~\citep  [Appendix~D]{oreshkin2020nbeats} on the trailing window of each series, with $L_h = 1.5$ for Yearly/Quarterly and $L_h = 10$ otherwise.}}{7}{table.4}\protected@file@percent }
+\newlabel{tab:datasets}{{4}{7}{Datasets and evaluation parameters. The paper-sample protocol enforces the in-sample constraint $L_h \cdot H$~\citep [Appendix~D]{oreshkin2020nbeats} on the trailing window of each series, with $L_h = 1.5$ for Yearly/Quarterly and $L_h = 10$ otherwise}{table.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Training Protocols}{7}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Architecture Sweep and Cross-Architecture Transfer}{7}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Results}{7}{section.4}\protected@file@percent }
+\newlabel{sec:results}{{4}{7}{Results}{section.4}{}}
+\citation{oreshkin2020nbeats}
+\citation{oreshkin2020nbeats}
+\citation{oreshkin2020nbeats}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Protocol-local winners used for the main comparison. M4 rows use the paper-sample protocol; Weather-96 uses the comprehensive-sweep protocol. Tourism and Milk are summarized in Appendix~\ref {app:ood}. Scores are mean $\pm $ std over the surviving seeds. Asterisks mark \texttt  {active\_g=forecast}, which is not part of the original N-BEATS paper~\citep  {oreshkin2020nbeats}.}}{8}{table.5}\protected@file@percent }
+\newlabel{tab:main_leaderboard}{{5}{8}{Protocol-local winners used for the main comparison. M4 rows use the paper-sample protocol; Weather-96 uses the comprehensive-sweep protocol. Tourism and Milk are summarized in Appendix~\ref {app:ood}. Scores are mean $\pm $ std over the surviving seeds. Asterisks mark \texttt {active\_g=forecast}, which is not part of the original N-BEATS paper~\citep {oreshkin2020nbeats}}{table.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Best sub-1M M4 configurations under the paper-sample protocol. ``Gap'' is relative to the period winner in Table~\ref {tab:main_leaderboard}; ``Param ratio'' compares the period winner's parameter count with the compact model.}}{8}{table.6}\protected@file@percent }
+\newlabel{tab:sub1m_frontier}{{6}{8}{Best sub-1M M4 configurations under the paper-sample protocol. ``Gap'' is relative to the period winner in Table~\ref {tab:main_leaderboard}; ``Param ratio'' compares the period winner's parameter count with the compact model}{table.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Per-Period Leaderboards}{8}{subsection.4.1}\protected@file@percent }
+\newlabel{sec:m4_leaderboards}{{4.1}{8}{Per-Period Leaderboards}{subsection.4.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Parameter-Efficiency Frontier}{8}{subsection.4.2}\protected@file@percent }
+\newlabel{sec:param_efficiency}{{4.2}{8}{Parameter-Efficiency Frontier}{subsection.4.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Stability and Ablations}{8}{subsection.4.3}\protected@file@percent }
+\newlabel{sec:depth_stability}{{4.3}{8}{Stability and Ablations}{subsection.4.3}{}}
+\citation{challu2023nhits}
+\citation{allal2025smollm2}
+\citation{penedo2024fineweb}
+\bibstyle{plainnat}
+\bibdata{references}
+\bibcite{allal2025smollm2}{{1}{2025}{{Allal et~al.}}{{Allal, Lozhkov, Bakouch, Bl{\'a}zquez, Tunstall, Piqueres, Marafioti, Zakka, von Werra, and Wolf}}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Cross-Architecture Transferability: NHiTS}{9}{subsection.4.4}\protected@file@percent }
+\newlabel{sec:transfer_summary}{{4.4}{9}{Cross-Architecture Transferability: NHiTS}{subsection.4.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}Cross-Architecture Transferability: Transformer LLMs}{9}{subsection.4.5}\protected@file@percent }
+\newlabel{sec:transfer_llm}{{4.5}{9}{Cross-Architecture Transferability: Transformer LLMs}{subsection.4.5}{}}
+\bibcite{challu2023nhits}{{2}{2023}{{Challu et~al.}}{{Challu, Olivares, Oreshkin, Ramirez, Mergenthaler-Canseco, and Dubrawski}}}
+\bibcite{daubechies1992ten}{{3}{1992}{{Daubechies}}{{}}}
+\bibcite{deznabi2023multiwave}{{4}{2023}{{Deznabi and Fiterau}}{{}}}
+\bibcite{eval-harness}{{5}{2024}{{Gao et~al.}}{{Gao, Tow, Abbasi, Biderman, Black, DiPofi, Foster, Golding, Hsu, Le~Noac'h, Li, McDonell, Muennighoff, Ociepa, Phang, Reynolds, Schoelkopf, Skowron, Sutawika, Tang, Thite, Wang, Wang, and Zou}}}
+\bibcite{glorot2011deep}{{6}{2011}{{Glorot et~al.}}{{Glorot, Bordes, and Bengio}}}
+\bibcite{hinton2006reducing}{{7}{2006}{{Hinton and Salakhutdinov}}{{}}}
+\bibcite{hochreiter1991untersuchungen}{{8}{1991}{{Hochreiter}}{{}}}
+\bibcite{makridakis2020m4}{{9}{2020}{{Makridakis et~al.}}{{Makridakis, Spiliotis, and Assimakopoulos}}}
+\bibcite{mallat1989wavelet}{{10}{1989}{{Mallat}}{{}}}
+\bibcite{llama32}{{11}{2024}{{Meta AI}}{{}}}
+\bibcite{oreshkin2020nbeats}{{12}{2020}{{Oreshkin et~al.}}{{Oreshkin, Carpov, Chapados, and Bengio}}}
+\bibcite{pascanu2013difficulty}{{13}{2013}{{Pascanu et~al.}}{{Pascanu, Mikolov, and Bengio}}}
+\bibcite{penedo2024fineweb}{{14}{2024}{{Penedo et~al.}}{{Penedo, Kydl{\'\i }{\v {c}}ek, Allal, Lozhkov, Mitchell, Raffel, von Werra, and Wolf}}}
+\bibcite{pramanick2024fusion}{{15}{2024}{{Pramanick et~al.}}{{Pramanick, Singhal, et~al.}}}
+\bibcite{sasal2022wtransformers}{{16}{2022}{{Sasal et~al.}}{{Sasal, Chakraborty, and Hadid}}}
+\bibcite{vincent2008denoising}{{17}{2008}{{Vincent et~al.}}{{Vincent, Larochelle, Bengio, and Manzagol}}}
+\bibcite{zhou2025wavets}{{18}{2025}{{Zhou et~al.}}{{Zhou, Hu, Wen, Kwok, and Liang}}}
+\citation{oreshkin2020nbeats}
+\citation{oreshkin2020nbeats}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Paper-Sample Protocol Details}{11}{appendix.A}\protected@file@percent }
+\newlabel{app:protocols}{{A}{11}{Paper-Sample Protocol Details}{appendix.A}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Faithful replication (MultiStepLR)}{11}{subsection.A.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Sampling.}{11}{section*.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Optimization.}{11}{section*.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Learning-rate schedule.}{11}{section*.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Validation and early stopping.}{11}{section*.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Other settings.}{11}{section*.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.2}Plateau LR variant (ReduceLROnPlateau)}{11}{subsection.A.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Learning-rate schedule.}{12}{section*.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Effect.}{12}{section*.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.3}Why two paper-sample protocols}{12}{subsection.A.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B}Hyperparameters and Empirical Defaults}{12}{appendix.B}\protected@file@percent }
+\newlabel{app:hyperparams}{{B}{12}{Hyperparameters and Empirical Defaults}{appendix.B}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Code defaults vs paper-sweep values}{12}{subsection.B.1}\protected@file@percent }
+\newlabel{app:hyperparams:defaults}{{B.1}{12}{Code defaults vs paper-sweep values}{subsection.B.1}{}}
+\@writefile{toc}{\contentsline {paragraph}{Lookback and forecast multiplier.}{12}{section*.12}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces N-BEATS / lightningnbeats hyperparameters: constructor defaults and the values used in this paper's M4 sweeps.}}{13}{table.7}\protected@file@percent }
+\newlabel{tab:hyperparams_defaults}{{7}{13}{N-BEATS / lightningnbeats hyperparameters: constructor defaults and the values used in this paper's M4 sweeps}{table.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}Architectural sweep grids}{13}{subsection.B.2}\protected@file@percent }
+\newlabel{app:hyperparams:grids}{{B.2}{13}{Architectural sweep grids}{subsection.B.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Wavelet basis implementation.}{13}{section*.13}\protected@file@percent }
+\citation{oreshkin2020nbeats}
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Hyperparameter grids per block family. ``--'' means the parameter does not apply to the family.}}{14}{table.8}\protected@file@percent }
+\newlabel{tab:sweep_grids}{{8}{14}{Hyperparameter grids per block family. ``--'' means the parameter does not apply to the family}{table.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.3}Training-protocol hyperparameters (sliding)}{14}{subsection.B.3}\protected@file@percent }
+\newlabel{app:hyperparams:sliding}{{B.3}{14}{Training-protocol hyperparameters (sliding)}{subsection.B.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.4}Per-period recommendations}{14}{subsection.B.4}\protected@file@percent }
+\newlabel{app:hyperparams:perperiod}{{B.4}{14}{Per-period recommendations}{subsection.B.4}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {B.4.1}LR scheduler by period and protocol}{14}{subsubsection.B.4.1}\protected@file@percent }
+\newlabel{app:hyperparams:lr}{{B.4.1}{14}{LR scheduler by period and protocol}{subsubsection.B.4.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Recommended LR scheduler per (period, protocol). Plateau $\equiv $ \texttt  {ReduceLROnPlateau} with $\text  {patience}=3$ val-check units, $\text  {factor}=0.5$, $\text  {cooldown}=1$, $\text  {min\_lr}=10^{-6}$. Step-paper $\equiv $ MultiStepLR with $10$ evenly spaced milestones, $\gamma =0.5$. Cosine-warmup $\equiv $ $15$-epoch linear warmup then cosine annealing to $\eta _{\min }=10^{-6}$.}}{14}{table.9}\protected@file@percent }
+\newlabel{tab:lr_per_period}{{9}{14}{Recommended LR scheduler per (period, protocol). Plateau $\equiv $ \texttt {ReduceLROnPlateau} with $\text {patience}=3$ val-check units, $\text {factor}=0.5$, $\text {cooldown}=1$, $\text {min\_lr}=10^{-6}$. Step-paper $\equiv $ MultiStepLR with $10$ evenly spaced milestones, $\gamma =0.5$. Cosine-warmup $\equiv $ $15$-epoch linear warmup then cosine annealing to $\eta _{\min }=10^{-6}$}{table.9}{}}
+\@writefile{toc}{\contentsline {paragraph}{Mandatory.}{14}{section*.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {B.4.2}Sampling protocol verdict per period}{14}{subsubsection.B.4.2}\protected@file@percent }
+\newlabel{app:hyperparams:sampling}{{B.4.2}{14}{Sampling protocol verdict per period}{subsubsection.B.4.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces Sampling-protocol verdict per M4 period. $\Delta = \text  {sliding} - \text  {paper-sample}$ on the best config for each protocol; negative $\Delta $ favors sliding. Absolute sMAPE within a row is not comparable across protocols (Appendix~\ref {app:protocols}).}}{15}{table.10}\protected@file@percent }
+\newlabel{tab:protocol_per_period}{{10}{15}{Sampling-protocol verdict per M4 period. $\Delta = \text {sliding} - \text {paper-sample}$ on the best config for each protocol; negative $\Delta $ favors sliding. Absolute sMAPE within a row is not comparable across protocols (Appendix~\ref {app:protocols})}{table.10}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {B.4.3}Wavelet family per period}{15}{subsubsection.B.4.3}\protected@file@percent }
+\newlabel{app:hyperparams:wavelet}{{B.4.3}{15}{Wavelet family per period}{subsubsection.B.4.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces Best wavelet family per M4 period within the shortlist. Paper-sample uses the LR scheduler from Table~\ref {tab:lr_per_period}; sliding uses cosine-warmup throughout.}}{15}{table.11}\protected@file@percent }
+\newlabel{tab:wavelet_per_period}{{11}{15}{Best wavelet family per M4 period within the shortlist. Paper-sample uses the LR scheduler from Table~\ref {tab:lr_per_period}; sliding uses cosine-warmup throughout}{table.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.5}Block-level recommendations}{15}{subsection.B.5}\protected@file@percent }
+\newlabel{app:hyperparams:block}{{B.5}{15}{Block-level recommendations}{subsection.B.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{\texttt  {basis\_dim}.}{15}{section*.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\texttt  {latent\_dim}.}{15}{section*.16}\protected@file@percent }
+\citation{oreshkin2020nbeats}
+\@writefile{toc}{\contentsline {paragraph}{\texttt  {trend\_thetas\_dim}.}{16}{section*.17}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Trend backbone hierarchy.}{16}{section*.18}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Block ordering.}{16}{section*.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{TrendWavelet vs alternating T+W.}{16}{section*.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\texttt  {active\_g}.}{16}{section*.21}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Other ablations (not exercised on M4).}{16}{section*.22}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.6}Drop list}{16}{subsection.B.6}\protected@file@percent }
+\newlabel{app:hyperparams:drop}{{B.6}{16}{Drop list}{subsection.B.6}{}}
+\citation{oreshkin2020nbeats}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.7}Quick-pick decision table}{17}{subsection.B.7}\protected@file@percent }
+\newlabel{app:hyperparams:quickpick}{{B.7}{17}{Quick-pick decision table}{subsection.B.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {12}{\ignorespaces Best M4 configuration per (period, protocol). All cells are $n=10$ unless noted. ``ttd'' = \texttt  {trend\_thetas\_dim}; ``ld'' = \texttt  {latent\_dim}; ``bd'' = \texttt  {basis\_dim} label; ``\texttt  {ag}'' = \texttt  {active\_g} (\texttt  {0} = \texttt  {False}, \texttt  {f} = \texttt  {'forecast'}).}}{17}{table.12}\protected@file@percent }
+\newlabel{tab:quickpick}{{12}{17}{Best M4 configuration per (period, protocol). All cells are $n=10$ unless noted. ``ttd'' = \texttt {trend\_thetas\_dim}; ``ld'' = \texttt {latent\_dim}; ``bd'' = \texttt {basis\_dim} label; ``\texttt {ag}'' = \texttt {active\_g} (\texttt {0} = \texttt {False}, \texttt {f} = \texttt {'forecast'})}{table.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.8}Cross-period generalists}{17}{subsection.B.8}\protected@file@percent }
+\newlabel{app:hyperparams:generalist}{{B.8}{17}{Cross-period generalists}{subsection.B.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.9}Reproducibility}{17}{subsection.B.9}\protected@file@percent }
+\newlabel{app:hyperparams:repro}{{B.9}{17}{Reproducibility}{subsection.B.9}{}}
+\@writefile{toc}{\contentsline {paragraph}{Canonical CSVs (\nolinkurl  {experiments/results/m4/}).}{17}{section*.23}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Canonical analysis.}{18}{section*.24}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Canonical YAML configs (\nolinkurl  {experiments/configs/}).}{18}{section*.25}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.10}Compute resources}{18}{subsection.B.10}\protected@file@percent }
+\newlabel{app:hyperparams:compute}{{B.10}{18}{Compute resources}{subsection.B.10}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {C}Configuration list}{18}{appendix.C}\protected@file@percent }
+\newlabel{app:configs}{{C}{18}{Configuration list}{appendix.C}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}M4 sweeps}{18}{subsection.C.1}\protected@file@percent }
+\newlabel{app:configs:m4}{{C.1}{18}{M4 sweeps}{subsection.C.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {13}{\ignorespaces M4 sweep configurations. Sliding $\equiv $ \texttt  {nbeats\_sliding} sampling with cosine-warmup LR; paper-sample $\equiv $ \texttt  {nbeats\_paper} iteration-based protocol of Appendix~\ref {app:protocols} with either MultiStepLR (faithful) or ReduceLROnPlateau.}}{18}{table.13}\protected@file@percent }
+\newlabel{tab:configs_m4}{{13}{18}{M4 sweep configurations. Sliding $\equiv $ \texttt {nbeats\_sliding} sampling with cosine-warmup LR; paper-sample $\equiv $ \texttt {nbeats\_paper} iteration-based protocol of Appendix~\ref {app:protocols} with either MultiStepLR (faithful) or ReduceLROnPlateau}{table.13}{}}
+\@writefile{toc}{\contentsline {paragraph}{Sweep groups.}{18}{section*.26}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.2}Out-of-distribution sweeps}{19}{subsection.C.2}\protected@file@percent }
+\newlabel{app:configs:ood}{{C.2}{19}{Out-of-distribution sweeps}{subsection.C.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {14}{\ignorespaces Out-of-distribution sweep configurations.}}{19}{table.14}\protected@file@percent }
+\newlabel{tab:configs_ood}{{14}{19}{Out-of-distribution sweep configurations}{table.14}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.3}Targeted ablation configs}{19}{subsection.C.3}\protected@file@percent }
+\newlabel{app:configs:ablations}{{C.3}{19}{Targeted ablation configs}{subsection.C.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {D}Additional ablations}{19}{appendix.D}\protected@file@percent }
+\newlabel{app:ablations}{{D}{19}{Additional ablations}{appendix.D}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.1}\texttt  {active\_g}: Definition, Instability, and Per-Period Effect}{19}{subsection.D.1}\protected@file@percent }
+\newlabel{app:ablations:active_g}{{D.1}{19}{\texttt {active\_g}: Definition, Instability, and Per-Period Effect}{subsection.D.1}{}}
+\@writefile{toc}{\contentsline {paragraph}{Definition.}{19}{section*.27}\protected@file@percent }
+\citation{oreshkin2020nbeats}
+\citation{hochreiter1991untersuchungen,pascanu2013difficulty}
+\citation{glorot2011deep}
+\@writefile{toc}{\contentsline {paragraph}{Observed instabilities and convergence failures.}{20}{section*.28}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{A working hypothesis: unactivated linear outputs as a source of instability.}{20}{section*.29}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Structural regularisation in AE and Wavelet blocks as an implicit substitute.}{21}{section*.30}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Trade-offs.}{21}{section*.31}\protected@file@percent }
+\citation{challu2023nhits}
+\@writefile{lot}{\contentsline {table}{\numberline {15}{\ignorespaces \texttt  {active\_g} effect by dataset, paired Mann--Whitney. ``Quality cost'' is the absolute sMAPE delta on the converged subset of seeds; the convergence column is the failure-rate reduction. ``Converged subset'' applies a dataset-specific stuck-mode filter beyond the strict health filter of Section~\ref {sec:results} ($\mathrm  {sMAPE}<20$ on M4-Yearly, $\mathrm  {sMAPE}<30$ on Tourism-Yearly, $\mathrm  {sMAPE}<5$ on Milk) so that bimodal stuck seeds do not contaminate the converged-mean estimate.}}{22}{table.15}\protected@file@percent }
+\newlabel{tab:active_g_ablation}{{15}{22}{\texttt {active\_g} effect by dataset, paired Mann--Whitney. ``Quality cost'' is the absolute sMAPE delta on the converged subset of seeds; the convergence column is the failure-rate reduction. ``Converged subset'' applies a dataset-specific stuck-mode filter beyond the strict health filter of Section~\ref {sec:results} ($\mathrm {sMAPE}<20$ on M4-Yearly, $\mathrm {sMAPE}<30$ on Tourism-Yearly, $\mathrm {sMAPE}<5$ on Milk) so that bimodal stuck seeds do not contaminate the converged-mean estimate}{table.15}{}}
+\@writefile{toc}{\contentsline {paragraph}{\texttt  {active\_g=True} vs.\ \texttt  {active\_g='forecast'}.}{22}{section*.32}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Per-period verdict on M4 paper-sample.}{22}{section*.33}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.2}Tiered basis-offset: per-period verdict}{22}{subsection.D.2}\protected@file@percent }
+\newlabel{app:ablations:tiered}{{D.2}{22}{Tiered basis-offset: per-period verdict}{subsection.D.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {16}{\ignorespaces Tiered basis-offset, matched against the closest non-tiered baseline. ``Better'' counts paired wins for the tiered config; significance is paired Wilcoxon at $p<0.05$.}}{22}{table.16}\protected@file@percent }
+\newlabel{tab:tiered_per_period}{{16}{22}{Tiered basis-offset, matched against the closest non-tiered baseline. ``Better'' counts paired wins for the tiered config; significance is paired Wilcoxon at $p<0.05$}{table.16}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.3}LR scheduler: paper-sample matched pairs}{22}{subsection.D.3}\protected@file@percent }
+\newlabel{app:ablations:lr}{{D.3}{22}{LR scheduler: paper-sample matched pairs}{subsection.D.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.4}Traffic-96 NHiTS transferability}{22}{subsection.D.4}\protected@file@percent }
+\newlabel{app:ablations:nhits_traffic}{{D.4}{22}{Traffic-96 NHiTS transferability}{subsection.D.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {17}{\ignorespaces Paper-sample plateau-vs-step matched pairs ($\Delta = $ plateau $-$ step). Negative $\Delta $ favors plateau.}}{23}{table.17}\protected@file@percent }
+\newlabel{tab:lr_matched}{{17}{23}{Paper-sample plateau-vs-step matched pairs ($\Delta = $ plateau $-$ step). Negative $\Delta $ favors plateau}{table.17}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {E}M4 full per-period tables}{23}{appendix.E}\protected@file@percent }
+\newlabel{app:m4_tables}{{E}{23}{M4 full per-period tables}{appendix.E}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.1}M4-Yearly ($H=6$, $L=30$)}{23}{subsection.E.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {18}{\ignorespaces M4-Yearly top-5: paper-sample (left) and sliding (right).}}{23}{table.18}\protected@file@percent }
+\newlabel{tab:m4_yearly_full}{{18}{23}{M4-Yearly top-5: paper-sample (left) and sliding (right)}{table.18}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {19}{\ignorespaces M4-Quarterly top-5: paper-sample (left) and sliding (right).}}{24}{table.19}\protected@file@percent }
+\newlabel{tab:m4_quarterly_full}{{19}{24}{M4-Quarterly top-5: paper-sample (left) and sliding (right)}{table.19}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {20}{\ignorespaces M4-Monthly top-5: paper-sample (left) and sliding (right).}}{24}{table.20}\protected@file@percent }
+\newlabel{tab:m4_monthly_full}{{20}{24}{M4-Monthly top-5: paper-sample (left) and sliding (right)}{table.20}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.2}M4-Quarterly ($H=8$, $L=40$)}{24}{subsection.E.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.3}M4-Monthly ($H=18$, $L=90$)}{24}{subsection.E.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.4}M4-Weekly ($H=13$, $L=65$)}{24}{subsection.E.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.5}M4-Daily ($H=14$, $L=70$)}{24}{subsection.E.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.6}M4-Hourly ($H=48$, $L=240$)}{24}{subsection.E.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.7}Cross-period generalist mean ranks}{24}{subsection.E.7}\protected@file@percent }
+\newlabel{app:m4_tables:generalists}{{E.7}{24}{Cross-period generalist mean ranks}{subsection.E.7}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {F}Tourism and Milk Out-of-Distribution Results}{24}{appendix.F}\protected@file@percent }
+\newlabel{app:ood}{{F}{24}{Tourism and Milk Out-of-Distribution Results}{appendix.F}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {F.1}Tourism (Y/Q/M)}{24}{subsection.F.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {21}{\ignorespaces M4-Weekly top-5 paper-sample (step\_paper LR) and best plateau-LR cell (n=10 re-validation), plus sliding top-5.}}{25}{table.21}\protected@file@percent }
+\newlabel{tab:m4_weekly_full}{{21}{25}{M4-Weekly top-5 paper-sample (step\_paper LR) and best plateau-LR cell (n=10 re-validation), plus sliding top-5}{table.21}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {22}{\ignorespaces M4-Daily top-5: paper-sample (left) and sliding (right).}}{25}{table.22}\protected@file@percent }
+\newlabel{tab:m4_daily_full}{{22}{25}{M4-Daily top-5: paper-sample (left) and sliding (right)}{table.22}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {F.2}Milk}{25}{subsection.F.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {23}{\ignorespaces M4-Hourly top-10 paper-sample (mixed scheduler choice; canonicalized in Section~\ref {sec:m4_leaderboards}) and sliding top-5.}}{26}{table.23}\protected@file@percent }
+\newlabel{tab:m4_hourly_full}{{23}{26}{M4-Hourly top-10 paper-sample (mixed scheduler choice; canonicalized in Section~\ref {sec:m4_leaderboards}) and sliding top-5}{table.23}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {24}{\ignorespaces Top-5 paper-sample generalists by mean rank across the six M4 periods. Ranks are within the 108-config paper-sample pool. ``--'' means the config did not run on that period.}}{26}{table.24}\protected@file@percent }
+\newlabel{tab:generalist_paper}{{24}{26}{Top-5 paper-sample generalists by mean rank across the six M4 periods. Ranks are within the 108-config paper-sample pool. ``--'' means the config did not run on that period}{table.24}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {F.3}Backbone-by-regime summary}{26}{subsection.F.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {G}TrendWavelet and AE-MLP on a Transformer LLM}{26}{appendix.G}\protected@file@percent }
+\newlabel{app:llm_transfer}{{G}{26}{TrendWavelet and AE-MLP on a Transformer LLM}{appendix.G}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {G.1}Architecture port}{26}{subsection.G.1}\protected@file@percent }
+\citation{eval-harness}
+\citation{llama32}
+\@writefile{lot}{\contentsline {table}{\numberline {25}{\ignorespaces Top-5 sliding generalists by mean rank across the six M4 periods. Ranks are within the 112-config sliding pool.}}{27}{table.25}\protected@file@percent }
+\newlabel{tab:generalist_sliding}{{25}{27}{Top-5 sliding generalists by mean rank across the six M4 periods. Ranks are within the 112-config sliding pool}{table.25}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {26}{\ignorespaces Tourism protocol-local winners (comprehensive-sweep protocol, mean $\pm $ std over surviving seeds).}}{27}{table.26}\protected@file@percent }
+\newlabel{tab:tourism_winners}{{26}{27}{Tourism protocol-local winners (comprehensive-sweep protocol, mean $\pm $ std over surviving seeds)}{table.26}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {G.2}From-scratch SmolLM2-135M trajectory}{27}{subsection.G.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {G.3}Distillation recovery on Llama-3.2-1B}{27}{subsection.G.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {G.4}Reinvesting saved parameters}{27}{subsection.G.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {27}{\ignorespaces Parameter counts for the SmolLM2-135M-class port. The MLP block accounts for 59\% of the baseline parameter count and is the primary compression target. Total compression of the variants is roughly proportional to MLP-block compression.}}{28}{table.27}\protected@file@percent }
+\newlabel{tab:llm_params}{{27}{28}{Parameter counts for the SmolLM2-135M-class port. The MLP block accounts for 59\% of the baseline parameter count and is the primary compression target. Total compression of the variants is roughly proportional to MLP-block compression}{table.27}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {28}{\ignorespaces Token-matched validation perplexity (in-domain val set, same harness across variants). The wavelet variant closes the gap to baseline monotonically; the gap-to-\texttt  {ae\_mlp} ratio drops from $1.05$ at 250\,M tokens to under $1.0$ by 1.85\,B tokens, so the projection ranking reflects an already-realized ordering rather than a slope-fit artifact.}}{28}{table.28}\protected@file@percent }
+\newlabel{tab:llm_trajectory}{{28}{28}{Token-matched validation perplexity (in-domain val set, same harness across variants). The wavelet variant closes the gap to baseline monotonically; the gap-to-\texttt {ae\_mlp} ratio drops from $1.05$ at 250\,M tokens to under $1.0$ by 1.85\,B tokens, so the projection ranking reflects an already-realized ordering rather than a slope-fit artifact}{table.28}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {G.5}Caveats and reproducibility}{28}{subsection.G.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {H}Limitations}{28}{appendix.H}\protected@file@percent }
+\newlabel{sec:limitations}{{H}{28}{Limitations}{appendix.H}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {29}{\ignorespaces Layer-15 AE-LG swap on Llama-3.2-1B with two-phase AE-pretraining and KD fine-tuning. The same block design that pays a $+0.28$-nat plateau from scratch (Section~\ref {sec:transfer_llm}) recovers below the unmodified original perplexity once the teacher signal is added.}}{29}{table.29}\protected@file@percent }
+\newlabel{tab:llm_kd}{{29}{29}{Layer-15 AE-LG swap on Llama-3.2-1B with two-phase AE-pretraining and KD fine-tuning. The same block design that pays a $+0.28$-nat plateau from scratch (Section~\ref {sec:transfer_llm}) recovers below the unmodified original perplexity once the teacher signal is added}{table.29}{}}
+\gdef \@abspage@last{29}

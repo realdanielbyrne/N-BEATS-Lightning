@@ -1,27 +1,27 @@
-\documentclass{article}
+\documentclass[11pt,a4paper]{article}
 
-% if you need to pass options to natbib, use, e.g.:
-%     \PassOptionsToPackage{numbers, compress}{natbib}
-% before loading neurips_2026
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{natbib}
 
-% Use the NeurIPS preprint option for arXiv and other public preprint versions.
-\usepackage[preprint]{neurips_2026}
+\geometry{
+  margin=1in
+}
 
-% to avoid loading the natbib package, add option nonatbib:
-%    \usepackage[nonatbib]{neurips_2026}
-
-\usepackage[utf8]{inputenc} % allow utf-8 input
-\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
-\usepackage{hyperref}       % hyperlinks
-\usepackage{url}            % simple URL typesetting
-\usepackage{booktabs}       % professional-quality tables
-\usepackage{amsfonts}       % blackboard math symbols
-\usepackage{amsmath}        % display math environments
-\usepackage{amssymb}        % math symbols
-\usepackage{nicefrac}       % compact symbols for 1/2, etc.
-\usepackage{microtype}      % microtypography
-\usepackage{xcolor}         % colors
-\usepackage{graphicx}       % figures
+\makeatletter
+\@ifundefined{sloppypar}{\newenvironment{sloppypar}{\par\sloppy}{\par\fussy}}{}
+\makeatother
 
 \title{Wavelets and Autoencoders Are All You Need}
 
@@ -355,10 +355,8 @@ The block interface transfers more cleanly than the hyperparameters. On the NHiT
 The same blocks port into a Transformer with no change in shape. We replace each Llama attention projection with a frozen \texttt{TrendWavelet} basis on the input-feature axis, and the SwiGLU MLP with the same hourglass autoencoder used in our \texttt{AERootBlock}. Pretraining a SmolLM2-135M-class model~\citep{allal2025smollm2} from scratch on FineWeb-Edu~\citep{penedo2024fineweb} under a 3.0\,B-token budget, the wavelet variant \texttt{tw\_root\_fc\_db3\_64\_tiered\_silu} (67.2M params, 50.0\% compression) reaches a calibrated 24.4 val PPL, Pareto-dominating the pure AE-MLP baseline (69.3M, 26.45) against the 134.5M / 19.82 vanilla reference. A frozen basis on its own is not enough: pure \texttt{TrendWavelet} on attention is Pareto-dominated by AE-MLP despite retaining 17\% more parameters, and a pure-basis MLP with no learned reduction collapses outright at 250\,M tokens. Adding a learned $\mathrm{SiLU}(\mathbf{W}\mathbf{x})$ stage in front of the basis restores competitiveness, the same lesson Section~\ref{sec:depth_stability} draws on M4: a capacity reduction needs a structural prior the optimizer can actually reach. With a pretrained teacher available, the same AE-LG bottleneck at roughly 90\% MLP-block compression on Llama-3.2-1B reaches 18.81 PPL after AE pretraining and KD fine-tuning, beating the unmodified 19.45 PPL original. As on M4, where the savings make sub-1M-parameter winners like \texttt{TWAELG\_10s\_ld32\_db3} possible (Table~\ref{tab:sub1m_frontier}), in the Transformer the freed budget can be redeposited as deeper stacks, richer composite bases, or wider wavelet sets; full architecture port, trajectories, and distillation pipeline are in Appendix~\ref{app:llm_transfer}.
 
 
-\begin{ack}
-% Acknowledgments and funding disclosure go here. This section is hidden under the
-% anonymous (default) submission option and only appears in the camera-ready (final) version.
-\end{ack}
+\section*{Acknowledgments}
+% Acknowledgments and funding disclosure go here.
 
 
 {
@@ -1241,9 +1239,5 @@ Single seed per variant in the SmolLM2-class runs; cross-seed standard deviation
 The architectural sweep is centered on the M4 benchmark; while we include Weather and Traffic as primary out-of-distribution checks (with Tourism and Milk in Appendix~\ref{app:ood}), the breadth of structured-prior conclusions outside M4 is bounded by the size of those auxiliary sweeps. The compute budget supported 10 seeds per cell; some 1--2 sigma effects therefore retain residual seed sensitivity. Pure VAE-family blocks were observed to diverge under iteration-based paper sampling and are excluded \emph{a priori}; we do not claim VAE backbones are unworkable in general, only that they were not stabilized within this study. Finally, all reported gains assume a single architecture is trained per dataset/period; ensembling, common in published M4 results, is intentionally outside scope to keep the parameter-count comparison clean.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\newpage
-\input{checklist.tex}
-
 
 \end{document}
