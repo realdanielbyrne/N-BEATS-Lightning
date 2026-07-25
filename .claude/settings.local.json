@@ -10,7 +10,10 @@
       "PowerShell(cmd /c \"dir /aL C:\\\\Github\\\\N-BEATS-Lightning\\\\\" 2>&1)",
       "PowerShell(cmd /c \"dir C:\\\\Github\\\\N-BEATS-Lightning\\\\.venv\" 2>&1)",
       "PowerShell(cmd /c \"type C:\\\\Github\\\\N-BEATS-Lightning\\\\.venv\\\\pyvenv.cfg\" 2>&1)",
-      "PowerShell(cmd /c \"type C:\\\\Github\\\\N-BEATS-Lightning\\\\.venv\\\\Scripts\\\\activate.bat\" 2>&1)"
+      "PowerShell(cmd /c \"type C:\\\\Github\\\\N-BEATS-Lightning\\\\.venv\\\\Scripts\\\\activate.bat\" 2>&1)",
+      "Bash(cd *)",
+      "Bash(grep *)",
+      "Skill(update-config)"
     ]
   }
 }
